@@ -1402,15 +1402,20 @@ class TrayHost:
         except Exception:
             self._log_watchdog("退出时关闭浮窗出错（继续退出）")
         # ③ 托管收尾放最后，并给总预算：超时就放弃、记一条 warning 继续退。
+        hosting_stopped = True
         try:
             if hosting.hosting_status(self.settings).get("hosting_active"):
-                hosting.stop(self.settings, quitting=True, budget=QUIT_TEARDOWN_BUDGET_SECONDS)
+                result = hosting.stop(self.settings, quitting=True, budget=QUIT_TEARDOWN_BUDGET_SECONDS)
+                if isinstance(result, dict) and not result.get("ok"):
+                    hosting_stopped = False
+                    self._log_watchdog("退出时结束托管失败：%s" % result.get("error"))
         except Exception:
+            hosting_stopped = False
             # 结束托管失败也得退：留着托盘不让用户走，比「电脑版 QQ 没自动恢复」更糟。
             self._log_watchdog("退出时结束托管出错（继续退出）")
         # 退出时开回 QQ 是 opt-in：默认只安静退出，不替用户多开一个进程。
         # 用户 2026-10-12：「托盘右键退出会自动开 qq，我希望是设置项里的选项，默认关闭」。
-        if hosting.restore_qq_on_quit(self.settings):
+        if hosting_stopped and hosting.restore_qq_on_quit(self.settings):
             try:
                 hosting.start_user_qq(self.settings, verify=False)
             except Exception:

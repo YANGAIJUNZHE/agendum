@@ -1683,7 +1683,7 @@ class _Handler(SettingsPostMixin, BaseHTTPRequestHandler):
 
     def _respond_if_throttled(self) -> bool:
         """红队 S12：爆破期间连比对都不做，直接 429。"""
-        if not _auth_blocked(self._client_address()):
+        if not _auth_blocked(self._auth_source()):
             return False
         self._json(429, {"ok": False, "error": "尝试过于频繁，请稍后再试"})
         return True
@@ -1713,11 +1713,32 @@ class _Handler(SettingsPostMixin, BaseHTTPRequestHandler):
             if hmac.compare_digest(str(candidate), token):
                 self._issue_session_cookie = True
                 return True
-        _record_auth_failure(self._client_address())
+        self._authentication_failed()
         return False
+
+    def _authentication_failed(self) -> None:
+        _record_auth_failure(self._auth_source())
 
     def _client_address(self) -> str:
         return str(self.client_address[0] if self.client_address else "")
+
+    def _auth_source(self) -> str:
+        """只有本机隧道连接可提供访客地址；代理与直连使用独立计数空间。
+
+        此部署将本机进程视为可信代理，后端必须继续仅绑定环回地址。
+        局域网直连携带的转发头不能改变限流身份。
+        """
+        peer = self._client_address()
+        forwarded = self.headers.get("CF-Connecting-IP")
+        if peer in {"127.0.0.1", "::1", "::ffff:127.0.0.1"} and forwarded is not None:
+            try:
+                address = ipaddress.ip_address(forwarded.strip())
+                if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+                    address = address.ipv4_mapped
+                return "cf:" + str(address)
+            except ValueError:
+                return "cf:invalid"
+        return peer
 
     def _device_label(self) -> str:
         """给电脑设置页看的一句话设备描述，好让用户核对是不是自己的手机。"""
@@ -3466,6 +3487,9 @@ class _Handler(SettingsPostMixin, BaseHTTPRequestHandler):
         path = urllib.parse.urlparse(self.path).path.rstrip("/") or "/"
         if self._respond_if_throttled():
             return
+        from .sync_api import dispatch
+        if dispatch(self, "GET", path):
+            return
         entry = routes.GET_ROUTES.get(path)
         if entry is not None and entry[1]:  # 免鉴权路由：静态资源、配对、向导
             getattr(self, entry[0])(path)
@@ -3571,7 +3595,7 @@ class _Handler(SettingsPostMixin, BaseHTTPRequestHandler):
             _record_auth_failure(self._client_address())
             self._json(401, {"ok": False, "error": "令牌不正确"})
             return
-        _clear_auth_failures(self._client_address())
+        _clear_auth_failures(self._auth_source())
         # 不让明文令牌出现在响应正文里：浏览器只需要 Set-Cookie。
         self._issue_session_cookie = True
         self._json(200, {"ok": True})
@@ -4391,6 +4415,9 @@ class _Handler(SettingsPostMixin, BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802 - 基类命名
         path = urllib.parse.urlparse(self.path).path.rstrip("/") or "/"
         if self._respond_if_throttled():
+            return
+        from .sync_api import dispatch
+        if dispatch(self, "POST", path):
             return
         entry = routes.POST_ROUTES.get(path)
         if entry is not None and entry[1]:  # 免鉴权路由：静态资源、配对、向导

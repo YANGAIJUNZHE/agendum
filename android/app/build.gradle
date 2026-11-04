@@ -12,7 +12,7 @@ def defaultServer = (pairingProperties['server'] ?: '').toString().replace('\\',
  if (signingFile.exists()) signingFile.withInputStream { signingProperties.load(it) }
 
 android { namespace 'com.noticehub.app'; compileSdk 35; buildToolsVersion '35.0.0'
-    defaultConfig { applicationId 'com.noticehub.app'; minSdk 23; targetSdk 35; versionCode 16; versionName '1.1.0-beta.16'; buildConfigField 'String', 'PAIR_SERVER', '"' + defaultServer + '"'
+    defaultConfig { applicationId 'com.noticehub.app'; minSdk 23; targetSdk 35; versionCode 17; versionName '1.1.0-beta.17'; buildConfigField 'String', 'PAIR_SERVER', '"' + defaultServer + '"'
     buildConfigField 'String', 'DEFAULT_SERVER', '"' + defaultServer + '"' }
     buildFeatures { buildConfig true }
     signingConfigs {
@@ -26,9 +26,25 @@ android { namespace 'com.noticehub.app'; compileSdk 35; buildToolsVersion '35.0.
         }
     }
     buildTypes { release { signingConfig signingConfigs.release; minifyEnabled false } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+    defaultConfig {
+        // 真机验收副本与已发布签名并存；默认构建的正式包名保持不变。
+        if (project.hasProperty('noticehubValidation')) { applicationIdSuffix '.validation' }
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        javaCompileOptions { annotationProcessorOptions { arguments += ['room.schemaLocation': "$projectDir/schemas".toString()] } }
+    }
+    testOptions { unitTests.returnDefaultValues = true }
 }
 
 dependencies {
+    implementation 'androidx.room:room-runtime:2.7.2'
+    annotationProcessor 'androidx.room:room-compiler:2.7.2'
+    implementation 'androidx.work:work-runtime:2.10.5'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.work:work-testing:2.10.5'
     // zxing-android-embedded 4.3.0 的 POM 只声明 com.google.zxing:core，没有声明它自己
     // 在 CaptureManager 里用到的 androidx.core（ContextCompat/ActivityCompat）。
     // 缺了它，点扫码进 CaptureActivity.onResume 会 NoClassDefFoundError 直接闪退。

@@ -511,6 +511,8 @@ class QrViewportBrowserTest(unittest.TestCase):
                         page.click("#tab-settings-button")
                         # 先确认设置页真的切出来了，再等具体那一行；失败信息直接指向「没切过去」。
                         page.wait_for_selector("#tab-settings", state="visible", timeout=15000)
+                        page.get_by_role("button", name="系统与帮助", exact=True).click()
+                        page.get_by_role("button", name="运行信息", exact=True).click()
                         if case == "missing":
                             # 老后端：这一行整行不出现（别的行照旧）。
                             page.wait_for_selector("text=运行信息", timeout=15000)
@@ -533,109 +535,259 @@ class QrViewportBrowserTest(unittest.TestCase):
                 browser.close()
 
 
-    def test_upcoming_empty_state_shrinks_to_content(self) -> None:
-        """今日概览的轮播：0 件时不能继续占着 200px 的固定轨道（那片白看着像没加载出来）。
-
-        有数据时高度必须照旧（1280=200、390=220），否则等于把「切换顶动下方元素」的老坑挖回来。
-        另外从空态填 1 条再清空，上方元素（标题/副标题）的 top 不能被这一来一回顶走。
-        """
-        def post(path: str, payload: dict) -> dict:
-            data = json.dumps(payload).encode()
-            request = urllib.request.Request(
-                self.base + path, data=data, method="POST",
-                headers={"X-Token": TOKEN, "Content-Type": "application/json"})
-            with urllib.request.urlopen(request, timeout=10) as response:
-                return json.loads(response.read().decode())
-
-        def get(path: str) -> dict:
-            request = urllib.request.Request(self.base + path, headers={"X-Token": TOKEN})
-            with urllib.request.urlopen(request, timeout=10) as response:
-                return json.loads(response.read().decode())
-
-        def mark_all_done() -> None:
-            for bucket in ("today", "later", "pinned"):
-                for task in get("/api/tasks").get(bucket, []):
-                    post("/api/tasks/" + str(task["id"]), {"action": "done"})
-
-        measure = """() => {
-            const box = document.getElementById('upcoming-carousel');
-            const rect = box.getBoundingClientRect();
-            const top = (sel) => { const el = document.querySelector(sel);
-                return el ? Math.round(el.getBoundingClientRect().top * 10) / 10 : null; };
-            return {height: Math.round(rect.height * 10) / 10,
-                    cssHeight: parseFloat(getComputedStyle(box).height),
-                    top: Math.round(rect.top * 10) / 10,
-                    empty: box.classList.contains('is-empty'),
-                    headline: top('#headline'), subline: top('#subline'),
-                    card: top('.summary'),
-                    bottom: top('.summary-bottom'), bar: top('.summary-bottom .bar')};}"""
-
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(channel="msedge", headless=True)
+    def test_rail_wheel_chains_to_page_at_both_edges(self) -> None:
+        """侧栏内部优先滚动，到边界后滚轮继续带动页面。"""
+        for index in range(20):
+            self.server.store.upsert_task(task_key=f'wheel-{index}', summary=f'滚动验收事项 {index}')
+        with sync_playwright() as p:
+            browser = p.chromium.launch(channel="msedge", headless=True)
             try:
-                for width, tall in ((1280, 200), (390, 220)):
-                    mark_all_done()
-                    context = browser.new_context(viewport={"width": width, "height": 900})
-                    page = context.new_page()
-                    try:
-                        open_authed_page(context, page, self.base, TOKEN)
-                        # 概览卡的呼吸动效会给祖先加缩放，量绝对 top 会飘 1–2px（transform 不改布局，
-                        # 但会缩放 getBoundingClientRect）。所以位置断言一律容 2px，高度断言用计算值。
-                        page.wait_for_selector("#upcoming-carousel", state="visible", timeout=15000)
-                        page.wait_for_function(
-                            "() => document.getElementById('upcoming-carousel').classList.contains('is-empty')",
-                            timeout=15000)
-                        empty = page.evaluate(measure)
-                        self.assertTrue(empty["empty"], empty)
-                        self.assertLess(empty["cssHeight"], tall - 40,
-                                        "空态还撑着固定高度：%s" % empty)
-                        self.assertGreater(empty["height"], 0, empty)
-                        self.assertIn("0 件", page.inner_text("#upcoming-count"))
-                        # 390 下按钮和进度条不能被挤到奇怪位置：紧跟在收缩后的轮播下面（间距 0–120px）。
-                        gap = empty["bottom"] - (empty["top"] + empty["height"])
-                        self.assertGreaterEqual(gap, 0, empty)
-                        self.assertLess(gap, 120, empty)
-
-                        # 填 1 条：回到固定轨道，字号/行距不变
-                        # 截止时间取「今天 23:59」：写死日期会过期，过期后这条落到「已逾期」，
-                        # 而轮播排的是今天及以后，空态就永远翻不成有数据。
-                        deadline = datetime.date.today().strftime("%Y-%m-%d") + " 23:59"
-                        post("/api/tasks/create", {"summary": "空态收缩测试",
-                                                   "deadline": deadline})
-                        page.evaluate("() => loadTasks()")
-                        page.wait_for_function(
-                            "() => !document.getElementById('upcoming-carousel').classList.contains('is-empty')",
-                            timeout=15000)
-                        filled = page.evaluate(measure)
-                        # 定高断言用计算值：外层有呼吸动效的缩放，getBoundingClientRect 会差几个像素。
-                        self.assertEqual(filled["cssHeight"], tall, filled)
-                        self.assertGreater(filled["height"], empty["height"] + 40, filled)
-                        self.assertFalse(filled["empty"], filled)
-                        # 「上方元素被顶走」要按卡片内相对位置量：概览卡在栅格里是垂直居中的，
-                        # 卡片长高本身会让整卡上移半格，绝对 top 不可比（实测空的 191.6、有数据 179）。
-                        self.assertLessEqual(abs((filled["headline"] - filled["card"])
-                                                 - (empty["headline"] - empty["card"])), 2, (empty, filled))
-
-                        mark_all_done()
-                        page.evaluate("() => loadTasks()")
-                        page.wait_for_function(
-                            "() => document.getElementById('upcoming-carousel').classList.contains('is-empty')",
-                            timeout=15000)
-                        cleared = page.evaluate(measure)
-                        # 清空后标题/副标题的文案本身会变（「今天 0 件」vs「今天 1 件」），绝对 top 不可比；
-                        # 要比的是布局：轮播高度回到空态值，且按钮仍在轮播下面、不重叠。
-                        self.assertEqual(cleared["cssHeight"], empty["cssHeight"],
-                                         "清空后没有回到原来的空态高度：%s vs %s" % (cleared, empty))
-                        # 副标题文案会随数据出现/消失，绝对间距会变；这里只保证按钮落在轮播下面、不重叠、不跑到屏外。
-                        self.assertGreaterEqual(cleared["bottom"] - (cleared["top"] + cleared["height"]), 0, (empty, cleared))
-                        self.assertLess(cleared["bottom"] - (cleared["top"] + cleared["height"]), 120, (empty, cleared))
-                    finally:
-                        context.close()
+                context = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+                page = context.new_page()
+                try:
+                    context.add_init_script("localStorage.setItem('qq_digest_journey_hidden','1')")
+                    page.route("**/api/napcat/status", self._napcat_status_stub)
+                    page.route("**/api/napcat/qrcode**", self._napcat_qrcode_stub)
+                    open_authed_page(context, page, self.base, TOKEN)
+                    page.wait_for_selector('#task-list-panel .task')
+                    page.evaluate("""() => document.querySelectorAll('.side-rail .rail-panel-toggle[aria-expanded=false]')
+                        .forEach(button => button.click())""")
+                    page.wait_for_timeout(1000)
+                    page.evaluate("window.scrollTo({top: 350, behavior: 'instant'})")
+                    page.evaluate("""() => { const rail = document.querySelector('.side-rail'); rail.scrollTop = 100; }""")
+                    rail = page.locator('.side-rail')
+                    box = rail.bounding_box()
+                    page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+                    before = page.evaluate("""() => ({page: window.scrollY,
+                        rail: document.querySelector('.side-rail').scrollTop})""")
+                    page.mouse.wheel(0, 180)
+                    page.wait_for_timeout(300)
+                    middle = page.evaluate("""() => ({page: window.scrollY,
+                        rail: document.querySelector('.side-rail').scrollTop})""")
+                    self.assertGreater(middle['rail'], before['rail'], (before, middle))
+                    self.assertEqual(middle['page'], before['page'], (before, middle))
+                    page.evaluate("""() => { const rail = document.querySelector('.side-rail'); rail.scrollTop = rail.scrollHeight; }""")
+                    page.wait_for_timeout(500)
+                    bottom = page.evaluate("""() => { const rail = document.querySelector('.side-rail');
+                        const last = rail.lastElementChild.getBoundingClientRect();
+                        const rect = rail.getBoundingClientRect();
+                        return {page: window.scrollY, lastBottom: last.bottom, railBottom: rect.bottom}; }""")
+                    self.assertLessEqual(bottom['lastBottom'], bottom['railBottom'] + 1, bottom)
+                    page.mouse.wheel(0, 300)
+                    page.wait_for_timeout(400)
+                    after_down = page.evaluate('window.scrollY')
+                    self.assertGreater(after_down, bottom['page'])
+                    page.evaluate("document.querySelector('.side-rail').scrollTop = 0")
+                    page.wait_for_timeout(500)
+                    page.mouse.wheel(0, -300)
+                    page.wait_for_timeout(400)
+                    self.assertLess(page.evaluate('window.scrollY'), after_down)
+                finally:
+                    context.close()
             finally:
                 browser.close()
 
+    def test_rail_wheel_smooth_handoff_and_input_modes(self) -> None:
+        """单次滚轮跨边界保持总距离，并验证反向、暂停和嵌套滚动。"""
+        for index in range(20):
+            self.server.store.upsert_task(task_key=f'wheel-smooth-{index}', summary=f'滚动事项 {index}')
+        with sync_playwright() as p:
+            browser = p.chromium.launch(channel="msedge", headless=True)
+            try:
+                context = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="no-preference")
+                page = context.new_page()
+                errors = []
+                page.on('pageerror', lambda error: errors.append(str(error)))
+                try:
+                    context.add_init_script("localStorage.setItem('qq_digest_journey_hidden','1')")
+                    page.route("**/api/napcat/status", self._napcat_status_stub)
+                    page.route("**/api/napcat/qrcode**", self._napcat_qrcode_stub)
+                    open_authed_page(context, page, self.base, TOKEN)
+                    page.wait_for_selector('#task-list-panel .task')
+                    page.evaluate("""() => document.querySelectorAll('.side-rail section:not(#rail-health) .rail-panel-toggle[aria-expanded=false]')
+                        .forEach(button => button.click())""")
+                    page.evaluate("window.scrollTo({top: 350, behavior: 'instant'})")
+                    page.evaluate("""() => { const r = document.querySelector('.side-rail');
+                        r.scrollTop = r.scrollHeight - r.clientHeight - 20; }""")
+                    page.wait_for_timeout(500)
+                    box = page.locator('.side-rail').bounding_box()
+                    page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+                    page.evaluate("""() => { window.wheelSamples = []; const r = document.querySelector('.side-rail');
+                        const started = performance.now(); function sample() {
+                            window.wheelSamples.push({page: scrollY, rail: r.scrollTop});
+                            if (performance.now() - started < 350) requestAnimationFrame(sample);
+                        } requestAnimationFrame(sample); }""")
+                    before = page.evaluate("""() => ({page: scrollY, rail: document.querySelector('.side-rail').scrollTop,
+                        mainTop: document.querySelector('#task-list-panel').getBoundingClientRect().top})""")
+                    page.mouse.wheel(0, 180)
+                    page.wait_for_timeout(400)
+                    after = page.evaluate("""() => ({page: scrollY, rail: document.querySelector('.side-rail').scrollTop,
+                        mainTop: document.querySelector('#task-list-panel').getBoundingClientRect().top})""")
+                    self.assertGreater(after['rail'], before['rail'])
+                    self.assertGreater(after['page'], before['page'], str((before, after, page.evaluate("""() => {
+                        const r = document.querySelector('.side-rail').getBoundingClientRect();
+                        let el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                        const result = []; while (el) { result.push({tag: el.tagName, id: el.id, cls: el.className,
+                            scroll: el.scrollTop, height: el.scrollHeight, client: el.clientHeight,
+                            overflow: getComputedStyle(el).overflowY}); el = el.parentElement; } return result;
+                    }"""))))
+                    self.assertAlmostEqual(after['rail'] - before['rail'] + after['page'] - before['page'], 180, delta=8,
+                                           msg=str((before, after)))
+                    samples = page.evaluate('window.wheelSamples')
+                    totals = [s['rail'] - before['rail'] + s['page'] - before['page'] for s in samples]
+                    self.assertTrue(any(15 < value < 160 for value in totals), totals)
 
-    # —— 配置体检：横幅点开就地展开，不跳页、不弹窗 ——
+                    page.evaluate("""() => { const r = document.querySelector('.side-rail'); r.scrollTop = 250; }""")
+                    page.mouse.wheel(0, 200)
+                    page.wait_for_timeout(50)
+                    page.evaluate("""() => document.querySelector('.side-rail').addEventListener('wheel',
+                        () => { window.reverseStart = document.querySelector('.side-rail').scrollTop; },
+                        {capture: true, once: true})""")
+                    page.mouse.wheel(0, -100)
+                    page.wait_for_timeout(350)
+                    reverse_start = page.evaluate('window.reverseStart')
+                    reverse_end = page.evaluate("document.querySelector('.side-rail').scrollTop")
+                    self.assertAlmostEqual(reverse_end - reverse_start, -100, delta=8)
+                    page.wait_for_timeout(150)
+                    self.assertAlmostEqual(page.evaluate("document.querySelector('.side-rail').scrollTop"), reverse_end, delta=1)
+
+                    page.evaluate("railToggleMotion()")
+                    self.assertEqual(page.evaluate("document.documentElement.dataset.motion"), 'paused')
+                    start = page.evaluate("document.querySelector('.side-rail').scrollTop")
+                    page.mouse.wheel(0, 120)
+                    page.wait_for_timeout(100)
+                    paused_end = page.evaluate("document.querySelector('.side-rail').scrollTop")
+                    self.assertAlmostEqual(paused_end - start, 120, delta=3)
+                    page.wait_for_timeout(150)
+                    self.assertAlmostEqual(page.evaluate("document.querySelector('.side-rail').scrollTop"), paused_end, delta=1)
+                    page.evaluate("railToggleMotion()")
+                    self.assertEqual(errors, [])
+
+                    page.evaluate("""() => { const r = document.querySelector('.side-rail'); r.scrollTop = 100;
+                        const inner = document.createElement('div'); inner.id = 'wheel-test-inner';
+                        inner.style.cssText = 'height:120px;overflow-y:auto;flex:none';
+                        const content = document.createElement('div'); content.style.height = '500px';
+                        inner.appendChild(content); r.prepend(inner); r.scrollTop = 0; }""")
+                    inner = page.locator('#wheel-test-inner').bounding_box()
+                    page.mouse.move(inner['x'] + inner['width'] / 2, inner['y'] + inner['height'] / 2)
+                    base = page.evaluate("""() => ({page: scrollY, rail: document.querySelector('.side-rail').scrollTop,
+                        inner: document.getElementById('wheel-test-inner').scrollTop})""")
+                    page.mouse.wheel(0, 30)
+                    page.wait_for_timeout(100)
+                    small = page.evaluate("""() => ({page: scrollY, rail: document.querySelector('.side-rail').scrollTop,
+                        inner: document.getElementById('wheel-test-inner').scrollTop})""")
+                    self.assertAlmostEqual(small['inner'] - base['inner'], 30, delta=2)
+                    self.assertEqual(small['rail'], base['rail'])
+                    self.assertEqual(small['page'], base['page'])
+                    page.wait_for_timeout(150)
+                    self.assertEqual(page.evaluate("document.getElementById('wheel-test-inner').scrollTop"), small['inner'])
+                    page.evaluate("""() => { const inner = document.getElementById('wheel-test-inner');
+                        inner.scrollTop = inner.scrollHeight - inner.clientHeight - 20; }""")
+                    before_inner = page.evaluate("""() => ({page: scrollY, rail: document.querySelector('.side-rail').scrollTop,
+                        inner: document.getElementById('wheel-test-inner').scrollTop})""")
+                    page.mouse.wheel(0, 100)
+                    page.wait_for_timeout(350)
+                    after_inner = page.evaluate("""() => ({page: scrollY, rail: document.querySelector('.side-rail').scrollTop,
+                        inner: document.getElementById('wheel-test-inner').scrollTop})""")
+                    self.assertGreater(after_inner['inner'], before_inner['inner'])
+                    self.assertGreater(after_inner['rail'], before_inner['rail'])
+                    self.assertAlmostEqual(sum(after_inner[k] - before_inner[k] for k in ('page', 'rail', 'inner')), 100, delta=8)
+                    self.assertEqual(errors, [])
+                finally:
+                    context.close()
+            finally:
+                browser.close()
+
+    def test_collapsed_rail_keeps_page_background_and_bottom_spacing(self) -> None:
+        """短页面铺满视口，长页面底部只保留工作区后的正常间距。"""
+        self.server.store.upsert_task(task_key='collapse-layout', summary='收起面板验收事项')
+        with sync_playwright() as p:
+            browser = p.chromium.launch(channel="msedge", headless=True)
+            try:
+                for width, height, theme in [(1440, 900, 'light'), (390, 844, 'light'), (1440, 900, 'dark')]:
+                    with self.subTest(width=width, theme=theme):
+                        context = browser.new_context(viewport={'width': width, 'height': height}, reduced_motion='reduce')
+                        context.add_init_script("localStorage.setItem('qq_digest_journey_hidden','1');"
+                                                "localStorage.setItem('nh_theme', '" + theme + "')")
+                        page = context.new_page()
+                        page.route('**/api/napcat/status', self._napcat_status_stub)
+                        page.route('**/api/napcat/qrcode**', self._napcat_qrcode_stub)
+                        try:
+                            open_authed_page(context, page, self.base, TOKEN)
+                            page.wait_for_selector('#task-list-panel .task')
+                            page.evaluate("""() => document.querySelectorAll('.side-rail .rail-panel-toggle[aria-expanded=false]')
+                                .forEach(button => button.click())""")
+                            page.evaluate("""() => document.querySelectorAll('.side-rail .rail-panel-toggle[aria-expanded=true]')
+                                .forEach(button => button.click())""")
+                            page.reload()
+                            page.wait_for_selector('#task-list-panel .task')
+                            self.assertEqual(page.locator('.side-rail .rail-panel-toggle[aria-expanded=true]').count(), 0)
+                            geometry = page.evaluate("""() => ({
+                                bottom: document.body.getBoundingClientRect().bottom + scrollY,
+                                viewport: innerHeight, document: document.documentElement.scrollHeight,
+                                bodyBackground: getComputedStyle(document.body).backgroundColor,
+                                rootBackground: getComputedStyle(document.documentElement).backgroundColor
+                            })""")
+                            self.assertGreaterEqual(geometry['bottom'] + 1, geometry['viewport'], geometry)
+                            self.assertGreaterEqual(geometry['bottom'] + 1, geometry['document'], geometry)
+                        finally:
+                            context.close()
+                for index in range(20):
+                    self.server.store.upsert_task(task_key=f'collapse-layout-{index}', summary=f'长清单 {index}')
+                context = browser.new_context(viewport={'width': 1440, 'height': 900}, reduced_motion='reduce')
+                page = context.new_page()
+                try:
+                    open_authed_page(context, page, self.base, TOKEN)
+                    page.wait_for_function("document.querySelectorAll('#task-list-panel .task').length >= 20")
+                    page.evaluate("""() => document.querySelectorAll('.side-rail .rail-panel-toggle[aria-expanded=true]')
+                        .forEach(button => button.click())""")
+                    geometry = page.evaluate("""() => ({document: document.documentElement.scrollHeight,
+                        viewport: innerHeight, workspaceBottom: document.querySelector('.workspace').getBoundingClientRect().bottom + scrollY})""")
+                    self.assertGreater(geometry['workspaceBottom'], geometry['viewport'], geometry)
+                    self.assertLessEqual(geometry['document'] - geometry['workspaceBottom'], 25, geometry)
+                finally:
+                    context.close()
+            finally:
+                browser.close()
+
+    def test_task_workspace_rail_expansion_keeps_main_geometry(self) -> None:
+        """侧栏展开只改变自己的滚动内容，不改变主区位置和宽度。"""
+        with sync_playwright() as p:
+            browser = p.chromium.launch(channel="msedge", headless=True)
+            try:
+                context = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+                page = context.new_page()
+                try:
+                    open_authed_page(context, page, self.base, TOKEN)
+                    page.wait_for_selector("#task-list-panel", state="visible", timeout=15000)
+                    measure = """() => {
+                        const main = document.getElementById('task-list-panel').getBoundingClientRect();
+                        const rail = document.querySelector('.side-rail');
+                        const css = getComputedStyle(rail);
+                        return {top: main.top, left: main.left, width: main.width,
+                                railHeight: rail.clientHeight, railScroll: rail.scrollHeight,
+                                overflow: css.overflowY, viewport: innerHeight};
+                    }"""
+                    before = page.evaluate(measure)
+                    page.locator("#rail-summary .rail-panel-toggle").click()
+                    self.assertTrue(page.locator("#rail-summary-body").is_visible())
+                    page.evaluate("""() => document.querySelectorAll('.side-rail .rail-panel-toggle[aria-expanded=false]')
+                        .forEach(button => button.click())""")
+                    after = page.evaluate(measure)
+                    for key in ("top", "left", "width"):
+                        self.assertAlmostEqual(before[key], after[key], delta=1, msg=str((before, after)))
+                    self.assertEqual(after["overflow"], "auto", after)
+                    self.assertLessEqual(after["railHeight"], after["viewport"], after)
+                    self.assertGreater(after["railScroll"], after["railHeight"], after)
+                    self.assertGreater(page.evaluate("""() => {
+                        const rail = document.querySelector('.side-rail');
+                        rail.scrollTop = rail.scrollHeight;
+                        return rail.scrollTop;
+                    }"""), 0)
+                finally:
+                    context.close()
+            finally:
+                browser.close()
 
     CHECKUP_HINT = "在钉钉开放平台 → 应用开发 → 企业内应用，复制 AppKey 和 AppSecret 填到设置页。"
 
@@ -663,7 +815,7 @@ class QrViewportBrowserTest(unittest.TestCase):
         }}
 
     def test_setup_checkup_expands_in_place(self) -> None:
-        """横幅「继续配置 →」不该直接跳第一个平台，而是就地展开体检列表。
+        """首次配置内的平台状态就地展开，动作仍可使用。
 
         每行 = 平台名 + 后端给的 headline + 一个动作按钮：panel 跳对卡片、api 真发 POST、
         manual 原文展开可选中复制。全部配好时整块横幅消失，不留空壳。
@@ -688,6 +840,13 @@ class QrViewportBrowserTest(unittest.TestCase):
                               body=json.dumps({"ok": False, "stage": "running_no_api",
                                                "error": "3001 和 3000 都没连上"}))
 
+        def open_setup(page) -> None:
+            if page.evaluate("document.body.dataset.view") != 'settings':
+                page.click('#tab-settings-button')
+            if not page.locator('#settings-page-setup').is_visible():
+                page.get_by_role('button', name='系统与帮助', exact=True).click()
+            page.wait_for_selector('#settings-page-setup', state='visible')
+
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(channel="msedge", headless=True)
             try:
@@ -701,12 +860,14 @@ class QrViewportBrowserTest(unittest.TestCase):
                     page.route("**/api/napcat/connect", connect_stub)
                     try:
                         open_authed_page(context, page, self.base, TOKEN)
+                        self.assertTrue(page.is_hidden('#platform-setup-panel'))
+                        open_setup(page)
                         page.wait_for_selector("#platform-setup-panel", state="visible", timeout=15000)
                         banner = "#platform-setup-banner"
                         self.assertEqual(page.get_attribute(banner, "aria-expanded"), "false")
                         self.assertTrue(page.is_hidden("#setup-checkup-list"))
                         # 收起态：文字说的是「展开看看」，不能写暗示跳转的「继续配置」。
-                        self.assertIn("查看还差什么", page.inner_text(banner))
+                        self.assertIn("查看状态", page.inner_text(banner))
                         self.assertNotIn("继续配置", page.inner_text(banner))
                         # 收起时列表里不能有任何可 Tab 到的东西（靠 [hidden]{display:none!important} 天然满足，
                         # 这条断言就是防止有人改成 visibility/max-height 后忘了收焦点）。
@@ -760,6 +921,10 @@ class QrViewportBrowserTest(unittest.TestCase):
                             page.wait_for_function(
                                 "() => document.activeElement && document.activeElement.id === 'wechat-settings-card'",
                                 timeout=15000)
+                            open_setup(page)
+                            page.wait_for_selector('#platform-setup-panel', state='visible')
+                            if page.get_attribute(banner, 'aria-expanded') == 'false':
+                                page.click(banner)
                             # api：真发 POST；成功后再拉一次体检
                             calls_before = status_calls["n"]
                             page.click('.setup-checkup-row[data-platform="qq"] .setup-checkup-act')
@@ -817,6 +982,14 @@ class QrViewportBrowserTest(unittest.TestCase):
                                             picked: sel.toString(), whiteSpace: style.whiteSpace};}""")
                             self.assertNotEqual(selectable["userSelect"], "none", "hint 必须可选中复制")
                             self.assertEqual(selectable["picked"].strip(), self.CHECKUP_HINT)
+                        page.click('#tab-tasks-button')
+                        self.assertTrue(page.is_hidden('#platform-setup-panel'))
+                        open_setup(page)
+                        page.wait_for_selector('#platform-setup-panel', state='visible')
+                        if page.get_attribute(banner, 'aria-expanded') == 'false':
+                            page.click(banner)
+                        self.assertEqual(page.locator('#setup-checkup-list .setup-checkup-row').count(), 3)
+                        self.assertEqual(page.locator('#platform-setup-panel').count(), 1)
                         # 截图（展开态，两种宽度）
                         if self.artifact_dir:
                             os.makedirs(self.artifact_dir, exist_ok=True)
@@ -831,6 +1004,7 @@ class QrViewportBrowserTest(unittest.TestCase):
                 page.route("**/api/setup/status", status_stub)
                 try:
                     open_authed_page(context, page, self.base, TOKEN)
+                    open_setup(page)
                     page.wait_for_timeout(800)
                     self.assertTrue(page.is_hidden("#platform-setup-panel"), "都配好了横幅必须消失")
                     self.assertEqual(page.evaluate(
@@ -932,6 +1106,8 @@ class QrViewportBrowserTest(unittest.TestCase):
         # 点完先确认页签真的切过去了，再等具体字段；坏的时候报「设置页没出来」，不是干等 15 秒。
         page.wait_for_selector("#tab-settings", state="visible", timeout=15000)
         page.wait_for_selector("#push-settings", state="attached", timeout=15000)
+        page.get_by_role("button", name="通知与提取", exact=True).click()
+        page.get_by_role("button", name="消息推送", exact=True).click()
 
     def test_url_token_exchanges_for_cookie_and_reloads(self) -> None:
         """带 `?token=` 首次访问：地址栏抹掉 token → 换成会话 Cookie → 自动重载一次。

@@ -267,29 +267,30 @@ class DashboardThemeTest(unittest.TestCase):
         css = self._current_stylesheet()
         dark = self._rule(css, "html[data-theme=dark]{")
         for token in (
-            "--page:#0a0c12",
-            "--paper:#141925",
-            "--paper-alt:#1a2234",
-            "--ink:#f3f5fa",
-            "--muted:#9aa4b5",
-            "--line:#6a7284",
-            "--teal:#2ba895",
-            "--teal-soft:#193f39",
-            "--red:#ff6b6f",
-            "--red-soft:#522120",
-            "--amber:#ffb84d",
-            "--amber-soft:#433416",
+            "--page:#1d221f",
+            "--paper:#191e1b",
+            "--paper-alt:#202623",
+            "--ink:#e0e7e1",
+            "--muted:#a9b8ae",
+            "--line:#6c8073",
+            "--line-soft:#424c46",
+            "--teal:#8ac5ab",
+            "--teal-soft:#263b31",
+            "--red:#e69a96",
+            "--red-soft:#3b2827",
+            "--amber:#dfc28c",
+            "--amber-soft:#373022",
         ):
             self.assertIn(token, dark, token)
-        # 上一版沿用亮色思路取 #303747，对卡片只有 1.47:1，卡片边界基本看不见。
+        # 控件轮廓保留对比度要求；柔和卡片边框使用独立的 line-soft。
         self.assertNotIn("--line:#303747", css)
-        # 实算背书：次级文字 ≥4.5:1、分隔线 ≥3:1（含柔光抬亮后的最坏底色）。
-        for surface in ("#0a0c12", "#141925", "#1a2234"):
-            self.assertGreaterEqual(self._contrast("#9aa4b5", surface), 4.5, surface)
-            self.assertGreaterEqual(self._contrast("#f3f5fa", surface), 4.5, surface)
-            self.assertGreaterEqual(self._contrast("#6a7284", surface), 3.0, surface)
-        for chip in ("#193f39", "#522120", "#433416"):
-            self.assertGreaterEqual(self._contrast("#9aa4b5", chip), 4.5, chip)
+        # 实算背书：次级文字 ≥4.5:1、控件轮廓 ≥3:1。
+        for surface in ("#1d221f", "#191e1b", "#202623"):
+            self.assertGreaterEqual(self._contrast("#a9b8ae", surface), 4.5, surface)
+            self.assertGreaterEqual(self._contrast("#e0e7e1", surface), 4.5, surface)
+            self.assertGreaterEqual(self._contrast("#6c8073", surface), 3.0, surface)
+        for chip in ("#263b31", "#3b2827", "#373022"):
+            self.assertGreaterEqual(self._contrast("#a9b8ae", chip), 4.5, chip)
 
     def test_dark_glow_alpha_stays_below_the_ceiling(self) -> None:
         css = self._current_stylesheet()
@@ -4032,7 +4033,10 @@ class TaskApiTest(unittest.TestCase):
         self.assertIn("id = 'announce-list'", PAGE_SOURCE)
 
     def test_donation_qr_serves_jpeg_and_missing_is_404(self) -> None:
-        asset = Path(__file__).resolve().parents[1] / "assets" / "donate-wechat.jpg"
+        asset = Path(self.tmp.name) / "donation-fixture" / "assets" / "donate-wechat.jpg"
+        asset.parent.mkdir(parents=True)
+        # 接口按原样返回文件字节；测试不依赖真实个人收款码。
+        asset.write_bytes(b"\xff\xd8\xff\xe0noticehub-test-fixture\xff\xd9")
         with mock.patch("noticehub.webapp.RUNTIME_ROOT", asset.parent.parent):
             status, headers, body = self._raw_request("/api/donate/qr.png", token="")
         self.assertEqual(status, 200)
@@ -4067,7 +4071,7 @@ class TaskApiTest(unittest.TestCase):
         self.assertIn("window.setTimeout(function(){send(attempt+1);},2000);", onboarding_script)
         self.assertNotIn("确认失败，请重试", onboarding_script)
         self.assertIn("本软件按 PolyForm Noncommercial 1.0.0 许可「按原样」提供", PAGE_SOURCE)
-        self.assertIn("商用需授权，请联系 jkl2755908073@qq.com", PAGE_SOURCE)
+        self.assertIn("商用需授权，请联系 https://github.com/ExpertKT/notice-hub/issues", PAGE_SOURCE)
         self.assertNotIn("上游 wc985732-lang/qq-live-digest 的部分仍适用 MIT，详情见 NOTICE", PAGE_SOURCE)
         self.assertNotIn("本软件按 MIT 许可", PAGE_SOURCE)
 

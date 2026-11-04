@@ -335,6 +335,7 @@ class Settings:
     web_host: str = field(default_factory=_default_web_host)
     web_port: int = 8766
     web_base_url: str = ""
+    mobile_base_url: str = ""
     web_token: str = ""
     update_channel: str = ""
 

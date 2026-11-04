@@ -281,7 +281,7 @@ def task_stats(store: Any) -> dict[str, int]:
 def list_task_board(store: Any, settings: Any, *, now: dt.datetime | None = None) -> dict[str, Any]:
     """GET /api/tasks。分组和文案与原来的 group_tasks + overview 相同。"""
     stamp = now if now is not None else SystemClock().now()
-    tasks = store.list_tasks()
+    tasks = store.list_tasks(limit=None)
     names = store.group_names()
     aliases = settings.group_aliases
     wechat_aliases = settings.wechat_group_aliases

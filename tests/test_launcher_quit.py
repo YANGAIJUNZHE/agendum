@@ -89,6 +89,18 @@ class QuitStepsOrderTests(unittest.TestCase):
         self.assertEqual(seen.get("budget"), launcher.QUIT_TEARDOWN_BUDGET_SECONDS)
         self.assertLessEqual(launcher.QUIT_TEARDOWN_BUDGET_SECONDS, 5.0)
 
+    def test_failed_hosting_stop_logs_error_and_blocks_opt_in_restore(self):
+        calls: list[str] = []
+        app = self._app(calls)
+        with patch.object(hosting, "hosting_status", return_value={"hosting_active": True}), \
+                patch.object(hosting, "stop", return_value={"ok": False, "error": "QQ 仍在运行"}), \
+                patch.object(hosting, "restore_qq_on_quit", return_value=True), \
+                patch.object(hosting, "start_user_qq") as restore:
+            launcher.TrayHost._quit_steps(app)
+        restore.assert_not_called()
+        self.assertEqual(calls[:3], ["watchdog", "service", "icon"])
+        self.assertTrue(any("QQ 仍在运行" in call for call in calls), calls)
+
 
 class HostingStopBudgetTests(unittest.TestCase):
     def setUp(self) -> None:

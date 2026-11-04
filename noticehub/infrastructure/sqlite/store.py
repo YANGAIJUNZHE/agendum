@@ -10,15 +10,17 @@ import datetime as dt
 import json
 import logging
 import sqlite3
-from contextlib import contextmanager
+import uuid
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
 from noticehub.timeutil import iso, now_local, parse_iso
+from . import sync as sync_storage
 
 LOGGER = logging.getLogger("noticehub.store")
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 TASK_STATUSES = frozenset({"candidate", "open", "done", "dismissed", "expired"})
 
@@ -28,6 +30,8 @@ IMPORTANCE_BY_CATEGORY = {"urgent": 5, "action": 4, "academic": 3, "info": 3}
 MESSAGE_COLUMN_MIGRATIONS: tuple[str, ...] = ("source_text TEXT NOT NULL DEFAULT ''",)
 
 TASK_COLUMN_MIGRATIONS: tuple[str, ...] = (
+    "notes TEXT NOT NULL DEFAULT ''",
+    "deadline_kind TEXT NOT NULL DEFAULT ''",
     "audience TEXT NOT NULL DEFAULT ''",
     "condition_text TEXT NOT NULL DEFAULT ''",
     "details TEXT NOT NULL DEFAULT '[]'",
@@ -342,8 +346,10 @@ def _digest_payload_items(payload: Any) -> list[Any]:
 # ---------------------------------------------------------------- Store
 
 
-class Store:
+class Store(sync_storage.SyncStoreMixin):
     def __init__(self, path: Any, *, retention_days: int = 30) -> None:
+        self._sync_ready = False
+        self.sync_epoch = str(uuid.uuid4())
         self.path = Path(path)
         self.retention_days = _as_int(retention_days, 30)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -361,6 +367,8 @@ class Store:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("PRAGMA foreign_keys=ON")
             yield connection
+            if self._sync_ready:
+                sync_storage.flush(connection)
             connection.commit()
         except BaseException:
             connection.rollback()
@@ -376,16 +384,23 @@ class Store:
                 "数据库结构版本 %d 高于本程序支持的 %d，请升级 notice-hub 后再启动：%s"
                 % (version, SCHEMA_VERSION, self.path.resolve())
             )
+        if version < 2 and self.path.is_file() and self.path.stat().st_size and not recovered:
+            backup = self.path.with_name(self.path.name + ".pre-sync-v1.bak")
+            if not backup.exists():
+                with closing(sqlite3.connect(self.path)) as source, closing(sqlite3.connect(backup)) as target:
+                    source.backup(target)
         with self._connect() as connection:
             connection.executescript(SCHEMA)
             self._add_columns(connection, "messages", MESSAGE_COLUMN_MIGRATIONS)
             self._add_columns(connection, "tasks", TASK_COLUMN_MIGRATIONS)
+            sync_storage.initialize(connection)
             connection.execute("PRAGMA user_version=%d" % SCHEMA_VERSION)
             if recovered:
                 connection.execute(
                     "INSERT OR REPLACE INTO meta (key, value) VALUES ('recovered_from', ?)",
                     (recovered,),
                 )
+        self._sync_ready = True
 
     @staticmethod
     def _add_columns(
@@ -969,6 +984,12 @@ class Store:
         stamp = iso(now_local())
         score = _as_float(confidence)
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            recorded = connection.execute("SELECT * FROM sync_records WHERE task_key=?", (key,)).fetchone()
+            if recorded is not None and recorded["deleted"]:
+                return 0
+            protected = json.loads(recorded["manual_fields"]) if recorded else []
+            previous = connection.execute("SELECT * FROM tasks WHERE task_key=?", (key,)).fetchone()
             connection.execute(
                 _UPSERT_TASK,
                 (
@@ -992,6 +1013,14 @@ class Store:
                     stamp,
                 ),
             )
+            if previous is not None:
+                keep = {name: previous[name] for name in protected if name in previous.keys()}
+                if "deadline" in protected:
+                    keep["deadline_kind"] = previous["deadline_kind"]
+                if keep:
+                    self._write_task(connection, previous["id"], **keep)
+            if "deadline" not in protected and deadline:
+                connection.execute("UPDATE tasks SET deadline_kind=? WHERE task_key=?", ("date" if len(deadline) == 10 else "datetime", key))
             row = connection.execute(
                 "SELECT id FROM tasks WHERE task_key = ?", (key,)
             ).fetchone()
@@ -1033,9 +1062,16 @@ class Store:
             "INSERT INTO task_events (task_id, event, detail, created_at) VALUES (?, ?, ?, ?)",
             (_as_int(task_id), str(event), _detail_text(detail), created_at),
         )
+        if event == "corrected" and isinstance(detail, dict):
+            field = {"deadline": "deadline", "clear_deadline": "deadline", "category": "category", "not_urgent": "category"}.get(detail.get("type"))
+            if field:
+                sync_storage.protect(connection, _as_int(task_id), [field])
 
     @staticmethod
     def _write_task(connection: sqlite3.Connection, task_id: Any, **fields: Any) -> None:
+        if "deadline" in fields and "deadline_kind" not in fields:
+            text = fields["deadline"]
+            fields["deadline_kind"] = "none" if not text else ("date" if len(text) == 10 else "datetime")
         assignments = ", ".join("%s = ?" % column for column in fields)
         connection.execute(
             "UPDATE tasks SET %s WHERE id = ?" % assignments,

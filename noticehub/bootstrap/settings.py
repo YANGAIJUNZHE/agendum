@@ -190,6 +190,7 @@ def build_settings(
         web_host=env_value(source, "WEB_HOST", default_web_host()).strip() or default_web_host(),
         web_port=parse_int(env_value(source, "WEB_PORT", "8766"), 8766),
         web_base_url=env_value(source, "WEB_BASE_URL", "").strip().rstrip("/"),
+        mobile_base_url=env_value(source, "MOBILE_BASE_URL", "").strip().rstrip("/"),
         web_token=env_value(source, "WEB_TOKEN", "").strip(),
         update_channel=update_channel,
         window_minutes=max(1, parse_int(env_value(source, "WINDOW_MINUTES", "10"), 10)),

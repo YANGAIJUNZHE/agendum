@@ -509,13 +509,21 @@ def stop(settings: Any, *, quitting: bool = False, budget: float = 5.0) -> dict[
 
     ``quitting=True`` 是退出流程专用：退出时用户已经看到「关了」，这里只做清理，
     整段给 ``budget`` 秒总预算，超时就放弃剩下的步骤、记一条 warning 继续退；
-    进程判定也用 tasklist 快判、不再用 CIM 复查（那是「点结束托管」要准确时用的）。
+    没有启动器和 QQ 时用 tasklist 快判；仍有进程则在预算内核对资料目录并复查。
     """
+    global _process_cache
     deadline = (time.monotonic() + max(0.0, budget)) if quitting else None
     with _LIFECYCLE_LOCK:
         steps: list[dict[str, Any]] = []
-        napcat = _bridge("stop", settings, fast=True) if quitting else _bridge("stop", settings)
+        if deadline is not None:
+            napcat = _bridge("stop", settings, fast=True, budget=max(0.0, deadline - time.monotonic()))
+        else:
+            napcat = _bridge("stop", settings)
+        _process_cache = None
         steps.append({"step": "stop-napcat", **napcat})
+        if not napcat.get("ok"):
+            # 保留托管状态，允许重试；残留还占着账号时不能先开回普通 QQ。
+            return {"ok": False, "steps": steps, "napcat": napcat, "error": napcat.get("error") or "未能确认托管 QQ 已退出，请重试结束托管。"}
         restore_result: dict[str, Any] = {"ok": True, "skipped": True}
         if quitting and deadline is not None and time.monotonic() >= deadline:
             LOGGER.warning("退出时托管收尾超过 %.0f 秒预算，跳过恢复电脑版 QQ（继续退出）。", budget)

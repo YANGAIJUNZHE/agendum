@@ -93,13 +93,13 @@
 这是**预发布版**，稳定版仍是 [v1.0.0](https://github.com/ExpertKT/notice-hub/releases/tag/v1.0.0)；稳定版通道仍按版本筛选，不会自动升级到测试版。
 
 <a href="https://github.com/ExpertKT/notice-hub/releases/tag/v1.1.0-beta.16">
-  <img src="docs/promo/poster-16x9.png" alt="群务台 v1.1.0 测试版：多来源接入、跨平台源码运行与界面体验修复" width="760" />
+  <p>界面截图已移除，避免公开真实群消息。</p>
 </a>
 
 </div>
 
 <p align="center">
-  <img src="docs/screenshots/desktop-tasks.png" alt="桌面端待办总览：今天、本周、已过期分组，右侧是置顶日程与 QQ 接入" />
+  <p>界面截图已移除，避免公开真实群消息。</p>
 </p>
 
 ## 适合谁
@@ -153,13 +153,15 @@ bash packaging/macos/install.sh
 
 ### Android App
 
+当前源码新增完整日程管理和离线同步，需要电脑端与 App 一起升级并重新配对。安装与使用见 [手机日程同步](docs/wiki/mobile-sync.md)，实测范围见 [验收记录](docs/wiki/mobile-sync-validation.md)。下面的 Release 说明适用于已经发布的旧版 APK。
+
 1. 在同一个 [Releases](https://github.com/ExpertKT/notice-hub/releases) 页面，下载 `notice-hub-android-*.apk`，传到手机上安装（安卓端本轮没有改动，与 beta.1 是同一份）。
 2. 电脑端页面打开「设置」，找到「手机 App」那一块，屏幕上会出现一个二维码。
 3. 用手机 App 扫这个二维码，地址和配对信息会自动填好。
 4. 二维码扫不动时，改用那一块里的 **6 位数字配对码**，手输进 App 即可。
 5. 手机和电脑连同一个 Wi-Fi 最省事；手机用流量时，先在电脑端设置里开通公网地址，或者让两端都连上同一个 Tailscale。
 
-App 只是电脑端服务的外壳，消息和待办仍然存在电脑上；想自己编译见 [docs/安卓App.md](docs/安卓App.md)。
+旧版 App 主要查看电脑数据；新版在手机本地保存日程和待同步编辑，电脑仍负责自动生成与权威存储。自行编译见 [docs/安卓App.md](docs/安卓App.md)。
 
 ### 从源码跑（开发者）
 
@@ -285,4 +287,4 @@ NapCat 或目标端口尚未运行。点「一键接入」或「启动并登录�
 
 ## License
 
-个人与非商业使用免费；商业使用请联系 jkl2755908073@qq.com 获取授权。详见 [LICENSE](LICENSE)。
+个人与非商业使用免费；商业使用请联系 https://github.com/ExpertKT/notice-hub/issues 获取授权。详见 [LICENSE](LICENSE)。

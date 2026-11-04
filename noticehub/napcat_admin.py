@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
+import ntpath
 import os
 import re
 import socket
@@ -18,6 +19,7 @@ import time
 import zipfile
 import urllib.request
 from dataclasses import dataclass
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Callable
 
@@ -72,6 +74,17 @@ QR_CACHE_SECONDS = 2.0
 _NAPCAT_BOOT_EXE = "NapCatWinBootMain.exe"
 
 LOGGER = logging.getLogger(__name__)
+_STOP_DEADLINE: ContextVar[float | None] = ContextVar("napcat_stop_deadline", default=None)
+
+
+def _probe_timeout(limit: float) -> float:
+    deadline = _STOP_DEADLINE.get()
+    if deadline is None:
+        return limit
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("停止 NapCat 超时，尚未确认托管 QQ 已退出。")
+    return min(limit, remaining)
 
 
 class InstallRejected(Exception):
@@ -79,18 +92,21 @@ class InstallRejected(Exception):
 
 
 def _run_probe(args: list[str], *, what: str) -> bytes | None:
-    """起一个只读探针子进程。超时/失败只记 warning 并返回 None（按「查不到」处理）。"""
+    """只读探针失败返回 None；停止操作中失败必须抛错，不能据此报告已停止。"""
+    failure_action = "停止操作将返回失败" if _STOP_DEADLINE.get() is not None else "本次按「查不到」处理"
     try:
         return subprocess.check_output(
             args,
             stderr=subprocess.DEVNULL,
-            timeout=PROBE_TIMEOUT,
+            timeout=_probe_timeout(PROBE_TIMEOUT),
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
         )
     except subprocess.TimeoutExpired:
-        LOGGER.warning("查询%s超过 %.0f 秒，本次按「查不到」处理", what, PROBE_TIMEOUT)
+        LOGGER.warning("查询%s超时，%s", what, failure_action)
     except (OSError, subprocess.SubprocessError) as error:
-        LOGGER.warning("查询%s失败（%s），本次按「查不到」处理", what, error)
+        LOGGER.warning("查询%s失败（%s），%s", what, error, failure_action)
+    if _STOP_DEADLINE.get() is not None:
+        raise OSError(f"无法查询{what}，尚未确认托管 QQ 已退出。")
     return None
 
 
@@ -119,8 +135,8 @@ def _process_details() -> list[dict[str, Any]]:
 
     def produce() -> list[dict[str, Any]]:
         script = (
-            "Get-CimInstance Win32_Process | "
-            "Select-Object Name,ProcessId,CommandLine,ExecutablePath | ConvertTo-Json -Compress"
+            "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process | "
+            "Select-Object Name,ProcessId,ParentProcessId,CommandLine,ExecutablePath | ConvertTo-Json -Compress"
         )
         raw = _run_probe(["powershell.exe", "-NoProfile", "-Command", script], what="进程命令行")
         if raw is None:
@@ -128,6 +144,8 @@ def _process_details() -> list[dict[str, Any]]:
         try:
             data = json.loads(decode_console_output(raw) or "[]")
         except json.JSONDecodeError:
+            if _STOP_DEADLINE.get() is not None:
+                raise ValueError("进程表解析失败，尚未确认托管 QQ 已退出。")
             LOGGER.warning("进程表解析失败，本次按「查不到」处理")
             return []
         if isinstance(data, dict):
@@ -825,6 +843,10 @@ def find_qq_exe(preferred_roots: tuple[Path, ...] = ()) -> Path | None:
     registered = _registry_qq_exe()
     if registered is not None:
         candidates.append(registered)
+    # 明确配置和注册表之后，正在运行的 QQ 比常见安装路径更能反映用户实际使用的版本。
+    running = _running_qq_exe()
+    if running is not None:
+        candidates.append(running)
 
     program_roots = [
         os.environ.get("ProgramFiles", r"C:\\Program Files"),
@@ -843,11 +865,6 @@ def find_qq_exe(preferred_roots: tuple[Path, ...] = ()) -> Path | None:
             base / "Programs" / "Tencent" / "QQNT" / "QQ.exe",
         ))
     candidates.extend(_drive_root_qq_candidates())
-    # 正在运行的 QQ 放最后：查它要先起一次 PowerShell（这台机器上约 3 秒），而前面这些
-    # 候选全靠注册表 / 文件 stat。注册表命中时就没必要再等子进程。
-    running = _running_qq_exe()
-    if running is not None:
-        candidates.append(running)
     seen: set[str] = set()
     for path in candidates:
         key = os.path.normcase(str(path))
@@ -1185,8 +1202,14 @@ def _onebot_config_failure(detail: Any, *, stopped: bool = False) -> str:
 
 
 def launch(settings: Any, *, uin: str | None = None, profile_dir: str | None = None) -> dict[str, Any]:
-    # 动作之后状态必须立刻变真实：先把进程/端口缓存清掉，别让用户看到 8 秒前的旧按钮。
     clear_probe_cache()
+    try:
+        return _launch(settings, uin=uin, profile_dir=profile_dir)
+    finally:
+        clear_probe_cache()
+
+
+def _launch(settings: Any, *, uin: str | None = None, profile_dir: str | None = None) -> dict[str, Any]:
     boot = detect_boot(Path(settings.data_dir))
     profile = _profile_dir(settings, profile_dir)
     result = {"ok": False, "already_running": False, "pid": None, "command": [], "profile_dir": str(profile), "boot": boot, "error": None}
@@ -1200,9 +1223,9 @@ def launch(settings: Any, *, uin: str | None = None, profile_dir: str | None = N
     # 端口没起来 ≠ 没在运行：NapCat 的 OneBot 端口要等手机扫码登录成功之后才监听，
     # 「等扫码」可能持续好几分钟。以前只按端口判断，于是这段等待期里每点一次「启动并登录」
     # 就再拉一套 NapCat + QQ；两套实例抢同一个 --user-data-dir，谁都登不进去、端口永远不开，
-    # 表现就是「二维码不刷新、点了也没反应」。这里再按进程兜一次：同一个 profile 已经有
-    # 启动器在跑，就只报告状态，绝不再拉第二个。
-    running = _matching_pids(str(profile))
+    # 表现就是「二维码不刷新、点了也没反应」。同一个 profile 的启动器或 QQ 仍在跑时，
+    # 只报告状态，绝不再拉第二个。
+    running = _matching_pids(str(profile), require_profile=True)
     if running:
         result.update(ok=True, already_running=True, pid=running[0], starting=True)
         return result
@@ -1239,23 +1262,42 @@ def launch(settings: Any, *, uin: str | None = None, profile_dir: str | None = N
     return result
 
 
-def _matching_pids(pattern: str) -> list[int]:
-    """正在运行的、命令行里含 pattern 的 NapCat 启动器进程号（只查不杀）。
+def _uses_profile(command_line: str, profile: str) -> bool:
+    """完整比较 --user-data-dir 参数，避免把同名前缀目录或普通 QQ 算成本安装。"""
+    # 引号可包住整个参数，也可只包住等号后的路径。先分参数，不能从日志字符串里找开关。
+    args = [token.replace('"', '') for token in re.findall(r'(?:[^\s"]+|"[^"]*")+', command_line)]
+    values = []
+    for index, arg in enumerate(args):
+        if arg.casefold().startswith("--user-data-dir="):
+            values.append(arg.split("=", 1)[1])
+        elif arg.casefold() == "--user-data-dir":
+            values.append(args[index + 1] if index + 1 < len(args) else "")
+    wanted = ntpath.normcase(ntpath.normpath(profile))
+    return bool(values) and all(value and ntpath.normcase(ntpath.normpath(value)) == wanted for value in values)
+
+
+def _matching_pids(pattern: str, *, require_profile: bool = False) -> list[int]:
+    """匹配启动器及独立存活的托管 QQ（只查不杀）。
 
     必须按进程判断「在不在跑」，不能只看端口：NapCat 的 OneBot 端口要等扫码登录成功
     才监听，等待期间端口是空的。
 
-    分两步是为了省钱：先用 tasklist 看有没有 NapCat 启动器（约 0.5 秒），一个都没有就
-    直接返回，不必去问命令行（一次 CIM 要 3 秒以上）。
+    tasklist 中启动器和 QQ 都没有时才跳过命令行查询。QQ 只能按完整资料目录匹配；
+    生命周期入口传 require_profile=True，启动器也采用相同的归属判断。
     """
-    if not _named_pids(_NAPCAT_BOOT_EXE):
+    if not _named_pids(_NAPCAT_BOOT_EXE) and not _named_pids("QQ.exe"):
         return []
     needle = str(pattern).casefold()
     pids: list[int] = []
     for row in _process_details():
-        if str(row.get("Name") or "").casefold() != _NAPCAT_BOOT_EXE.casefold():
+        name = str(row.get("Name") or "").casefold()
+        if name not in (_NAPCAT_BOOT_EXE.casefold(), "qq.exe"):
             continue
-        if needle not in str(row.get("CommandLine") or "").casefold():
+        command = str(row.get("CommandLine") or "")
+        if not command and _STOP_DEADLINE.get() is not None:
+            raise OSError("无法读取 QQ 或 NapCat 的命令行，尚未确认托管 QQ 已退出。")
+        matches = _uses_profile(command, pattern) if require_profile or name == "qq.exe" else needle in command.casefold()
+        if not matches:
             continue
         pid = row.get("ProcessId")
         if isinstance(pid, int):
@@ -1272,13 +1314,13 @@ def _profile_dir(settings: Any, profile_dir: str | None = None) -> Path:
 
 
 def running_pids(settings: Any, *, profile_dir: str | None = None) -> list[int]:
-    """本安装自己的 NapCat 启动器进程号；没有就是空列表。
+    """本安装自己的 NapCat 启动器及托管 QQ 进程号；没有就是空列表。
 
     按 profile 目录匹配，绝不按进程名：NapCatWinBootMain.exe 的命令行里必然含它自己的
     文件名，按名字匹配会把同机上别人的实例也算进来。
     """
     try:
-        return _matching_pids(str(_profile_dir(settings, profile_dir)))
+        return _matching_pids(str(_profile_dir(settings, profile_dir)), require_profile=True)
     except (OSError, ValueError):
         return []
 
@@ -1295,47 +1337,77 @@ def all_napcat_pids() -> list[int]:
     return _named_pids(_NAPCAT_BOOT_EXE)
 
 
-def _kill_matching(pattern: str, *, kill_timeout: float = 5.0) -> list[int]:
+def _kill_matching(pattern: str, *, kill_timeout: float = 5.0, profile_dir: str | None = None) -> list[int]:
     pids = _matching_pids(pattern)
+    if profile_dir is not None:
+        owned = set(_matching_pids(profile_dir, require_profile=True))
+        pids = [pid for pid in pids if pid in owned]
+        if not pids:
+            return []
+        # 父进程的 /T 会处理整棵树，只结束匹配集合中的根，避免反复结束同一子进程。
+        parents = {row.get("ProcessId"): row.get("ParentProcessId") for row in _process_details()}
+        selected = set(pids)
+        pids = [pid for pid in pids if parents.get(pid) not in selected]
     for pid in pids:
         try:
-            subprocess.run(["taskkill.exe", "/PID", str(pid), "/T", "/F"], check=False, timeout=kill_timeout, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
+            completed = subprocess.run(["taskkill.exe", "/PID", str(pid), "/T", "/F"], check=False, timeout=_probe_timeout(kill_timeout), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
+            # 父进程的 /T 可能已经带走列表里的子进程。是否停干净由 stop 的新快照确认。
+            if profile_dir is not None and completed.returncode:
+                LOGGER.warning("结束进程 %s 返回 %s，将复查残留。", pid, completed.returncode)
         except subprocess.TimeoutExpired:
             LOGGER.warning("结束进程 %s 超过 %.0f 秒没返回，继续退（可能停在确认对话框）。", pid, kill_timeout)
+            if profile_dir is not None:
+                raise TimeoutError(f"结束进程 {pid} 超时，尚未确认托管 QQ 已退出。")
     return pids
 
 
-def stop(settings: Any, *, fast: bool = False) -> dict[str, Any]:
+def stop(settings: Any, *, fast: bool = False, budget: float = 5.0) -> dict[str, Any]:
     """停掉这套安装的 NapCat。
 
-    ``fast=True`` 是给退出流程用的：只看 tasklist 里有没有启动器进程，
-    没有就直接算「本来就没在跑」，不再去拉命令行全表（一次 CIM 三秒级）。
-    判断「有」的情况仍然走完整匹配——绝不按进程名停，那会踢掉别人的实例。
+    ``fast=True`` 限制查询、结束进程和复查共用 budget 秒；启动器或 QQ 仍在时必须查
+    完整资料目录。引擎文件丢失也不能跳过残留清理。停止成功必须有新的进程快照确认。
     """
     # 停完要立刻反映真实状态：清缓存，别让状态栏还显示「在运行」。
     clear_probe_cache()
     result = {"ok": False, "stopped": [], "already_stopped": False, "error": None}
-    if fast and not _named_pids(_NAPCAT_BOOT_EXE):
-        result.update(ok=True, already_stopped=True)
-        return result
-    boot = detect_boot(Path(settings.data_dir))
-    if boot is None:
-        result.update(ok=True, already_stopped=True)
-        return result
+    token = _STOP_DEADLINE.set(time.monotonic() + (max(0.0, budget) if fast else 30.0))
     try:
-        pids = _kill_matching(str(Path(boot["boot_exe"]).parent))
-        if not pids:
-            # 换过安装目录时启动文件路径对不上，这里只允许回退到「本安装自己的 profile 目录」：
-            # launch() 把它写进 --user-data-dir=，是这套安装独有的标记。
-            # 绝不能退回按进程名停 —— NapCatWinBootMain.exe 的命令行里必然含它自己的文件名，
-            # 按名字匹配等于杀掉这台机器上所有 NapCat 实例（别人的账号也会被一起踢下线）。
-            pids = _kill_matching(str((Path(settings.data_dir) / "napcat-profile").resolve()))
-        if not pids:
+        if fast and not _named_pids(_NAPCAT_BOOT_EXE) and not _named_pids("QQ.exe"):
             result.update(ok=True, already_stopped=True)
             return result
-        result.update(ok=True, stopped=pids)
+        profile = str(_profile_dir(settings))
+        boot = None if fast else detect_boot(Path(settings.data_dir))
+        owned = set(_matching_pids(profile, require_profile=True))
+        known = {
+            int(row["ProcessId"]) for row in _process_details()
+            if str(row.get("Name") or "").casefold() in ("qq.exe", _NAPCAT_BOOT_EXE.casefold())
+            and str(row.get("ProcessId") or "").isdigit()
+        } if owned else set()
+        pids = []
+        if boot is not None:
+            pids = _kill_matching(str(Path(boot["boot_exe"]).parent), profile_dir=profile)
+        # 启动器可能已退出；QQ 和搬过目录的启动器仍按本安装资料目录清理。
+        if pids:
+            clear_probe_cache()
+        pids += _kill_matching(profile, profile_dir=profile)
+        result["stopped"] = list(dict.fromkeys(pids))
+        clear_probe_cache()
+        if owned:
+            current = set(_named_pids(_NAPCAT_BOOT_EXE) + _named_pids("QQ.exe"))
+            # 已识别进程用新 tasklist 确认退出即可；出现新 QQ/启动器才重查命令行。
+            # 普通 QQ 仍开着时，避免为了复查再消耗一次三秒级 CIM。
+            remaining = _matching_pids(profile, require_profile=True) if current - known else sorted(current & owned)
+        else:
+            remaining = _matching_pids(profile, require_profile=True)
+        if remaining:
+            result["error"] = "托管 QQ 尚未退出（PID：%s），请重试结束托管。" % ", ".join(map(str, remaining))
+        else:
+            result.update(ok=True, already_stopped=not pids)
     except (OSError, ValueError) as exc:
         result["error"] = str(exc)
+    finally:
+        _STOP_DEADLINE.reset(token)
+        clear_probe_cache()
     return result
 
 

@@ -1,597 +1,282 @@
 package com.noticehub.app;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.SharedPreferences;
+import android.app.*;
+import android.content.*;
 import android.net.Uri;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.view.KeyEvent;
-import android.view.inputmethod.EditorInfo;
-import android.webkit.JavascriptInterface;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
-import android.view.View;
+import android.os.*;
+import android.view.*;
+import android.webkit.*;
+import android.widget.*;
+import androidx.core.view.*;
+import com.google.zxing.integration.android.*;
+import org.json.*;
+import java.io.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+/** Activity 负责页面、配对和原生桥；数据库与同步由 Repository 持久化。 */
 public final class MainActivity extends Activity {
-    private static final String PREFS = "notice_hub";
-    private static final String BASE = "base";
-    private static final String TOKEN = "token";
-    private static final String BASES = "bases";
+    private final ExecutorService dataWorker = Executors.newSingleThreadExecutor(), networkWorker = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private WebView webView;
-    private EditText addressInput;
-    private View manualForm;
-    private Button manualToggle;
-    private TextView statusView;
-    private TextView codeView;
-    private String pairCode, pairSecret, currentBase;
-    private int retryCount;
-    private boolean pairing;
-    private boolean scanInProgress;
-    /** 是否停在 client 页、client 页是否已经加载完 —— 回到前台要不要自动刷新看这两个。 */
-    private boolean showingClient, clientLoaded;
-    /** 本地地址全不通时区分「连不上」和「令牌失效」：后者重试多少次都没用，得重新配对。 */
-    private boolean lastAuthFailed;
-    /** worker 是单线程队列，连点刷新会把任务排成一长队，用户看到的就是「点了半天没反应」。 */
-    private boolean refreshBusy;
-    private final Runnable poller = () -> pollPair();
-
+    private final AtomicBoolean syncBusy = new AtomicBoolean(false);
+    private Credentials credentials;
+    private ScheduleRepository repository;
+    private final Runnable dataChanged = this::render;
+    private WebView web;
+    private boolean showingClient, loaded, resumed, scanInProgress;
+    private EditText address;
+    private TextView status, code;
+    private String pairingBase, pairId, pairSecret, pendingExport, baseAfterExport;
+    private JSONObject pairAfterExport;
+    private final Runnable foreground = new Runnable() {
+        @Override public void run() { if (resumed && showingClient) { sync(); handler.postDelayed(this, 10000); } }
+    };
+    private final Runnable pairPoll = () -> exchange(pairingBase, pairId, pairSecret);
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        SharedPreferences p = prefs();
-        currentBase = p.getString(BASE, BuildConfig.PAIR_SERVER);
-        if (handleDeepLink(getIntent())) return;
-        if (!p.getString(TOKEN, "").isEmpty()) showClient(); else showPairing();
+        credentials = new Credentials(this); repository = new ScheduleRepository(this);
+        ScheduleRepository.listen(dataChanged);
+        if (handleLink(getIntent() == null ? null : getIntent().getData())) return;
+        if (!credentials.server().isEmpty()) showClient(); else showPairing();
+        ScheduleSyncWorker.schedule(this, false);
     }
-
-    @Override protected void onNewIntent(android.content.Intent intent) {
-        super.onNewIntent(intent); setIntent(intent);
-        handleDeepLink(intent);
+    @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleLink(intent == null ? null : intent.getData()); }
+    private boolean handleLink(Uri uri) {
+        if (uri == null || !"noticehub".equalsIgnoreCase(uri.getScheme()) || !"connect".equalsIgnoreCase(uri.getHost())) return false;
+        if (!credentials.token().isEmpty()) { if (!showingClient) showClient(); toast("已连接，如需换电脑请先在连接页解绑"); return true; }
+        String base = normalize(uri.getQueryParameter("base")), ident = uri.getQueryParameter("pair_id"), secret = uri.getQueryParameter("pair_secret");
+        showPairing();
+        if (base.isEmpty() || ident == null || secret == null) { setStatus("这是旧版或无效二维码，请在电脑「手机日程同步」中重新生成"); return true; }
+        setStatus("正在交换一次性配对凭据…"); exchange(base, ident, secret); return true;
     }
-
-    private void scanPairingCode() {
+    private static String normalize(String value) {
+        return NetworkEndpoint.normalize(value);
+    }
+    private void insets(View view) {
+        int l = view.getPaddingLeft(), t = view.getPaddingTop(), r = view.getPaddingRight(), b = view.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(view, (v, w) -> {
+            androidx.core.graphics.Insets bars = w.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.ime());
+            v.setPadding(l + bars.left, t + bars.top, r + bars.right, b + bars.bottom); return w;
+        }); ViewCompat.requestApplyInsets(view);
+    }
+    private void showPairing() {
+        pairId = null; pairSecret = null;
+        showingClient = false; loaded = false; handler.removeCallbacks(foreground); handler.removeCallbacks(pairPoll);
+        setContentView(R.layout.activity_main); insets(findViewById(R.id.root));
+        address = findViewById(R.id.address); status = findViewById(R.id.status); code = findViewById(R.id.pair_code);
+        String old = getSharedPreferences("notice_hub", MODE_PRIVATE).getString("base", BuildConfig.PAIR_SERVER);
+        address.setText(credentials.base().isEmpty() ? old : credentials.base());
+        View form = findViewById(R.id.manual_form);
+        findViewById(R.id.manual_toggle).setOnClickListener(v -> form.setVisibility(form.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
+        findViewById(R.id.open).setOnClickListener(v -> startPairing());
+        address.setOnEditorActionListener((v, action, event) -> {
+            if (action != android.view.inputmethod.EditorInfo.IME_ACTION_GO && action != android.view.inputmethod.EditorInfo.IME_ACTION_DONE) return false;
+            startPairing(); return true;
+        });
+        findViewById(R.id.scan).setOnClickListener(v -> scan());
+        if (!credentials.server().isEmpty()) {
+            Button offline = new Button(this); offline.setText("返回离线日程"); offline.setOnClickListener(v -> showClient());
+            ((LinearLayout)((ScrollView)findViewById(R.id.root)).getChildAt(0)).addView(offline);
+        } else if (!getSharedPreferences("notice_hub", MODE_PRIVATE).getString("token", "").isEmpty()) {
+            setStatus("本版需要重新配对。旧快照仍保留；请在电脑设置中打开「手机日程同步」");
+        }
+        if (credentials.server().isEmpty() && new File(getFilesDir(), "snapshot.json").isFile()) {
+            Button legacy = new Button(this); legacy.setText("查看升级前的日程（只读）");
+            legacy.setOnClickListener(v -> showLegacySnapshot());
+            ((LinearLayout)((ScrollView)findViewById(R.id.root)).getChildAt(0)).addView(legacy);
+        }
+    }
+    private void showLegacySnapshot() {
+        dataWorker.execute(() -> {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(new File(getFilesDir(), "snapshot.json")), "UTF-8"))) {
+                StringBuilder json = new StringBuilder(); String line;
+                while ((line = reader.readLine()) != null) json.append(line);
+                JSONObject snapshot = new JSONObject(json.toString()), board = snapshot.getJSONObject("tasks");
+                StringBuilder text = new StringBuilder("这是升级前保存的快照。重新配对并同步后，才能编辑日程。\n");
+                long saved = snapshot.optLong("savedAt");
+                if (saved > 0) text.append("\n保存于 ").append(java.text.DateFormat.getDateTimeInstance().format(new java.util.Date(saved))).append('\n');
+                java.util.HashSet<String> seen = new java.util.HashSet<>();
+                java.util.Iterator<String> groups = board.keys();
+                while (groups.hasNext()) {
+                    JSONArray tasks = board.optJSONArray(groups.next()); if (tasks == null) continue;
+                    for (int i = 0; i < tasks.length(); i++) {
+                        JSONObject task = tasks.optJSONObject(i); if (task == null) continue;
+                        String id = task.optString("id", task.optString("summary")); if (!seen.add(id)) continue;
+                        text.append("\n• ").append(task.optString("summary", "未命名日程"));
+                        if (!task.optString("deadline").isEmpty()) text.append("\n截止：").append(task.optString("deadline"));
+                        text.append('\n');
+                    }
+                }
+                if (seen.isEmpty()) text.append("\n旧快照中没有可显示的日程。");
+                runOnUiThread(() -> {
+                    TextView body = new TextView(this); body.setPadding(32, 16, 32, 24); body.setText(text); body.setTextIsSelectable(true);
+                    ScrollView scroll = new ScrollView(this); scroll.addView(body);
+                    new AlertDialog.Builder(this).setTitle("升级前的日程").setView(scroll).setPositiveButton("关闭", null).show();
+                });
+            } catch (Exception error) { toast("无法读取旧快照；原文件仍保留，请先重新配对"); }
+        });
+    }
+    private void setStatus(String text) { runOnUiThread(() -> { if (status != null && !showingClient) { findViewById(R.id.manual_form).setVisibility(View.VISIBLE); status.setText(text); } }); }
+    private void startPairing() {
+        String base = normalize(address.getText().toString());
+        if (base.isEmpty()) { setStatus("请填写 HTTPS 地址，例如 https://sync.example.com"); return; }
+        handler.removeCallbacks(pairPoll); setStatus("正在连接电脑…");
+        networkWorker.execute(() -> {
+            try {
+                SyncTransport transport = new SyncTransport();
+                JSONObject info = transport.call(base, "/api/v1/info", null, null);
+                if (info.optInt("protocol") != 1) throw new Exception("电脑版本不支持离线同步，请升级电脑端");
+                JSONObject ticket = transport.call(base, "/api/v1/pair/start", new JSONObject().put("name", Build.MANUFACTURER + " " + Build.MODEL), null);
+                pairingBase = base; pairId = ticket.getString("id"); pairSecret = ticket.getString("secret");
+                runOnUiThread(() -> { code.setText(ticket.optString("code")); setStatus("请在电脑「手机日程同步」中核对数字并允许连接"); handler.postDelayed(pairPoll, 2000); });
+            } catch (Exception error) { setStatus(message(error)); }
+        });
+    }
+    private void exchange(String base, String ident, String secret) {
+        networkWorker.execute(() -> {
+            try {
+                JSONObject result = new SyncTransport().call(base, "/api/v1/pair/exchange", new JSONObject().put("id", ident).put("secret", secret), null);
+                if (!"approved".equals(result.optString("status"))) { runOnUiThread(() -> { if (!showingClient && resumed) handler.postDelayed(pairPoll, 2000); }); return; }
+                int pending = repository.pendingCount();
+                if (!credentials.server().isEmpty() && !credentials.server().equals(result.getString("server_id")) && pending > 0) {
+                    runOnUiThread(() -> new AlertDialog.Builder(this).setTitle("切换到另一台电脑？").setMessage("当前还有 " + pending + " 项未同步操作。先导出，或明确丢弃后再切换。")
+                        .setPositiveButton("导出后切换", (d, w) -> { pairAfterExport = result; baseAfterExport = base; export(); })
+                        .setNeutralButton("丢弃后切换", (d, w) -> dataWorker.execute(() -> { repository.discardAll(); acceptPair(base, result); }))
+                        .setNegativeButton("取消", null).show());
+                } else acceptPair(base, result);
+            } catch (Exception error) { setStatus(message(error)); }
+        });
+    }
+    private void acceptPair(String base, JSONObject result) {
+        try {
+            credentials.save(base, result.getString("server_id"), result.getString("token"));
+            getSharedPreferences("notice_hub", MODE_PRIVATE).edit().remove("token").apply();
+            runOnUiThread(() -> { toast("已连接，正在同步日程"); showClient(); ScheduleSyncWorker.schedule(this, true); });
+        } catch (Exception error) { setStatus(message(error)); }
+    }
+    private void scan() {
         if (scanInProgress) return;
-        scanInProgress = true;
-        try {
-            IntentIntegrator scanner = new IntentIntegrator(this);
-            scanner.setDesiredBarcodeFormats(java.util.Collections.singletonList("QR_CODE"));
-            scanner.setPrompt("扫描电脑群务台「手机 App」页面里的二维码");
-            scanner.setBeepEnabled(false);
-            scanner.setOrientationLocked(false);
-            scanner.initiateScan();
-        } catch (android.content.ActivityNotFoundException error) {
-            scanInProgress = false;
-            showManualPairingMessage("手机没有可用的扫码器，请手动填写电脑地址。");
-        } catch (SecurityException error) {
-            scanInProgress = false;
-            showManualPairingMessage("无法使用相机扫码，请在系统设置中允许相机权限，或手动填写电脑地址。");
-        } catch (RuntimeException error) {
-            scanInProgress = false;
-            showManualPairingMessage("无法启动相机扫码，请检查相机权限，或手动填写电脑地址。");
-        }
+        try { scanInProgress = true; new IntentIntegrator(this).setDesiredBarcodeFormats(java.util.Collections.singletonList("QR_CODE"))
+            .setPrompt("扫描电脑「手机日程同步」中的二维码").setBeepEnabled(false).setOrientationLocked(false).initiateScan(); }
+        catch (RuntimeException error) { scanInProgress = false; setStatus("无法打开扫码器，请允许相机权限或手动填写地址"); }
     }
-
-    @Override protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        IntentResult result;
-        try {
-            result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-        } catch (RuntimeException error) {
-            scanInProgress = false;
-            showManualPairingMessage("扫码结果读取失败，请重试或手动填写电脑地址。");
-            return;
-        }
-        if (result == null) {
-            if (scanInProgress) {
-                scanInProgress = false;
-                showManualPairingMessage("扫码器没有返回结果，请重试或手动填写电脑地址。");
+    private void showClient() {
+        handler.removeCallbacks(pairPoll); showingClient = true; loaded = false;
+        if (web != null) web.destroy();
+        web = new WebView(this);
+        web.setBackgroundColor(android.graphics.Color.rgb(244, 245, 239));
+        if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true);
+        WebSettings settings = web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(false);
+        settings.setAllowFileAccess(false); settings.setAllowContentAccess(false); settings.setAllowFileAccessFromFileURLs(false); settings.setAllowUniversalAccessFromFileURLs(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        web.addJavascriptInterface(new Bridge(), "AndroidBridge");
+        web.setWebChromeClient(new WebChromeClient());
+        FrameLayout container = new FrameLayout(this); container.addView(web); setContentView(container); insets(container);
+        web.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView view, String url) { loaded = true; render(); sync(); }
+            @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return openExternal(request.getUrl()); }
+            @Override public boolean shouldOverrideUrlLoading(WebView view, String url) { return openExternal(Uri.parse(url)); }
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                if ("file:///android_asset/client.html".equals(request.getUrl().toString())) return null;
+                return new WebResourceResponse("text/plain", "UTF-8", new ByteArrayInputStream(new byte[0]));
             }
-            return;
+            @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (request.isForMainFrame()) runOnUiThread(() -> { showPairing(); setStatus("手机页面加载失败，请重新打开 App"); });
+            }
+        });
+        web.loadUrl("file:///android_asset/client.html");
+        handler.removeCallbacks(foreground); if (resumed) handler.postDelayed(foreground, 10000);
+    }
+    private boolean openExternal(Uri uri) {
+        if ("https".equals(uri.getScheme()) || "http".equals(uri.getScheme())) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (RuntimeException error) { toast("手机没有可用的浏览器"); }
+        } return true;
+    }
+    private void render() {
+        if (isFinishing() || dataWorker.isShutdown()) return;
+        dataWorker.execute(() -> {
+            try { String json = repository.snapshot().toString(); runOnUiThread(() -> { if (showingClient && loaded && web != null) web.evaluateJavascript("window.NH_render(" + json + ");", null); }); }
+            catch (Exception error) { toast(message(error)); }
+        });
+    }
+    private void sync() {
+        if (networkWorker.isShutdown() || !syncBusy.compareAndSet(false, true)) return;
+        networkWorker.execute(() -> { try { repository.sync(); } finally { syncBusy.set(false); render(); } });
+    }
+    private void export() {
+        dataWorker.execute(() -> {
+            try {
+                pendingExport = repository.exportPending();
+                runOnUiThread(() -> {
+                    try { startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json").putExtra(Intent.EXTRA_TITLE, "群务台-未同步编辑.json"), 701); }
+                    catch (RuntimeException error) { toast("无法打开文件选择器，请先保留本地数据"); }
+                });
+            } catch (Exception error) { toast(message(error)); }
+        });
+    }
+    private void unpair() {
+        dataWorker.execute(() -> {
+            int pending = repository.pendingCount();
+            runOnUiThread(() -> {
+                if (pending > 0) new AlertDialog.Builder(this).setTitle("还有 " + pending + " 项未同步操作")
+                    .setItems(new String[]{"保留本地编辑，重新配对", "导出未同步编辑", "丢弃编辑并解绑", "取消"}, (d, which) -> {
+                        if (which == 0) { credentials.unpair(); showPairing(); }
+                        else if (which == 1) export();
+                        else if (which == 2) new AlertDialog.Builder(this).setMessage("确定丢弃这台手机的全部未同步编辑？")
+                            .setNegativeButton("取消", null).setPositiveButton("丢弃并解绑", (a, b) -> dataWorker.execute(() -> { repository.discardAll(); credentials.unpair(); runOnUiThread(this::showPairing); })).show();
+                    }).show();
+                else new AlertDialog.Builder(this).setTitle("重新配对？").setMessage("本地日程会保留，之后可以离线查看。")
+                    .setNegativeButton("取消", null).setPositiveButton("重新配对", (d, w) -> { credentials.unpair(); showPairing(); }).show();
+            });
+        });
+    }
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 701) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && pendingExport != null) {
+                Uri target = data.getData(); String text = pendingExport;
+                dataWorker.execute(() -> {
+                    try (OutputStream out = getContentResolver().openOutputStream(target)) {
+                        if (out == null) throw new IOException("无法写入文件"); out.write(text.getBytes("UTF-8")); toast("已导出未同步编辑");
+                        if (pairAfterExport != null) { acceptPair(baseAfterExport, pairAfterExport); pairAfterExport = null; }
+                    } catch (Exception error) { toast(message(error)); }
+                });
+            } else { pairAfterExport = null; baseAfterExport = null; } return;
         }
         scanInProgress = false;
-        String contents = result.getContents();
-        if (contents == null) {
-            showManualPairingMessage("扫码已取消或未完成。若相机权限被拒绝，请在系统设置中允许；也可手动填写电脑地址后用配对码连接。");
-            return;
-        }
-        Uri scanned;
-        try {
-            scanned = Uri.parse(contents);
-        } catch (RuntimeException error) {
-            showManualPairingMessage("二维码内容无法读取，请重试或手动填写电脑地址。");
-            return;
-        }
-        if (!"noticehub".equalsIgnoreCase(scanned.getScheme()) || !"connect".equalsIgnoreCase(scanned.getHost())) {
-            showManualPairingMessage("这不是群务台的二维码，请扫描电脑端群务台「手机 App」页面里的二维码。");
-            return;
-        }
-        if (!handleDeepLink(scanned)) {
-            showManualPairingMessage("群务台二维码信息无效，请刷新电脑端二维码后重试，或手动填写地址。");
-        }
+        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
+        if (result == null || result.getContents() == null) { setStatus("扫码未完成，可重试或手动填写地址"); return; }
+        try { if (!handleLink(Uri.parse(result.getContents()))) setStatus("这不是群务台的配对二维码"); }
+        catch (RuntimeException error) { setStatus("二维码无法读取，请重新生成"); }
     }
-
-    private void showManualPairingMessage(String message) {
-        if (manualForm != null) {
-            manualForm.setVisibility(View.VISIBLE);
-            if (manualToggle != null) manualToggle.setText("收起手动填写");
-        }
-        if (statusView != null) statusView.setText(message);
+    private static String message(Exception error) { Throwable cause = error; while (cause.getCause() != null) cause = cause.getCause(); return cause.getMessage() == null ? "操作未完成，请重试" : cause.getMessage(); }
+    private void toast(String text) { runOnUiThread(() -> Toast.makeText(this, text, Toast.LENGTH_LONG).show()); }
+    @Override protected void onResume() { super.onResume(); ScheduleRepository.listen(dataChanged); resumed = true; handler.removeCallbacks(foreground); if (showingClient) { render(); sync(); handler.postDelayed(foreground, 10000); } else if (pairId != null) handler.postDelayed(pairPoll, 2000); }
+    @Override protected void onPause() { resumed = false; handler.removeCallbacks(foreground); handler.removeCallbacks(pairPoll); super.onPause(); }
+    @Override public void onBackPressed() {
+        if (showingClient && web != null) web.evaluateJavascript("window.NH_back && window.NH_back();", result -> { if (!"true".equals(result)) MainActivity.super.onBackPressed(); });
+        else super.onBackPressed();
     }
-
-    private boolean handleDeepLink(android.content.Intent intent) {
-        Uri data = intent == null ? null : intent.getData();
-        return handleDeepLink(data);
-    }
-
-    private boolean handleDeepLink(Uri data) {
-        if (data == null || !"noticehub".equalsIgnoreCase(data.getScheme()) || !"connect".equalsIgnoreCase(data.getHost())) return false;
-        // 已经配对过就忽略深链：扫到旧二维码/别人发的链接不该悄悄把当前连接换掉。
-        // 要换电脑必须先在 App 里解绑（长按返回键），这样「换机」永远是一个显式动作。
-        if (!prefs().getString(TOKEN, "").isEmpty()) {
-            Toast.makeText(this, "已连接，如需更换请先在 App 里解绑", Toast.LENGTH_LONG).show();
-            return true;
-        }
-        String base = data.getQueryParameter("base");
-        String token = data.getQueryParameter("token");
-        Uri parsed = base == null ? null : Uri.parse(base);
-        if (parsed == null || parsed.getHost() == null || !("http".equalsIgnoreCase(parsed.getScheme()) || "https".equalsIgnoreCase(parsed.getScheme())) || token == null || token.isEmpty()) return false;
-        currentBase = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
-        prefs().edit().putString(BASE, currentBase).putString(TOKEN, token).apply();
-        rememberCandidate(currentBase);
-        showClient(); return true;
-    }
-
-    private SharedPreferences prefs() { return getSharedPreferences(PREFS, MODE_PRIVATE); }
-
-    /** 让设置页避开刘海/状态栏与底部导航栏。
-     *
-     *  manifest 里开了 layoutInDisplayCutoutMode=shortEdges，页面会画到刘海下面；不补 padding
-     *  的话标题会被状态栏压住。用 WindowInsetsCompat 而不是已废弃的 getSystemWindowInsetTop()。
-     *  24dp 用 density 换算，别写死像素。
-     */
-    private void applySystemBarsPadding() {
-        View root = findViewById(R.id.root);
-        if (root == null) return;
-        final int extra = Math.round(24 * getResources().getDisplayMetrics().density);
-        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
-            androidx.core.graphics.Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            // 左右沿用布局已有 padding（内层 LinearLayout 已经给了 24dp），只补上下。
-            view.setPadding(view.getPaddingLeft(), extra + bars.top, view.getPaddingRight(), extra + bars.bottom);
-            return insets;
-        });
-        ViewCompat.requestApplyInsets(root);
-    }
-
-    private void showPairing() {
-        stopPairing();
-        showingClient = false; clientLoaded = false;
-        setContentView(com.noticehub.app.R.layout.activity_main);
-        applySystemBarsPadding();
-        addressInput = findViewById(R.id.address);
-        manualForm = findViewById(R.id.manual_form);
-        manualToggle = findViewById(R.id.manual_toggle);
-        statusView = findViewById(R.id.status);
-        codeView = findViewById(R.id.pair_code);
-        addressInput.setText(currentBase == null ? "" : currentBase);
-        codeView.setText("");
-        addressInput.setImeOptions(EditorInfo.IME_ACTION_GO);
-        addressInput.setOnEditorActionListener((view, actionId, event) -> {
-            boolean keyboardSubmit = actionId == EditorInfo.IME_ACTION_GO
-                || actionId == EditorInfo.IME_ACTION_DONE
-                || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
-                    && event.getAction() == KeyEvent.ACTION_DOWN);
-            if (!keyboardSubmit) return false;
-            startPairing();
-            return true;
-        });
-        manualToggle.setOnClickListener(v -> {
-            boolean show = manualForm.getVisibility() != View.VISIBLE;
-            manualForm.setVisibility(show ? View.VISIBLE : View.GONE);
-            manualToggle.setText(show ? "收起手动填写" : "手动填写地址");
-        });
-        ((Button) findViewById(R.id.scan)).setOnClickListener(v -> scanPairingCode());
-        ((Button) findViewById(R.id.open)).setOnClickListener(v -> startPairing());
-    }
-
-    private void startPairing() {
-        String base = addressInput.getText().toString().trim();
-        Uri uri = Uri.parse(base);
-        if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())) || uri.getHost() == null) {
-            statusView.setText("地址应类似 http://电脑IP:8766 或 https://域名"); return;
-        }
-        currentBase = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
-        prefs().edit().putString(BASE, currentBase).remove(TOKEN).apply();
-        retryCount = 0; pairing = true; statusView.setText("正在连接电脑…");
-        worker.execute(() -> {
-            try {
-                // 先把这台电脑自己能提供的所有候选地址存下来，配对成功后刷新时会挨个试，
-                // 避免「电脑上有多个网卡、第一个地址手机连不上」时用户卡死没法自救。
-                cacheCandidatesFromServer();
-                JSONObject o = new JSONObject(request("POST", currentBase + "/api/pair/start", null));
-                runOnUiThread(() -> {
-                    if (o.optBoolean("ok")) {
-                        pairCode = o.optString("code"); pairSecret = o.optString("secret");
-                        codeView.setText(pairCode); statusView.setText("请在电脑上核对这 6 位数字并点“允许”\n正在等待电脑确认…");
-                        handler.postDelayed(poller, 2000);
-                    } else statusView.setText(o.optString("error", "电脑拒绝了配对请求"));
-                });
-            } catch (Exception e) { runOnUiThread(() -> statusView.setText("连不上电脑，请确认群务台正在运行。")); }
-        });
-    }
-
-    /** 读 /api/pair/info 的 candidates，缓存备用；老服务端不报这个字段就静默跳过。 */
-    private void cacheCandidatesFromServer() {
-        try {
-            JSONObject info = new JSONObject(request("GET", currentBase + "/api/pair/info", null));
-            JSONArray candidates = info.optJSONArray("candidates");
-            if (candidates == null || candidates.length() == 0) {
-                // 老服务端只报 base，没有候选列表：把它当作唯一候选，行为跟以前一致。
-                String only = normalize(info.optString("base"));
-                if (only.isEmpty()) return;
-                JSONArray single = new JSONArray();
-                single.put(new JSONObject().put("url", only));
-                candidates = single;
-            }
-            cacheCandidates(candidates);
-        } catch (Exception ignored) {
-            // 老服务端或网络抖动都走这里：不影响配对本身，只是没有候选可用。
-        }
-    }
-
-    private void pollPair() {
-        if (!pairing || pairCode == null) return;
-        worker.execute(() -> {
-            try {
-                String u = currentBase + "/api/pair/status?code=" + Uri.encode(pairCode) + "&secret=" + Uri.encode(pairSecret);
-                JSONObject o = new JSONObject(request("GET", u, null));
-                String s = o.optString("status");
-                runOnUiThread(() -> {
-                    if ("approved".equals(s)) { pairing = false; prefs().edit().putString(TOKEN, o.optString("token")).apply(); Toast.makeText(this, "连接成功", Toast.LENGTH_SHORT).show(); showClient(); }
-                    else if ("denied".equals(s)) { pairing = false; statusView.setText("电脑拒绝了配对，请重新点击连接电脑。"); }
-                    else if ("expired".equals(s)) restartPairing();
-                    else if (pairing) handler.postDelayed(poller, 2000);
-                });
-            } catch (Exception e) { if (pairing) runOnUiThread(() -> { if (e instanceof HttpFailure && ((HttpFailure)e).code == 404) restartPairing(); else handler.postDelayed(poller, 2000); }); }
-        });
-    }
-
-    private void restartPairing() { if (++retryCount <= 2) startPairing(); else { pairing = false; statusView.setText("配对已过期，请重新点击连接电脑。"); } }
-
-    private void showClient() {
-        stopPairing();
-        showingClient = true; clientLoaded = false;
-        webView = new WebView(this);
-        WebSettings s = webView.getSettings(); s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true); s.setBuiltInZoomControls(false); s.setDisplayZoomControls(false);
-        webView.addJavascriptInterface(new Bridge(), "AndroidBridge");
-        setContentView(webView);
-        webView.setWebViewClient(new android.webkit.WebViewClient() {
-            @Override public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
-                if (request == null || !request.isForMainFrame()) return false;
-                return routeWebViewUrl(request.getUrl());
-            }
-            @SuppressWarnings("deprecation")
-            @Override public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return routeWebViewUrl(Uri.parse(url));
-            }
-            @Override public void onPageFinished(WebView v, String url) { clientLoaded = true; refreshClient(false); }
-            // 文档（docs/安卓App.md）承诺「网页加载失败会自动回到设置页，不会让你卡死在白屏里」，
-            // 但此前只有 onPageFinished，外壳加载不出来时页面就真白着不动了。这里补上。
-            @Override public void onReceivedError(WebView v, android.webkit.WebResourceRequest req, android.webkit.WebResourceError error) {
-                if (req != null && req.isForMainFrame()) showPairing();
-            }
-            // 老签名（API 23 以下才会走到）没有主框架标志，只在失败地址就是外壳本体时才回退，
-            // 否则一张图加载失败也会把用户踢出主界面。
-            @Override public void onReceivedError(WebView v, int code, String description, String failingUrl) {
-                if (failingUrl != null && failingUrl.startsWith("file:///android_asset/client.html")) showPairing();
-            }
-        });
-        webView.loadUrl("file:///android_asset/client.html");
-    }
-
-    private boolean routeWebViewUrl(Uri uri) {
-        if (uri == null) return true;
-        Uri base = Uri.parse(currentBase == null ? "" : currentBase);
-        String scheme = uri.getScheme();
-        String baseScheme = base.getScheme();
-        boolean sameHost = uri.getHost() != null && base.getHost() != null
-            && uri.getHost().equalsIgnoreCase(base.getHost())
-            && (("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
-                && ("http".equalsIgnoreCase(baseScheme) || "https".equalsIgnoreCase(baseScheme)));
-        if (sameHost) return false;
-        try {
-            startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, uri));
-        } catch (android.content.ActivityNotFoundException error) {
-            Toast.makeText(this, "无法打开外部链接，请检查是否安装了浏览器。", Toast.LENGTH_LONG).show();
-        } catch (SecurityException error) {
-            Toast.makeText(this, "无法安全地打开此链接。", Toast.LENGTH_LONG).show();
-        }
-        return true;
-    }
-
-    /** 手机能用的地址不止一个：服务端把候选都报回来，这里按顺序试到第一个通的。
-     *  老服务端只报 base 一个地址，读不到 bases 时就退回只用 currentBase，
-     *  行为跟以前完全一样，不会把能用的旧部署连坏。 */
-    private List<String> candidates() {
-        List<String> list = new ArrayList<>();
-        String saved = prefs().getString(BASES, "");
-        for (String item : saved.split("\n")) {
-            String url = normalize(item);
-            if (!url.isEmpty() && !list.contains(url)) list.add(url);
-        }
-        String current = normalize(currentBase);
-        if (!current.isEmpty() && !list.contains(current)) list.add(0, current);
-        return list;
-    }
-
-    private void rememberCandidate(String url) {
-        List<String> list = candidates();
-        list.remove(url); list.add(0, url);
-        prefs().edit().putString(BASES, String.join("\n", list)).apply();
-    }
-
-    private static String normalize(String base) {
-        String text = base == null ? "" : base.trim();
-        if (text.isEmpty()) return "";
-        Uri uri = Uri.parse(text);
-        if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())) || uri.getHost() == null) return "";
-        return text.endsWith("/") ? text.substring(0, text.length() - 1) : text;
-    }
-
-    /** 把服务端 /api/pair/info 报回来的候选地址存进本地，供 fetchSnapshot 依次重试。
-     *  服务端给的顺序是有意义的（推荐地址在前），必须整批一次写入 —— 逐个 rememberCandidate
-     *  会把每个地址都插到队首，顺序被反转，刷新时白等前几个连不上的地址超时。 */
-    private void cacheCandidates(JSONArray candidates) {
-        List<String> list = new ArrayList<>();
-        String current = normalize(currentBase);
-        if (!current.isEmpty()) list.add(current);
-        if (candidates != null) {
-            for (int i = 0; i < candidates.length(); i++) {
-                JSONObject item = candidates.optJSONObject(i);
-                String url = normalize(item == null ? null : item.optString("url"));
-                if (!url.isEmpty() && !list.contains(url)) list.add(url);
-            }
-        }
-        if (list.isEmpty()) return;
-        prefs().edit().putString(BASES, String.join("\n", list)).apply();
-    }
-
-    private void fetchSnapshot() {
-        worker.execute(() -> {
-            try {
-                fetchSnapshotBody();
-            } finally {
-                runOnUiThread(() -> { refreshBusy = false; });
-            }
-        });
-    }
-
-    /** 手动/自动刷新都走这里：同一时间只允许一次刷新在跑 —— worker 是单线程队列，
-     *  连点会把整串任务排到后面，用户看到的就是「点了半天没反应」。
-     *  refreshBusy 只在 UI 线程上读写（Bridge.refresh 先 runOnUiThread 回到 UI 线程）。 */
-    private void refreshClient(boolean userInitiated) {
-        if (refreshBusy) {
-            if (userInitiated) Toast.makeText(this, "正在刷新，请稍候…", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        refreshBusy = true;
-        fetchSnapshot();
-    }
-
-    private void fetchSnapshotBody() {
-        lastAuthFailed = false;
-        List<String> targets = candidates();
-        if (targets.isEmpty()) {
-            // 区分「没配过」和「配了但格式不对」：用户忘写 http:// 是最常见的输入错误，
-            // 只说「没有可用地址」他会一直以为是自己网络的问题。
-            String raw = prefs().getString(BASE, "");
-            String message = (raw == null || raw.trim().isEmpty())
-                ? "还没有配过电脑地址，请点「连接电脑」扫码或手填。"
-                : "保存的地址「" + raw + "」格式不对，需要以 http:// 或 https:// 开头。请长按返回键重新填写。";
-            runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
-            return;
-        }
-        String token = prefs().getString(TOKEN, "");
-        String hit = tryTargets(targets, token, false);
-        if (hit == null) {
-            // 本地候选全不通。扫码进场的用户本地只有一个地址（扫码那一刻电脑报的那个网卡），
-            // 电脑换了网络或那个网卡不在同一网段时，他怎么刷新都是这一个连不上的地址。
-            //
-            // 补救只有一个前提：电脑的**另一个**地址得先答话，才能把完整候选表拿回来。
-            // 所以这里必须用「还没试过的地址」去问，不能用刚失败的那批 —— 用同一批问
-            // 必然也全不通，extra 永远是空的，这个分支就等于没写。（此前正是这么写的。）
-            List<String> probe = probeHosts(targets);
-            List<String> extra = probe.isEmpty() ? new ArrayList<>() : fetchCandidatesFromFirst(probe);
-            if (!extra.isEmpty()) hit = tryTargets(extra, token, true);
-        }
-        if (hit != null) return;
-        // 从没成功连上过时本地没有快照。此前这里什么都不注入，页面就永远停在「加载中…」；
-        // 现在补一个空的离线载荷，让页面显示「还没拿到任务 + 怎么办」而不是假加载。
-        final boolean authFailed = lastAuthFailed;
-        String cached = readSnapshot();
-        final long savedAt = snapshotSavedAt(cached);
-        if (cached != null) {
-            try { JSONObject p = new JSONObject(cached); p.put("offline", true); p.put("stale", true); p.put("authFailed", authFailed); if (savedAt > 0) p.put("savedAt", savedAt); inject(p.toString()); } catch (Exception ignored) {}
-        } else {
-            try { JSONObject p = new JSONObject(); p.put("tasks", new JSONObject()); p.put("meta", new JSONObject()); p.put("offline", true); p.put("authFailed", authFailed); inject(p.toString()); } catch (Exception ignored) {}
-        }
-        runOnUiThread(() -> Toast.makeText(this, authFailed
-            ? "这台手机已经不被电脑认可（配对已失效），请点页面上的「重新配对」"
-            : (cached != null ? "连不上电脑，正在显示上次的数据" : "连不上电脑，请检查手机和电脑是否在同一个网络"), Toast.LENGTH_LONG).show());
-    }
-
-    /** 依次试这些地址，成功就固定下来并返回它；全不通返回 null。 */
-    private String tryTargets(List<String> targets, String token, boolean announce) {
-        for (String target : targets) {
-            try {
-                JSONObject payload = new JSONObject(); payload.put("tasks", new JSONObject(request("GET", target + "/api/tasks", token))); payload.put("meta", new JSONObject(request("GET", target + "/api/meta", token))); payload.put("fetchedAt", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(new Date())); payload.put("offline", false);
-                boolean moved = !target.equals(currentBase);
-                currentBase = target;
-                prefs().edit().putString(BASE, target).apply();
-                rememberCandidate(target);
-                saveSnapshot(payload.toString()); inject(payload.toString());
-                if (moved && announce) runOnUiThread(() -> Toast.makeText(this, "已切到能用的地址：" + target, Toast.LENGTH_SHORT).show());
-                return target;
-            } catch (Exception failure) {
-                // 这个地址不通，试下一个。401/403 说明地址是通的、只是这台手机没被认可。
-                if (failure instanceof HttpFailure) {
-                    int code = ((HttpFailure) failure).code;
-                    if (code == 401 || code == 403) lastAuthFailed = true;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static List<String> minus(List<String> all, List<String> tried) {
-        List<String> rest = new ArrayList<>();
-        for (String url : all) if (!tried.contains(url)) rest.add(url);
-        return rest;
-    }
-
-    /** 本地地址全不通时，还能去哪儿问候选表？
-     *
-     *  本地那份是「扫码/手填时电脑报的地址」+「上次成功连上的地址」。这两个都可能全过期：
-     *  用户换了 Wi-Fi、电脑换了网卡，两个都指向不存在的地方，此时唯一的出路是电脑的**另一个**
-     *  地址。但本地根本没有那个地址 —— 死循环。
-     *
-     *  破解点：扫同网段的邻居。命中场景是「手机和电脑其实在同一个网段，只是本地存的那个地址
-     *  属于另一个网段」（例如电脑有多个网卡，扫码时记的是热点地址，现在手机连的是家里 Wi-Fi）。
-     *  /api/pair/info 免鉴权，问它不需要 token。
-     *
-     *  **这不是主修，只是兜底**：真正解决「推荐了一个手机到不了的地址」的是服务端 —— 它现在会把
-     *  候选分类（真实局域网 / 虚拟网卡 / 手机热点段 / Tailscale）并把真实局域网排在前面推荐。
-     *  如果本地存的地址属于一个手机根本不在的网段（比如记的是手机热点段，而手机现在连家里
-     *  Wi-Fi），扫描同样扫不到，此时只能靠用户重扫码或手填。
-     *
-     *  限定：只扫私有网段，且只扫少量邻居（绝不朝公网地址发请求）；连不上就是连不上，不重试。 */
-    private static List<String> probeHosts(List<String> tried) {
-        List<String> out = new ArrayList<>();
-        for (String url : tried) {
-            Uri uri = Uri.parse(url);
-            String host = uri.getHost();
-            if (host == null) continue;
-            String[] parts = host.split("\\.");
-            if (parts.length != 4) continue;
-            try {
-                int a = Integer.parseInt(parts[0]), b = Integer.parseInt(parts[1]), c = Integer.parseInt(parts[2]);
-                // 只扫常见家用/办公网段，避免对公网地址乱发请求。
-                boolean lan = (a == 192 && b == 168) || a == 10 || (a == 172 && b >= 16 && b <= 31);
-                if (!lan) continue;
-                String scheme = uri.getScheme() == null ? "http" : uri.getScheme();
-                int port = uri.getPort();
-                String tail = port <= 0 ? "" : ":" + port;
-                for (int last : new int[] { 1, 2, 100, 101, 102, 103, 104, 105, 106, 107 }) {
-                    String candidate = scheme + "://" + a + "." + b + "." + c + "." + last + tail;
-                    if (!tried.contains(candidate) && !out.contains(candidate)) out.add(candidate);
-                }
-            } catch (NumberFormatException ignored) {
-                // 不是点分十进制 IPv4（域名等），跳过。
-            }
-        }
-        return out;
-    }
-
-    /** 挨个问这些地址，谁先答话就用谁报回来的候选表；返回本次新增（本地还没有的）地址。
-     *  全部问不到就返回空 —— 调用方据此走「显示上次数据」的兜底。 */
-    private List<String> fetchCandidatesFromFirst(List<String> probes) {
-        List<String> before = candidates();
-        for (String target : probes) {
-            try {
-                JSONObject info = new JSONObject(request("GET", target + "/api/pair/info", null, 1500, 1500));
-                JSONArray candidates = info.optJSONArray("candidates");
-                if (candidates == null || candidates.length() == 0) continue;
-                // 这次问到的地址本身也要留下 —— 它已经证明自己是通的。
-                rememberCandidate(target);
-                cacheCandidates(candidates);
-                return minus(candidates(), before);
-            } catch (Exception ignored) {
-                // 这个地址问不到，问下一个。
-            }
-        }
-        return new ArrayList<>();
-    }
-
-    private void inject(String json) { runOnUiThread(() -> { if (webView != null) webView.evaluateJavascript("window.NH_render(" + json + ");", null); }); }
-    private void saveSnapshot(String s) throws Exception {
-        // 顺带记下快照时间：离线时要告诉用户「这是几点的数据」，没有时间戳就只剩一句「上次的数据」。
-        String text = s;
-        try { JSONObject payload = new JSONObject(s); payload.put("savedAt", System.currentTimeMillis()); text = payload.toString(); } catch (Exception ignored) { /* 不是 JSON 就原样写，别丢数据 */ }
-        try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), "snapshot.json"))) { out.write(text.getBytes(StandardCharsets.UTF_8)); }
-    }
-
-    /** 从快照里取写入时间（毫秒）；没有或坏了返回 0。 */
-    private long snapshotSavedAt(String cached) {
-        if (cached == null) return 0L;
-        try { return new JSONObject(cached).optLong("savedAt", 0L); } catch (Exception error) { return 0L; }
-    }
-    private String readSnapshot() { try (FileInputStream in = new FileInputStream(new File(getFilesDir(), "snapshot.json")); BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) { StringBuilder b = new StringBuilder(); String x; while ((x = r.readLine()) != null) b.append(x); return b.toString(); } catch (Exception e) { return null; } }
-
-    private static final class HttpFailure extends Exception { final int code; HttpFailure(int code) { this.code = code; } }
-    private String request(String method, String url, String token) throws Exception { return request(method, url, token, 15000, 15000); }
-    /** 探测邻居地址时用短超时：那是「猜」出来的地址，一个不理会的网段会白等满 15 秒，
-     *  十个邻居就是两分半，用户只会看到刷新没反应。 */
-    private String request(String method, String url, String token, int connectMs, int readMs) throws Exception { HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection(); c.setRequestMethod(method); c.setConnectTimeout(connectMs); c.setReadTimeout(readMs); if (token != null) c.setRequestProperty("X-Token", token); if ("POST".equals(method)) { c.setDoOutput(true); c.setRequestProperty("Content-Type", "application/json; charset=utf-8"); c.getOutputStream().write("{}".getBytes(StandardCharsets.UTF_8)); } int code = c.getResponseCode(); BufferedReader r = new BufferedReader(new InputStreamReader(code >= 400 ? c.getErrorStream() : c.getInputStream(), StandardCharsets.UTF_8)); StringBuilder b = new StringBuilder(); String x; while ((x = r.readLine()) != null) b.append(x); if (code >= 400) throw new HttpFailure(code); return b.toString(); }
-
-    @Override protected void onResume() { super.onResume(); if (pairing) handler.postDelayed(poller, 2000); else if (showingClient && clientLoaded) refreshClient(false); }
-    @Override protected void onPause() { stopPairing(); super.onPause(); }
-    private void stopPairing() { pairing = false; handler.removeCallbacks(poller); }
-    @Override public void onBackPressed() { if (webView != null && webView.canGoBack()) webView.goBack(); else super.onBackPressed(); }
-    /** 长按返回 = 解绑。一定要先确认：这是唯一的解绑入口，误触就得重新扫码。 */
-    @Override public boolean onKeyLongPress(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (isFinishing()) return true;
-            new AlertDialog.Builder(this)
-                .setTitle(R.string.unpair_title)
-                .setMessage(R.string.unpair_message)
-                .setNegativeButton(R.string.unpair_cancel, null)
-                .setPositiveButton(R.string.unpair_confirm, (dialog, which) -> {
-                    currentBase = prefs().getString(BASE, BuildConfig.PAIR_SERVER);
-                    prefs().edit().remove(TOKEN).apply();
-                    showPairing();
-                })
-                .show();
-            return true;
-        }
-        return super.onKeyLongPress(keyCode, event);
-    }
-    @Override protected void onDestroy() { stopPairing(); worker.shutdownNow(); if (webView != null) webView.destroy(); super.onDestroy(); }
-
+    @Override public boolean onKeyLongPress(int keyCode, KeyEvent event) { if (keyCode == KeyEvent.KEYCODE_BACK) { unpair(); return true; } return super.onKeyLongPress(keyCode, event); }
+    @Override protected void onDestroy() { ScheduleRepository.stopListening(dataChanged); handler.removeCallbacksAndMessages(null); dataWorker.shutdown(); networkWorker.shutdown(); if (web != null) web.destroy(); super.onDestroy(); }
     public final class Bridge {
-        @JavascriptInterface public void refresh() { runOnUiThread(() -> refreshClient(true)); }
-        @JavascriptInterface public void reconnect() { runOnUiThread(() -> { prefs().edit().remove(TOKEN).apply(); currentBase = prefs().getString(BASE, BuildConfig.PAIR_SERVER); showPairing(); }); }
-        @JavascriptInterface public String getBase() { return currentBase == null ? "" : currentBase; }
+        @JavascriptInterface public String query() { try { return repository.snapshot().toString(); } catch (Exception error) { return "{}"; } }
+        @JavascriptInterface public void refresh() { render(); sync(); }
+        @JavascriptInterface public void reconnect() { runOnUiThread(() -> { if (credentials.token().isEmpty()) showPairing(); else unpair(); }); }
+        @JavascriptInterface public void exportPending() { export(); }
+        @JavascriptInterface public void command(String json) {
+            if (json == null || json.length() > 65536) return;
+            dataWorker.execute(() -> {
+                try {
+                    JSONObject c = new JSONObject(json); String kind = c.getString("type"), uuid = c.optString("uuid");
+                    if (kind.equals("resolve")) repository.resolve(uuid, c.optJSONObject("choices") == null ? new JSONObject() : c.getJSONObject("choices"), c.optBoolean("saveCopy"));
+                    else if (kind.equals("discard")) repository.discard(uuid);
+                    else repository.edit(uuid, kind, c.optJSONObject("changes") == null ? new JSONObject() : c.getJSONObject("changes"), c.optJSONObject("base"));
+                    render();
+                    runOnUiThread(() -> { if (web != null && showingClient) web.evaluateJavascript("window.NH_saved();", null); });
+                    ScheduleSyncWorker.schedule(MainActivity.this, true); sync();
+                } catch (Exception error) { String msg = JSONObject.quote(message(error)); runOnUiThread(() -> { if (web != null && showingClient) web.evaluateJavascript("window.NH_error(" + msg + ");", null); }); }
+            });
+        }
     }
 }
