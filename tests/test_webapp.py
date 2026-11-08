@@ -1347,29 +1347,29 @@ class DashboardThemeTest(unittest.TestCase):
 
     def test_create_task_form_and_calendar_detail_transition_are_wired(self) -> None:
         css = self._current_stylesheet()
-        # 新建待办：按钮 → 内联表单 → POST /api/tasks/create → 刷新列表
+        # 新建待办：按钮 → 原生对话框 → 提交 → 刷新列表。
         new_task_tag = self._tag("rail-new-task")
-        self.assertIn('aria-controls="rail-new-form"', new_task_tag)
-        self.assertIn('aria-expanded="false"', new_task_tag, "表单默认收起，按钮要报出收起状态")
+        self.assertIn('aria-controls="task-editor-dialog"', new_task_tag)
+        self.assertIn('aria-haspopup="dialog"', new_task_tag)
         self.assertIn('type="button"', new_task_tag, "不是 submit，别让它顺手提交外层表单")
-        self.assertIn(" hidden", self._tag("rail-new-form"), "内联表单默认必须收起")
+        self.assertIn('<dialog id="task-editor-dialog"', PAGE_SOURCE)
+        self.assertNotIn(' open', self._tag('task-editor-dialog'))
         self.assertIn('type="text"', self._tag("rail-new-summary"))
         self.assertIn('maxlength="200"', self._tag("rail-new-summary"))
         self.assertIn('type="datetime-local"', self._tag("rail-new-deadline"))
         save_tag = self._tag("rail-new-save")
         self.assertIn('type="submit"', save_tag)
         # _tag 只取开始标签，按钮文字在标签之后：断言整段可见文案仍然存在。
-        self.assertIn("保存</button>", PAGE_SOURCE)
+        self.assertIn("创建待办</button>", PAGE_SOURCE)
         cancel_tag = self._tag("rail-new-cancel")
         self.assertIn('type="button"', cancel_tag)
         self.assertIn("取消</button>", PAGE_SOURCE)
         self.assertIn("api('/api/tasks/create', {", PAGE_SOURCE)
-        self.assertIn("body: JSON.stringify({summary: summary, deadline: deadline})", PAGE_SOURCE)
+        self.assertIn("notes:p.notes||''", PAGE_SOURCE)
         self.assertIn("return syncTasks();", PAGE_SOURCE)
-        self.assertIn("railShowNewForm(document.getElementById('rail-new-form').hidden)", PAGE_SOURCE)
-        self.assertIn("newForm.onsubmit = function (event) { event.preventDefault(); railCreateTask(); };", PAGE_SOURCE)
-        self.assertIn("event.key === 'Escape'", PAGE_SOURCE)
-        self.assertIn(".rail-new-form[hidden]{display:none}", css)
+        self.assertIn("dialog.showModal()", PAGE_SOURCE)
+        self.assertIn("dialog.addEventListener('cancel'", PAGE_SOURCE)
+        self.assertIn("form.addEventListener('submit'", PAGE_SOURCE)
         # 月历当天详情：展开/收起都有过渡，且关键帧只动 opacity/transform（不重采样文字）
         for frame in ("calendar-detail-in", "calendar-detail-out"):
             self.assertIn("@keyframes " + frame + "{", css)
@@ -1385,20 +1385,8 @@ class DashboardThemeTest(unittest.TestCase):
         self.assertIn("calendarDetail.classList.add('is-closing')", PAGE_SOURCE)
         self.assertIn("calendarDetail.dataset.closing='1'", PAGE_SOURCE)
         self.assertIn("getComputedStyle(calendarDetail).animationName==='none'", PAGE_SOURCE)
-        # 表单展开/收起同样要有过渡（max-height + opacity），且逐帧不动 box-shadow/filter
-        for frame in ("rail-form-enter", "rail-form-exit"):
-            self.assertIn("@keyframes " + frame + "{", css)
-            body = re.search(r"@keyframes " + frame + r"\{(.*?)\}", css, re.S)
-            self.assertIsNotNone(body)
-            self.assertNotIn("box-shadow", body.group(1))
-            self.assertNotIn("filter", body.group(1))
-            self.assertIn("opacity", body.group(1))
-            self.assertIn("max-height", body.group(1))
-        self.assertIn(".rail-new-form[data-state=entering]{animation:rail-form-enter 220ms var(--ease-in) forwards}", css)
-        self.assertIn(".rail-new-form[data-state=exiting]{animation:rail-form-exit 180ms var(--ease-out) forwards}", css)
-        self.assertIn("form.dataset.state = 'entering';", PAGE_SOURCE)
-        self.assertIn("getComputedStyle(form).animationName === 'none'", PAGE_SOURCE)
-        self.assertIn("clearTimeout(Number(form.dataset.pending))", PAGE_SOURCE)
+        self.assertIn('.task-editor-dialog::backdrop', PAGE_HTML)
+        self.assertIn("snapshot() !== initial", PAGE_SOURCE)
 
 
 class TaskStoreTest(unittest.TestCase):
@@ -8086,8 +8074,7 @@ function scenarioWizardScroll() {
   };
 }
 
-// 手工任务纠错：manual: 前缀的任务不出 AI 快捷纠错三键、给「删除这条待办」（POST action:delete 的入口），
-// 编辑类按钮保留；非 manual 任务照旧。跑真实 correctionPanel 渲染（渲染期不点按钮，不碰网络）。
+// 手工任务的分类与时间面板不出现 AI 误判选项；删除入口在任务卡主操作区。
 function scenarioManualDelete() {
   const tdEnv = makeTrackingEnv([]);
   const doc = {
@@ -8117,10 +8104,10 @@ function scenarioManualDelete() {
     ['manual 任务不出现「不是通知」', manualText.indexOf('不是通知') < 0],
     ['manual 任务不出现「不是待办」', manualText.indexOf('不是待办') < 0],
     ['manual 任务不出现「标记重复」', manualText.indexOf('标记重复') < 0],
-    ['manual 任务有「删除这条待办」', manualText.indexOf('删除这条待办') >= 0],
+    ['manual 面板标为分类与时间', manualText.indexOf('分类与时间') >= 0],
     ['manual 保留「保存分类」', manualText.indexOf('保存分类') >= 0],
     ['manual 保留「保存时间」', manualText.indexOf('保存时间') >= 0],
-    ['manual 提示不写入学习记录', manualText.indexOf('不会写入任何学习记录') >= 0],
+    ['manual 面板不重复删除入口', manualText.indexOf('删除这条待办') < 0],
     ['非 manual 任务照旧「不是通知」', autoText.indexOf('不是通知') >= 0],
     ['非 manual 任务照旧「标记重复」', autoText.indexOf('标记重复') >= 0],
     ['非 manual 任务不出现「删除这条待办」', autoText.indexOf('删除这条待办') < 0],

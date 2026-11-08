@@ -1,16 +1,13 @@
-"""手机内置页面交互，桥的存储动作由真实 v1 HTTP 接口执行；Room 另由 Android 集成测试覆盖。"""
+"""手机内置页面交互与隔离 v1 存储；真实 Room 由 Android 仪器测试覆盖。"""
 import json
 import tempfile
 import unittest
-import urllib.request
 import uuid
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 import tests  # noqa: F401 - 隔离环境与临时目录，与项目其余验收一致。
-from noticehub.config import Settings
 from noticehub.store import Store
-from noticehub.webapp import TaskWebServer
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -31,19 +28,14 @@ class MobileUiTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.store = Store(Path(self.tmp.name) / "ui.sqlite3")
         self.task_id = self.store.upsert_task(task_key="ui-source", summary="交实验报告", evidence="周五下午交到实验室")
-        self.server = TaskWebServer(Settings(web_host="127.0.0.1", web_port=0, web_token="ui-admin", data_dir=Path(self.tmp.name)), self.store)
-        self.assertTrue(self.server.start())
-        self.addCleanup(self.server.stop)
-        self.base = "http://127.0.0.1:%s" % self.server.server.server_address[1]
-        ticket = self.store.sync_pair_start("测试页面", "local", approved=True)
-        self.token = self.store.sync_pair_exchange(ticket["id"], ticket["secret"])["token"]
+        self.base = "https://isolated-test.invalid"
         self.context = self.browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=1)
         self.addCleanup(self.context.close)
         self.page = self.context.new_page()
         self.page.on("dialog", lambda dialog: dialog.accept())
         self.commands = []
         self.page.expose_function("testNative", self.native)
-        self.page.add_init_script("""window.AndroidBridge={command:function(s){window.testNative(s).then(function(r){if(r.saved){NH_saved();NH_render(r.state)}else if(r.error)NH_error(r.error)})},refresh:function(){},exportPending:function(){},reconnect:function(){}};""")
+        self.page.add_init_script("""window.AndroidBridge={command:function(s){var command=JSON.parse(s);window.testNative(s).then(function(r){if(r.saved){NH_render(r.state);NH_saved(command.requestId)}else if(r.error)NH_error(r.error,command.requestId)})},refresh:function(){},exportPending:function(){},reconnect:function(){}};""")
         self.page.goto((ROOT / "android/app/src/main/assets/client.html").as_uri())
         self.render()
 
@@ -69,10 +61,7 @@ class MobileUiTest(unittest.TestCase):
         request = {**self.store.sync_info(), "operation_id": str(uuid.uuid4()), "uuid": task["uuid"] if task else str(uuid.uuid4()),
                    "type": kind, "base_version": task["version"] if task else 0,
                    "base": {k: task[k] for k in fields} if task else {}, "changes": changes}
-        http = urllib.request.Request(self.base + "/api/v1/mutations", json.dumps(request).encode(),
-                                      {"Authorization": "Bearer " + self.token, "Content-Type": "application/json"})
-        with urllib.request.urlopen(http, timeout=10) as response:
-            result = json.load(response)
+        result = self.store.sync_mutate(request, 'isolated-ui-test')
         self.state = self.snapshot()
         return {"saved": result["ok"], "state": self.state, "error": result.get("error")}
 
@@ -97,7 +86,8 @@ class MobileUiTest(unittest.TestCase):
         page.locator("#filter").select_option("all")
         page.locator("#list").get_by_role("button", name="交修改后的实验报告", exact=True).wait_for()
         self.assertEqual(self.store.sync_task(self.task_id)["status"], "open")
-        page.get_by_role("button", name="查看月历", exact=True).click()
+        page.locator('#calendar-toggle').click()
+        page.locator('#clear-day').click()
         output = ROOT / ".tmp-qa/mobile-sync"
         output.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(output / "phone-list-calendar.png"), full_page=True)
@@ -114,7 +104,8 @@ class MobileUiTest(unittest.TestCase):
         state.update(tasks=[local], pending=2, conflicts=[{"uuid": task["uuid"], "operation_id": "conflict-op", "type": "update", "local": local,
             "result": {"code": "conflict", "fields": ["summary"], "current": current}}])
         self.render(state)
-        self.page.locator('[data-page="sync"]').click()
+        self.page.locator('.bottom [data-page="account"]').click()
+        self.page.locator('.menu-row[data-page="sync"]').click()
         self.page.get_by_label("电脑当前值：电脑上的标题", exact=True).check()
         self.page.get_by_role("button", name="按选择合并提交", exact=True).click()
         self.page.wait_for_timeout(100)

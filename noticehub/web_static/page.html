@@ -768,6 +768,40 @@ body[data-view=settings] .top-banner-row{display:none}
 html[data-theme=dark] .summary,html[data-theme=dark] .settings-page>.hosting-settings{background:var(--paper);box-shadow:none}
 html[data-theme=dark] .settings-page .preference{background:none;color:var(--ink)}
 /* 卡片边界保持低对比的绿灰，输入控件和按钮仍使用更清楚的 --line。 */
+.task-editor-open{overflow:hidden}
+.action-feedback{position:fixed;inset:auto 16px 20px;z-index:1200;width:min(600px,calc(100% - 32px));box-sizing:border-box;margin:0 auto;padding:12px 14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);box-shadow:0 8px 28px rgba(0,0,0,.16)}
+.action-feedback[data-state=error]{background:var(--red-soft);border-color:var(--red)}
+.action-feedback[data-state=loading]{background:var(--amber-soft);border-color:var(--amber)}
+.action-feedback #feedback-message{flex:1;min-width:0;overflow-wrap:anywhere}
+.action-feedback button{min-height:36px;background:var(--paper);color:var(--ink)}
+.task-editor-dialog{width:min(560px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:0;border:0;border-radius:14px;background:var(--paper);color:var(--ink);overflow:auto;overscroll-behavior:contain;box-shadow:0 18px 64px rgba(0,0,0,.28)}
+.task-editor-dialog::backdrop{background:rgba(0,0,0,.52)}
+.task-editor-card{padding:24px}
+.task-editor-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+.task-editor-header h2{margin:0;font-size:22px}
+.task-editor-form{display:grid;gap:10px}
+.task-editor-form>label,.task-editor-date-heading>label{font-size:14px;font-weight:650}
+.task-editor-form input:not([type=checkbox]),.task-editor-form textarea{box-sizing:border-box;width:100%;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper-alt);color:var(--ink);font:inherit;font-size:16px;line-height:1.5;caret-color:var(--teal)}
+.task-editor-form textarea{resize:vertical;min-height:96px;max-height:240px}
+.task-editor-form input::placeholder,.task-editor-form textarea::placeholder{color:var(--muted);opacity:1}
+.task-editor-form .setting-note{margin:0;color:var(--muted);font-weight:400}
+.task-editor-date-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.task-editor-date-heading .task-editor-date-only{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400}
+.task-editor-date-only input{accent-color:var(--teal)}
+.task-editor-form>label[for=task-editor-notes]{margin-top:10px}
+.task-editor-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-top:12px}
+.task-editor-status{margin:0;min-height:20px;color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+.task-editor-discard{padding:12px;background:var(--amber-soft);border-radius:6px;color:var(--ink)}
+.task-editor-discard p{margin:0;font-size:14px}
+.task-edit-button{font-size:12px;padding:4px 8px;min-height:30px}
+.task-result-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:none}
+.history-disclosure{padding:0!important;margin-top:20px}
+.history-disclosure>summary{padding:16px;font-size:15px;font-weight:650;cursor:pointer}
+.history-disclosure>.history-body{padding:0 16px 16px}
+.inbox-preview{margin:12px 0;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.inbox-item-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px}
+.inbox-load-note{margin:0 16px 16px;color:var(--muted);font-size:13px}
+@media(max-width:600px){.task-editor-card{padding:20px 16px}.task-results{flex-wrap:wrap}.task-result-actions{justify-content:flex-end;width:100%}.task-editor-date-heading{flex-wrap:wrap}.task-editor-discard .task-editor-actions{justify-content:flex-start}}
 html[data-theme=dark] .masthead-row,html[data-theme=dark] .surface,html[data-theme=dark] .task,html[data-theme=dark] .task-filters,html[data-theme=dark] .task-view-switch,html[data-theme=dark] .settings-shell,html[data-theme=dark] .settings-body,html[data-theme=dark] .settings-page .preference,html[data-theme=dark] .task-detail-tools,html[data-theme=dark] .empty{border-color:var(--line-soft)}
 html[data-theme=dark] .btn.primary,html[data-theme=dark] .correct-btn.primary,html[data-theme=dark] .connect-actions .primary,html[data-theme=dark] #groupbox .primary,html[data-theme=dark] .hosting-settings .hosting-actions .primary{background:var(--primary-fill)}
 html[data-theme=dark] .btn.primary:not(:disabled):hover,html[data-theme=dark] .correct-btn.primary:not(:disabled):hover{background:var(--teal);color:var(--page)}
@@ -881,33 +915,35 @@ html[data-theme=dark] .task-filter input::placeholder,html[data-theme=dark] .set
       </div>
     </div>
   </section>
-  <div id="action-feedback" class="action-feedback" data-state="success" hidden><span id="feedback-message" role="status" aria-live="polite" aria-atomic="true"></span><button id="feedback-retry" type="button" hidden>重试</button></div>
+  <div id="action-feedback" class="action-feedback" data-state="success" hidden><span id="feedback-message" role="status" aria-live="polite" aria-atomic="true"></span><button id="feedback-retry" type="button" hidden>重试</button><button id="feedback-close" type="button" aria-label="关闭操作提示">关闭</button></div>
   <div class="workspace">
     <div class="primary-view">
       <section id="tab-tasks" class="view-screen" role="tabpanel" aria-label="待办清单" aria-labelledby="tab-tasks-button"></section>
       <section id="tab-notices" class="view-screen" role="tabpanel" aria-label="最近推送" aria-labelledby="tab-notices-button" hidden></section>
       <section id="tab-inbox" class="view-screen" role="tabpanel" aria-label="回溯收件箱" aria-labelledby="tab-inbox-button" hidden>
-        <section class="surface" aria-labelledby="history-title">
-          <div class="panel-heading"><div><span class="eyebrow">LOCAL HISTORY</span><h2 id="history-title">回溯聊天记录</h2></div></div>
-          <p class="history-note" role="note">只能回溯到 NapCat 本地缓存最早的时间，不代表完整聊天历史；本机实测活跃群的缓存最早到 2026-08-27。按群逐个探测可查看实际边界。</p>
+        <details id="history-tools" class="surface history-disclosure">
+          <summary id="history-title">回溯聊天记录</summary>
+          <div class="history-body">
+          <p class="history-note" role="note">需要补充过去的消息时，选择群和日期后回溯，再提取通知。可回溯范围取决于 NapCat 本地缓存，点击「探测最早时间」查看实际边界。</p>
           <div class="history-grid">
             <div><div class="history-controls"><button id="history-all-groups" class="btn" type="button">全选</button><button id="history-clear-groups" class="btn" type="button">清空</button><button id="history-probe" class="btn" type="button">探测最早时间</button></div><p id="history-group-note" class="history-status" role="status" aria-live="polite">正在读取可选群…</p><div id="history-groups" class="history-groups"></div></div>
             <div><div class="history-controls"><label>开始日期<input id="history-since" type="date"></label><label>结束日期<input id="history-until" type="date"></label><label>最多判定条数<input id="history-limit" type="number" min="1" max="20000" step="1" value="1000"></label></div><div class="history-controls" style="margin-top:8px"><button id="history-7" class="btn" type="button">最近 7 天</button><button id="history-30" class="btn" type="button">最近 30 天</button><button id="history-all-dates" class="btn" type="button">全部可用</button></div><p id="history-floor-note" class="history-status" role="status" aria-live="polite">尚未探测缓存底线。</p></div>
           </div>
           <div class="history-actions" style="margin-top:12px"><button id="history-fetch" class="btn primary" type="button">① 回溯聊天记录</button><button id="history-classify" class="btn" type="button">② 提取通知</button></div>
           <div id="history-job" class="history-job" role="status" aria-live="polite" hidden><strong id="history-job-title"></strong><progress id="history-progress" max="1" value="0"></progress><p id="history-job-note"></p><button id="history-cancel" class="btn" type="button" hidden>取消回溯</button></div>
-        </section>
+          </div>
+        </details>
         <section class="surface" aria-labelledby="inbox-title">
           <div class="panel-heading"><div><span class="eyebrow">CLASSIFIED MESSAGES</span><h2 id="inbox-title">通知收件箱</h2></div><span class="panel-index" id="inbox-total" hidden></span></div>
           <div class="inbox-counts" role="group" aria-label="按判定筛选" hidden><button type="button" data-inbox-verdict="all" aria-pressed="true" hidden>全部 <span id="count-all"></span></button><button type="button" data-inbox-verdict="notice" aria-pressed="false" hidden>确定通知 <span id="count-notice"></span></button><button type="button" data-inbox-verdict="suspect" aria-pressed="false" hidden>疑似通知 <span id="count-suspect"></span></button><button type="button" data-inbox-verdict="promoted" aria-pressed="false" hidden>已转待办 <span id="count-promoted"></span></button></div>
-          <div class="inbox-filter"><label>群筛选<select id="inbox-group"><option value="">全部群</option></select></label><label class="search">正文关键词<input id="inbox-search" type="search" maxlength="200" placeholder="搜索消息正文"></label><div class="inbox-filter-tools"><button id="inbox-search-button" class="btn" type="button">筛选</button><button id="inbox-refresh" class="btn" type="button">刷新</button></div></div>
+          <div class="inbox-filter"><label>群筛选<select id="inbox-group"><option value="">全部群</option></select></label><label class="search">正文关键词<input id="inbox-search" type="search" maxlength="200" placeholder="搜索消息正文"></label><div class="inbox-filter-tools"><button id="inbox-search-button" class="btn" type="button">筛选</button><button id="inbox-reset" class="btn" type="button">清除筛选</button><button id="inbox-refresh" class="btn" type="button">刷新</button></div></div>
           <p id="inbox-message" class="inbox-empty" role="status" aria-live="polite">正在读取通知…</p><ul id="inbox-items" class="inbox-items"></ul><div class="inbox-pagination"><button id="inbox-more" class="btn" type="button" hidden>加载更多</button></div>
         </section>
       </section>
       <section id="tab-settings" class="view-screen" role="tabpanel" aria-label="服务设置" aria-labelledby="tab-settings-button" hidden></section>
     </div>
     <section id="calendar-panel" class="surface calendar-panel" aria-labelledby="calendar-title">
-       <div class="panel-heading"><div><span class="eyebrow">SCHEDULE</span><h2 id="calendar-title">月历</h2></div><div class="month-controls"><button id="calendar-toggle" class="btn calendar-toggle" type="button" aria-expanded="false" aria-controls="calendar">查看月历</button><button id="cal-prev" class="btn" type="button" aria-label="上一月">‹</button><button id="cal-next" class="btn" type="button" aria-label="下一月">›</button></div></div><div class="weekday-row" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+       <div class="panel-heading"><div><span class="eyebrow">SCHEDULE</span><h2 id="calendar-title">月历</h2></div><div class="month-controls"><button id="calendar-toggle" class="btn calendar-toggle" type="button" aria-expanded="false" aria-controls="calendar">查看月历</button><button id="cal-today" class="btn" type="button">今天</button><button id="cal-prev" class="btn" type="button" aria-label="上一月">‹</button><button id="cal-next" class="btn" type="button" aria-label="下一月">›</button></div></div><div class="weekday-row" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
        <div id="calendar" aria-label="任务月历"></div>
        <p class="calendar-note">每格最多显示 3 条（带截止时刻），标题太长会截断、鼠标悬停看全文；点一下日期格（或键盘回车）看当天全部事项。</p>
        <div id="calendar-detail" class="calendar-detail" role="region" aria-live="polite" aria-label="当天全部事项" hidden></div>
@@ -967,23 +1003,13 @@ html[data-theme=dark] .task-filter input::placeholder,html[data-theme=dark] .set
          <section id="rail-actions" class="surface rail-panel" aria-labelledby="rail-actions-title">
            <div class="panel-heading"><div><span class="eyebrow">QUICK ACTIONS</span><h2 id="rail-actions-title">快捷操作</h2></div><span class="panel-index">04</span></div>
            <div class="rail-actions">
-             <button id="rail-new-task" class="btn primary" type="button" aria-expanded="false" aria-controls="rail-new-form">新建待办</button>
+             <button id="rail-new-task" class="btn primary" type="button" aria-haspopup="dialog" aria-controls="task-editor-dialog">新建待办</button>
               <button id="rail-copy-today" class="btn" type="button">复制今日清单</button>
              <button id="rail-export-ics" class="btn" type="button">导出日历 .ics</button>
              <button id="rail-show-qr" class="btn" type="button">跳到二维码</button>
              <button id="rail-motion" class="btn" type="button" aria-pressed="false">暂停动态效果</button>
              <button id="rail-top" class="btn" type="button">回到顶部</button>
            </div>
-           <form id="rail-new-form" class="rail-new-form" hidden>
-                <label class="rail-new-label" for="rail-new-summary">待办内容</label>
-                <input id="rail-new-summary" class="rail-new-input" type="text" maxlength="200" autocomplete="off" placeholder="例如：周五前交实验报告">
-                <label class="rail-new-label" for="rail-new-deadline">截止时间（不填就放在「以后」）</label>
-                <input id="rail-new-deadline" class="rail-new-input" type="datetime-local">
-                <div class="rail-new-buttons">
-                  <button id="rail-new-save" class="btn primary" type="submit">保存</button>
-                  <button id="rail-new-cancel" class="btn" type="button">取消</button>
-                </div>
-              </form>
               <p id="rail-actions-note" class="connect-hint" role="status" aria-live="polite">「复制今日清单」把今天的待办按「时间 · 标题」复制成纯文本，方便贴到微信或备忘录。</p>
          </section>
          <section id="rail-health" class="surface rail-panel" aria-labelledby="rail-health-title">
@@ -998,6 +1024,25 @@ html[data-theme=dark] .task-filter input::placeholder,html[data-theme=dark] .set
     </aside>
   </div>
 </main>
+
+<dialog id="task-editor-dialog" class="task-editor-dialog" aria-labelledby="task-editor-title">
+  <div class="task-editor-card">
+    <div class="task-editor-header"><h2 id="task-editor-title">新建待办</h2><button class="btn" type="button" data-editor-close aria-label="关闭待办编辑">关闭</button></div>
+    <form id="rail-new-form" class="task-editor-form">
+      <label for="rail-new-summary">待办内容 <span class="setting-note">必填</span></label>
+      <input id="rail-new-summary" type="text" maxlength="200" required autocomplete="off" placeholder="例如：周五前交实验报告">
+      <div class="task-editor-date-heading"><label for="rail-new-deadline">截止时间 <span class="setting-note">选填</span></label><label class="task-editor-date-only"><input id="task-editor-date-only" type="checkbox">仅设置日期</label></div>
+      <input id="rail-new-deadline" type="datetime-local" aria-describedby="task-editor-date-note">
+      <p id="task-editor-date-note" class="setting-note">不填截止时间也可以保存，之后随时补充。</p>
+      <label for="task-editor-notes">备注 <span class="setting-note">选填</span></label>
+      <textarea id="task-editor-notes" rows="4" maxlength="10000" placeholder="补充要求、安排或相关链接"></textarea>
+      <p id="task-editor-status" class="task-editor-status" role="status" aria-live="polite"></p>
+      <button id="task-editor-retry" class="btn" type="button" hidden>重新读取</button>
+      <div id="task-editor-discard" class="task-editor-discard" hidden><p>有尚未保存的内容，放弃修改并关闭？</p><div class="task-editor-actions"><button id="task-editor-continue" class="btn" type="button">继续编辑</button><button id="task-editor-abandon" class="btn" type="button">放弃修改</button></div></div>
+      <div class="task-editor-actions"><button id="rail-new-cancel" class="btn" type="button" data-editor-close>取消</button><button id="rail-new-save" class="btn primary" type="submit">创建待办</button></div>
+    </form>
+  </div>
+</dialog>
 
 <script>
 // 全站统一的「滚到卡片」判据，guide.js / settings.js / 页面各处共用：
@@ -1018,6 +1063,7 @@ function scrollTargetIntoView(target, behavior) {
 <script src="js/announce.js"></script>
 <script src="js/pair.js"></script>
 <script src="js/schedule-sync.js"></script>
+<script src="js/task-editor.js"></script>
 <script src="js/lab-rules.js"></script>
 <script src="js/desktop-shell.js"></script>
 <script src="js/task-workspace.js"></script>
@@ -1362,6 +1408,8 @@ function setupGroupPull(config) {
 
 initOnboarding();
 
+var feedbackTimer = null;
+document.getElementById('feedback-close').onclick = function () { clearTimeout(feedbackTimer); document.getElementById('action-feedback').hidden = true; };
 function showFeedback(message, state, retry) {
   var box = document.getElementById('action-feedback');
   var messageNode = document.getElementById('feedback-message');
@@ -1377,6 +1425,8 @@ function showFeedback(message, state, retry) {
   retryButton.hidden = typeof retry !== 'function';
   retryButton.disabled = false;
   retryButton.onclick = typeof retry === 'function' ? function () { retryButton.disabled = true; retry(); } : null;
+  clearTimeout(feedbackTimer);
+  if (state === 'success') feedbackTimer = setTimeout(function () { box.hidden = true; }, 5000);
 }
 
 function animateSurface(surface, shift) {
@@ -1424,32 +1474,12 @@ function correctionButton(label, correction, cls, value) {
 
 function correctionPanel(task) {
   var box = el('details', 'correction');
-  box.appendChild(el('summary', '', '纠错'));
   var panel = el('div', 'correction-panel');
   var isManual = String(task.task_key || '').indexOf('manual:') === 0;
+  box.appendChild(el('summary', '', isManual ? '分类与时间' : '纠错'));
   var grid = el('div', 'correct-grid');
   if (isManual) {
-    // 手工任务不是 AI 判的，「不是通知/不是待办/标记重复」没有误判可言，点了还会污染学习数据——换成删除入口。
-    // 后端契约：manual: + open 允许 action:'delete'，真删、不写学习记录。
-    panel.appendChild(el('div', 'correction-hint', '这是手工创建的待办：删除后不会写入任何学习记录。'));
-    var deleteManual = el('button', 'btn', '删除这条待办');
-    deleteManual.type = 'button';
-    deleteManual.setAttribute('aria-label', '删除这条待办');
-    var deleteManualTimer = null;
-    deleteManual.onclick = function () {
-      if (deleteManualTimer === null) {
-        deleteManual.textContent = '确认删除？（4 秒内再点一次）';
-        deleteManualTimer = window.setTimeout(function () {
-          deleteManualTimer = null;
-          if (!deleteManual.disabled) deleteManual.textContent = '删除这条待办';
-        }, 4000);
-        return;
-      }
-      window.clearTimeout(deleteManualTimer);
-      deleteManualTimer = null;
-      runTaskMutation(task, {action: 'delete'}, '正在删除待办…', '已删除这条待办', deleteManual, function () { deleteManual.click(); });
-    };
-    panel.appendChild(deleteManual);
+    panel.appendChild(el('div', 'correction-hint', '手动创建的事项可调整分类和截止时间。'));
   } else {
     panel.appendChild(el('div', 'correction-hint', '纠正后会记录原判断，用于后续减少误判'));
     var quick = [['不是通知', 'not_notice'], ['不是待办', 'not_task'], ['标记重复', 'duplicate']];
@@ -1557,11 +1587,11 @@ function taskNode(task) {
   pinButton.setAttribute('aria-label', (task.pinned ? '取消置顶：' : '置顶：') + (task.summary || task.text || '待办事项'));
   pinButton.onclick = function () { sendPinToggle(task, !task.pinned, pinButton); };
   urgentControls.appendChild(pinButton);
-  // A：已完成卡片的「删除」——两段式确认，POST action:"delete"（真删；不用 dismiss，它会挪进「已忽略」并污染忽略率统计）。
-  if (task.done && !candidate) {
+  // 删除始终作用于当前事项，保留原有的二次确认和统一写入接口。
+  if (task.id) {
     var removeDone = el('button', 'btn', '删除');
     removeDone.type = 'button';
-    removeDone.setAttribute('aria-label', '删除这条已完成任务');
+    removeDone.setAttribute('aria-label', task.done ? '删除这条已完成任务' : '删除这条待办');
     var removeDoneTimer = null;
     removeDone.onclick = function () {
       if (removeDoneTimer === null) {
@@ -1578,7 +1608,7 @@ function taskNode(task) {
       removeDone.textContent = '正在删除…';
       api('/api/tasks/' + task.id, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action: 'delete'})}).then(function (result) {
         if (!result.ok) throw new Error(result.error || '删除未生效');
-        showFeedback('已删除这条已完成任务', 'success');
+        showFeedback(task.done ? '已删除这条已完成任务' : '已删除这条待办', 'success');
         syncTasks().catch(function (refreshError) {
           showFeedback('已删除，但待办刷新未完成：' + refreshError.message, 'error');
         });
@@ -1636,7 +1666,7 @@ function taskNode(task) {
     body.appendChild(detail);
   }
   body.appendChild(correctionPanel(task));
-  if (window.NhSchedule) body.appendChild(window.NhSchedule.editor(task));
+  if (window.NhSchedule) urgentControls.insertBefore(window.NhSchedule.editor(task), urgentControls.firstChild);
   var detailTools = el('div', 'task-detail-tools');
   Array.from(body.children).forEach(function (child) { if (child.tagName === 'DETAILS') detailTools.appendChild(child); });
   body.appendChild(detailTools);
@@ -2119,10 +2149,12 @@ function renderInboxItem(item) {
   row.appendChild(el('p', 'inbox-reason', '判定理由：' + String(item.reason || '未提供')));
   row.appendChild(el('p', 'inbox-reason', '来源：' + (methods[item.method] || '来源未提供')));
   var content = String(item.content || '');
+  var preview = el('p', 'inbox-preview', content.length > 180 ? content.slice(0, 180) + '…' : content);
+  row.appendChild(preview);
   var details = el('details', 'inbox-content');
   details.appendChild(el('summary', '', '查看消息正文'));
   details.appendChild(el('p', '', content));
-  row.appendChild(details);
+  if (content.length > 180) row.appendChild(details);
   // 缩略图挂在卡片上、不进上面那个默认收起的折叠块：不展开也要看得见图。
   if (item.has_image) {
     var image = el('img', 'inbox-attachment-image');
@@ -2143,18 +2175,19 @@ function renderInboxItem(item) {
     image.onerror = function () { imageLink.remove(); };
     row.appendChild(imageLink);
   }
-  var promote = el('button', 'btn', item.task_id ? '已转待办' : '转成待办');
+  var promote = el('button', 'btn', item.task_id ? '查看待办' : '转成待办');
   promote.type = 'button';
-  promote.disabled = Boolean(item.task_id);
-  promote.setAttribute('aria-label', item.task_id ? '已转成待办' : '将这条通知转成待办');
+  promote.setAttribute('aria-label', item.task_id ? '查看对应待办' : '将这条通知转成待办');
   promote.onclick = function () {
+    if (item.task_id) { window.NhTaskView.revealTask(item.task_id); return; }
     promote.disabled = true;
     promote.textContent = '正在创建…';
     api('/api/inbox/promote', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({msg_id: item.msg_id, title: content})}).then(function (result) {
       if (!result.ok || !result.task_id) throw new Error(result.error || '待办未创建');
       item.task_id = result.task_id;
-      promote.textContent = '已转待办';
-      promote.setAttribute('aria-label', '已转成待办');
+      promote.disabled = false;
+      promote.textContent = '查看待办';
+      promote.setAttribute('aria-label', '查看对应待办');
       syncTasks().then(function () { showFeedback('通知已转成待办并同步到待办页', 'success'); }, function (error) { showFeedback('已转成待办，但待办页刷新失败：' + error.message, 'error', loadTasks); });
       loadInbox(false);
     }).catch(function (error) {
@@ -2163,7 +2196,7 @@ function renderInboxItem(item) {
       showFeedback('转换未确认：' + error.message, 'error', function () { promote.click(); });
     });
   };
-  row.appendChild(promote);
+  var itemActions = el('div', 'inbox-item-actions'); itemActions.appendChild(promote); row.appendChild(itemActions);
   // 删除：两段式确认（仓库不引入 confirm() 阻塞弹窗），4 秒不点第二下自动复原。
   var remove = el('button', 'btn', '删除');
   remove.type = 'button';
@@ -2193,17 +2226,25 @@ function renderInboxItem(item) {
       showFeedback('删除未成功：' + error.message, 'error');
     });
   };
-  row.appendChild(remove);
+  itemActions.appendChild(remove);
   return row;
 }
 
+var inboxRequestId = 0, inboxLoading = false, inboxController = null;
 function loadInbox(append) {
+  if (append && inboxLoading) return;
+  if (inboxController) inboxController.abort();
+  inboxController = new AbortController();
+  var requestId = ++inboxRequestId;
+  inboxLoading = true;
+  var more = document.getElementById('inbox-more'); more.disabled = true;
   var message = document.getElementById('inbox-message');
   var root = document.getElementById('inbox-items');
   if (!append) {
     inboxState.offset = 0;
     root.textContent = '';
     message.textContent = '正在读取通知…';
+    more.hidden = true;
   }
   var query = new URLSearchParams();
   if (inboxState.verdict !== 'all') query.set('verdict', inboxState.verdict);
@@ -2211,7 +2252,9 @@ function loadInbox(append) {
   if (inboxState.q) query.set('q', inboxState.q);
   query.set('limit', '50');
   query.set('offset', String(inboxState.offset));
-  api('/api/inbox?' + query.toString()).then(function (data) {
+  var offset = inboxState.offset;
+  api('/api/inbox?' + query.toString(), {signal: inboxController.signal}).then(function (data) {
+    if (requestId !== inboxRequestId) return;
     if (!data.ok || !Array.isArray(data.items)) throw new Error(data.error || '收件箱数据格式无效');
     var counts = data.counts || {};
     function positiveCount(value) { var count = Number(value); return Number.isFinite(count) && count > 0 ? count : 0; }
@@ -2222,26 +2265,21 @@ function loadInbox(append) {
       promoted: positiveCount(counts.promoted)
     };
     var countsBar = document.querySelector('.inbox-counts');
-    countsBar.hidden = filterCounts.all === 0;
+    countsBar.hidden = filterCounts.all === 0 && inboxState.verdict === 'all';
     document.querySelectorAll('[data-inbox-verdict]').forEach(function (button) {
       var verdict = button.getAttribute('data-inbox-verdict');
       var count = filterCounts[verdict] || 0;
       button.querySelector('span').textContent = count ? String(count) : '';
-      button.hidden = count === 0;
+      button.hidden = count === 0 && verdict !== inboxState.verdict;
       button.setAttribute('aria-pressed', verdict === inboxState.verdict ? 'true' : 'false');
     });
-    if (inboxState.verdict !== 'all' && !filterCounts[inboxState.verdict]) {
-      inboxState.verdict = 'all';
-      loadInbox(false);
-      return;
-    }
     var inboxTotal = positiveCount(data.total);
     var inboxTotalNode = document.getElementById('inbox-total');
     inboxTotalNode.hidden = inboxTotal === 0;
     inboxTotalNode.textContent = inboxTotal ? inboxTotal + ' 条' : '';
     data.items.forEach(function (item) { root.appendChild(renderInboxItem(item)); });
     inboxState.total = Number(data.total || 0);
-    inboxState.offset += data.items.length;
+    inboxState.offset = offset + data.items.length;
     document.getElementById('inbox-more').hidden = inboxState.offset >= inboxState.total || data.items.length === 0;
     if (!inboxState.total) {
       message.textContent = filterCounts.all ? '当前筛选条件下暂无通知。' : '暂无判定结果。先去「设置」里看看消息来源和推送通道接上没有。';
@@ -2249,16 +2287,20 @@ function loadInbox(append) {
       message.textContent = '显示 ' + inboxState.offset + ' / ' + inboxState.total + ' 条';
     }
   }).catch(function (error) {
+    if (requestId !== inboxRequestId) return;
     message.textContent = '收件箱读取失败：' + error.message;
     document.getElementById('inbox-more').hidden = true;
+  }).then(function () {
+    if (requestId !== inboxRequestId) return;
+    inboxLoading = false; more.disabled = false; inboxController = null;
   });
 }
 
 function loadInboxTab() {
   loadHistoryGroups();
   loadInbox(false);
-  api('/api/history/fetch/status').then(function (status) { if (status.running) pollHistoryJob('history'); });
-  api('/api/inbox/classify/status').then(function (status) { if (status.running) pollHistoryJob('classify'); });
+  api('/api/history/fetch/status').then(function (status) { if (status.running) { document.getElementById('history-tools').open = true; pollHistoryJob('history'); } });
+  api('/api/inbox/classify/status').then(function (status) { if (status.running) { document.getElementById('history-tools').open = true; pollHistoryJob('classify'); } });
 }
 
 document.getElementById('history-all-groups').onclick = function () { document.querySelectorAll('#history-groups input[type="checkbox"]').forEach(function (input) { input.checked = true; }); };
@@ -2272,7 +2314,13 @@ document.getElementById('history-classify').onclick = function () { startHistory
 document.querySelectorAll('[data-inbox-verdict]').forEach(function (button) { button.onclick = function () { inboxState.verdict = button.getAttribute('data-inbox-verdict'); loadInbox(false); }; });
 document.getElementById('inbox-group').onchange = function () { inboxState.groupId = this.value; loadInbox(false); };
 document.getElementById('inbox-search-button').onclick = function () { inboxState.q = document.getElementById('inbox-search').value.trim(); loadInbox(false); };
-document.getElementById('inbox-search').onkeydown = function (event) { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('inbox-search-button').click(); } };
+document.getElementById('inbox-search').onkeydown = function (event) { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); document.getElementById('inbox-search-button').click(); } };
+document.getElementById('inbox-search').addEventListener('search', function () { if (!this.value) { inboxState.q = ''; loadInbox(false); } });
+document.getElementById('inbox-reset').onclick = function () {
+  inboxState.verdict = 'all'; inboxState.groupId = ''; inboxState.q = '';
+  document.getElementById('inbox-group').value = ''; document.getElementById('inbox-search').value = '';
+  loadInbox(false);
+};
 document.getElementById('inbox-refresh').onclick = function () { loadInbox(false); };
 document.getElementById('inbox-more').onclick = function () { loadInbox(true); };
 
@@ -2334,7 +2382,7 @@ function downloadFirewallScript(port){
 }
 
 (function(){
- var cursor=new Date(); cursor.setDate(1); var calendarTasks=[];
+ var cursor=new Date(); cursor.setDate(1); var calendarTasks=[]; document.getElementById("cal-today").onclick=function(){cursor=new Date();cursor.setDate(1);renderCalendar();};
  var MAX_CALENDAR_EVENTS=3; var calendarDetail=document.getElementById('calendar-detail');
  function pad(value){return String(value).padStart(2,'0');}
  function dayKey(y,m,d){return y+'-'+pad(m+1)+'-'+pad(d);}
@@ -2506,60 +2554,25 @@ function railNote(message, state) {
 }
 
 function railShowNewForm(open) {
-  var form = document.getElementById('rail-new-form');
-  var toggle = document.getElementById('rail-new-task');
-  if (!form) return;
-  if (form.dataset.pending) { clearTimeout(Number(form.dataset.pending)); delete form.dataset.pending; }
-  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (open) {
-    form.hidden = false;
-    form.dataset.state = 'entering';
-    form.dataset.pending = String(setTimeout(function () { form.dataset.state = ''; delete form.dataset.pending; }, 220));
-    var field = document.getElementById('rail-new-summary');
-    if (field) field.focus();
-    return;
-  }
-  if (form.hidden) { form.dataset.state = ''; return; }
-  form.dataset.state = 'exiting';
-  if (getComputedStyle(form).animationName === 'none') {
-    form.dataset.state = '';
-    form.hidden = true;
-    form.reset();
-    return;
-  }
-  form.dataset.pending = String(setTimeout(function () {
-    form.dataset.state = '';
-    form.hidden = true;
-    form.reset();
-    delete form.dataset.pending;
-  }, 180));
+  if (!open) { window.NhTaskEditor.close(); return; }
+  window.NhTaskEditor.open({
+    title: '新建待办', submitLabel: '创建待办',
+    onSave: railCreateTask,
+    onSaved: function (result) {
+      showFeedback('待办已创建', 'success');
+      return syncTasks().then(function () { window.NhTaskView.revealTask(result.task_id); });
+    }
+  });
 }
 
-function railCreateTask() {
-  if (!latestTasks) { railNote('还没读到待办列表，请稍后再试。', 'warn'); return; }
-  var field = document.getElementById('rail-new-summary');
-  var when = document.getElementById('rail-new-deadline');
-  var save = document.getElementById('rail-new-save');
-  var summary = field ? field.value.trim() : '';
-  if (!summary) { railNote('请先填写待办内容。', 'warn'); if (field) field.focus(); return; }
-  var deadline = when && when.value ? when.value : '';
-  if (save) save.disabled = true;
-  railNote('正在保存…', '');
-  api('/api/tasks/create', {
+function railCreateTask(value) {
+  return api('/api/tasks/create', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({summary: summary, deadline: deadline})
+    body: JSON.stringify(value)
   }).then(function (result) {
     if (!result.ok) throw new Error(result.error || '新建待办失败');
-    if (field) field.value = '';
-    if (when) when.value = '';
-    railShowNewForm(false);
-    railNote('已新建：' + result.summary + (result.deadline ? '（' + String(result.deadline).slice(5, 16).replace('T', ' ') + ' 截止）' : '（没有截止时间，先放在「以后」）'), 'ok');
-    return syncTasks();
-  }).catch(function (error) {
-    railNote('新建失败：' + error.message, 'error');
-  }).then(function () {
-    if (save) save.disabled = false;
+    return result;
   });
 }
 
@@ -2682,16 +2695,7 @@ function initRailPanels() {
     if (node) node.onclick = pair[1];
   });
   var newTask = document.getElementById('rail-new-task');
-  if (newTask) newTask.onclick = function () { railShowNewForm(document.getElementById('rail-new-form').hidden); };
-  var newForm = document.getElementById('rail-new-form');
-  if (newForm) {
-    newForm.onsubmit = function (event) { event.preventDefault(); railCreateTask(); };
-    newForm.onkeydown = function (event) {
-      if (event.key === 'Escape') { event.preventDefault(); railShowNewForm(false); if (newTask) newTask.focus(); }
-    };
-  }
-  var newCancel = document.getElementById('rail-new-cancel');
-  if (newCancel) newCancel.onclick = function () { railShowNewForm(false); if (newTask) newTask.focus(); };
+  if (newTask) newTask.onclick = function () { railShowNewForm(true); };
   var top = document.getElementById('rail-top');
   if (top) top.onclick = function () { window.scrollTo({top: 0, behavior: motionPreferencePaused ? 'auto' : 'smooth'}); };
   railSyncMotionLabel();

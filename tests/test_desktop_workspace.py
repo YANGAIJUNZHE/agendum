@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import unittest
 import datetime
+import uuid
 
 from playwright.sync_api import sync_playwright
 
@@ -63,10 +64,10 @@ class DesktopWorkspaceTest(unittest.TestCase):
         self.page.get_by_role("button", name="微信", exact=True).click()
         self.page.locator("#wx-dir-input").fill("D:\\临时微信目录")
         self.page.get_by_role("button", name="通知与提取", exact=True).click()
-        self.page.get_by_role("button", name="AI 摘要", exact=True).click()
+        self.assertTrue(self.page.locator('#settings-page-llm').is_visible())
         self.assertEqual(self.page.locator("#llm-key").input_value(), "draft-secret-never-store")
         self.page.get_by_role("button", name="消息来源", exact=True).click()
-        self.page.get_by_role("button", name="微信", exact=True).click()
+        self.assertTrue(self.page.locator('#settings-page-wechat').is_visible())
         self.assertEqual(self.page.locator("#wx-dir-input").input_value(), "D:\\临时微信目录")
         self.assertEqual(self.page.locator(".settings-page:visible").count(), 1)
         self.assertTrue(self.page.locator(".summary").is_hidden())
@@ -153,6 +154,17 @@ class DesktopWorkspaceTest(unittest.TestCase):
         self.page.click('#task-view-calendar')
         self.assertIn('今天先完成', self.page.locator('#calendar').inner_text())
         self.assertNotIn('今天晚些时候', self.page.locator('#calendar').inner_text())
+        original_month = self.page.locator('#calendar-title').inner_text()
+        self.page.click('#cal-prev')
+        self.assertNotEqual(self.page.locator('#calendar-title').inner_text(), original_month)
+        self.page.click('#cal-today')
+        self.assertEqual(self.page.locator('#calendar-title').inner_text(), original_month)
+        self.page.click('#task-reset-filters')
+        self.assertEqual(self.page.locator('#task-search').input_value(), '')
+        self.assertEqual(self.page.locator('#task-date-filter').input_value(), 'all')
+        self.assertEqual(self.page.locator('#task-state-filter').input_value(), 'pending')
+        self.assertIn('今天先完成', self.page.locator('#calendar').inner_text())
+        self.assertIn('今天晚些时候', self.page.locator('#calendar').inner_text())
         self.assertTrue(self.page.locator('#tasks-clear-done').is_visible())
 
     def test_calendar_and_pinned_links_reveal_task_in_list(self):
@@ -189,6 +201,53 @@ class DesktopWorkspaceTest(unittest.TestCase):
         self.assertEqual(self.page.locator(".side-rail > section").count(), 7)
         self.assertEqual(self.page.locator(".side-rail > section").first.get_attribute("id"), "pinned-panel")
 
+    def test_inbox_latest_filter_wins_and_promoted_task_is_reachable(self):
+        task_id = self.fixture.server.store.upsert_task(task_key='inbox-target', summary='由通知转成的事项')
+        self.open()
+        self.page.click('#tab-inbox-button')
+        self.page.wait_for_function("!document.querySelector('#inbox-message').textContent.includes('正在读取')")
+        self.assertFalse(self.page.locator('#history-tools').evaluate('el => el.open'))
+        self.page.evaluate("""() => {
+            window.savedApi = window.api; window.inboxRequests = [];
+            window.api = function(path, options) {
+                if (path.startsWith('/api/inbox?')) return new Promise(resolve => window.inboxRequests.push({path, resolve}));
+                if (path === '/api/inbox/promote') return Promise.resolve({ok:true, task_id: %d});
+                return window.savedApi(path, options);
+            };
+        }""" % task_id)
+        self.page.fill('#inbox-search', '旧词')
+        self.page.click('#inbox-search-button')
+        self.page.fill('#inbox-search', '新词')
+        self.page.click('#inbox-search-button')
+        self.page.wait_for_function('window.inboxRequests.length === 2')
+        self.page.evaluate("""() => {
+            const item = content => ({msg_id:content, content, verdict:'notice', method:'llm', reason:'测试'});
+            const payload = content => ({ok:true, items:[item(content)], total:1,
+                counts:{notice:1,suspect:0,noise:0,promoted:0}});
+            window.inboxRequests[1].resolve(payload('新结果'));
+            setTimeout(() => window.inboxRequests[0].resolve(payload('旧结果')), 30);
+        }""")
+        self.page.wait_for_function("document.querySelector('#inbox-items').textContent.includes('新结果')")
+        self.page.wait_for_timeout(100)
+        self.assertEqual(self.page.locator('#inbox-items .inbox-item').count(), 1)
+        self.assertNotIn('旧结果', self.page.locator('#inbox-items').inner_text())
+        self.assertIn('新结果', self.page.locator('#inbox-items .inbox-preview').inner_text())
+        self.assertIn('显示 1 / 1 条', self.page.locator('#inbox-message').inner_text())
+        self.page.click('#inbox-reset')
+        self.assertEqual(self.page.locator('#inbox-search').input_value(), '')
+        self.page.wait_for_function('window.inboxRequests.length === 3')
+        self.assertNotIn('q=', self.page.evaluate('window.inboxRequests[2].path'))
+        self.page.evaluate("""() => window.inboxRequests[2].resolve({ok:true,
+            items:[{msg_id:'新结果', content:'新结果', verdict:'notice'}],
+            total:1, counts:{notice:1,suspect:0,noise:0,promoted:0}})""")
+        self.page.get_by_role('button', name='将这条通知转成待办').click()
+        self.page.wait_for_function('window.inboxRequests.length === 4')
+        self.page.evaluate("""taskId => window.inboxRequests[3].resolve({ok:true,
+            items:[{msg_id:'新结果', content:'新结果', verdict:'notice', task_id:taskId}],
+            total:1, counts:{notice:1,suspect:0,noise:0,promoted:1}})""", task_id)
+        self.page.get_by_role('button', name='查看对应待办').click()
+        self.assertTrue(self.page.locator('#task-' + str(task_id)).is_visible())
+
     def test_qq_portal_and_deep_links_keep_live_controls(self):
         self.open()
         self.page.evaluate("window.originalQQ = document.getElementById('connect')")
@@ -219,14 +278,81 @@ class DesktopWorkspaceTest(unittest.TestCase):
     def test_create_task_from_primary_toolbar(self):
         self.open()
         self.page.locator(".workspace-toolbar").get_by_role("button", name="新建待办", exact=True).click()
+        self.assertTrue(self.page.locator('#task-editor-dialog').is_visible())
         self.assertTrue(self.page.locator("#rail-new-form").is_visible())
+        self.assertTrue(self.page.locator('#rail-new-summary').evaluate('el => document.activeElement === el'))
         self.page.locator("#rail-new-summary").fill("浏览器验收：提交实验报告")
+        self.page.locator('#task-editor-notes').fill('需要附实验数据')
+        self.page.keyboard.press('Escape')
+        self.assertTrue(self.page.locator('#task-editor-discard').is_visible())
+        self.page.click('#task-editor-continue')
+        self.assertEqual(self.page.locator('#rail-new-summary').input_value(), '浏览器验收：提交实验报告')
         self.page.click("#rail-new-save")
+        self.page.wait_for_selector('#task-editor-dialog', state='hidden')
         self.page.wait_for_selector("#tab-tasks .task")
         self.assertIn("浏览器验收：提交实验报告", self.page.locator("#tab-tasks").inner_text())
+        created = next(t for t in self.fixture.server.store.sync_page()['items'] if t['summary'] == '浏览器验收：提交实验报告')
+        self.assertEqual(created['notes'], '需要附实验数据')
         self.page.reload()
         self.page.wait_for_selector("#tab-tasks .task")
         self.assertIn("浏览器验收：提交实验报告", self.page.locator("#tab-tasks").inner_text())
+
+    def test_manual_and_candidate_deletion_requires_confirmation(self):
+        store = self.fixture.server.store
+        manual = store.upsert_task(task_key='manual:' + str(uuid.uuid4()), summary='手动事项')
+        candidate = store.upsert_task(task_key='candidate-delete', summary='候选事项', status='candidate')
+        corrections_before = store.correction_stats()
+        self.open()
+        manual_card = self.page.locator('#task-' + str(manual))
+        self.assertTrue(manual_card.get_by_text('分类与时间', exact=True).is_visible())
+        self.assertEqual(manual_card.get_by_text('纠错', exact=True).count(), 0)
+        for task_id in (manual, candidate):
+            button = self.page.locator('#task-' + str(task_id)).get_by_role('button', name='删除这条待办', exact=True)
+            button.click()
+            self.assertFalse(store.sync_task(task_id)['deleted'])
+            button.click()
+            self.page.wait_for_function("id => !document.getElementById('task-' + id)", arg=task_id)
+            self.assertTrue(store.sync_task(task_id)['deleted'])
+        self.assertEqual(store.correction_stats(), corrections_before)
+
+    def test_edit_dialog_keeps_draft_when_tasks_refresh(self):
+        task_id = self.fixture.server.store.upsert_task(task_key='edit-draft', summary='修改前的事项')
+        self.open()
+        with self.page.expect_response(lambda response: '/api/v1/tasks/lookup?' in response.url) as lookup:
+            self.page.locator('#task-' + str(task_id) + ' .task-edit-button').click()
+        self.assertTrue(lookup.value.json()['ok'])
+        self.page.wait_for_function("!document.querySelector('#rail-new-save').disabled && !document.querySelector('#task-editor-status').textContent")
+        self.page.locator('#rail-new-summary').fill('修改后的事项')
+        self.page.locator('#task-editor-notes').fill('尚未保存的备注')
+        self.page.evaluate('syncTasks()')
+        self.page.wait_for_timeout(300)
+        self.assertTrue(self.page.locator('#task-editor-dialog').is_visible())
+        self.assertEqual(self.page.locator('#rail-new-summary').input_value(), '修改后的事项')
+        self.assertEqual(self.page.locator('#task-editor-notes').input_value(), '尚未保存的备注')
+        self.page.click('#rail-new-save')
+        self.page.wait_for_selector('#task-editor-dialog', state='hidden')
+        self.page.wait_for_function("document.querySelector('#task-list-panel').textContent.includes('修改后的事项')")
+        self.assertEqual(self.page.evaluate('document.activeElement.id'), 'task-edit-' + str(task_id))
+        saved = self.fixture.server.store.sync_task(task_id)
+        self.assertEqual(saved['summary'], '修改后的事项')
+        self.assertEqual(saved['notes'], '尚未保存的备注')
+        with self.page.expect_response(lambda response: '/api/v1/tasks/lookup?' in response.url) as lookup:
+            self.page.locator('#task-' + str(task_id) + ' .task-edit-button').click()
+        self.assertTrue(lookup.value.json()['ok'])
+        self.page.wait_for_function("!document.querySelector('#rail-new-save').disabled && !document.querySelector('#task-editor-status').textContent")
+        self.page.locator('#rail-new-summary').fill('网页上的新修改')
+        store = self.fixture.server.store
+        current, info = store.sync_task(task_id), store.sync_info()
+        result = store.sync_mutate({'operation_id': str(uuid.uuid4()), 'uuid': current['uuid'],
+            'type': 'update', 'server_id': info['server_id'], 'epoch': info['epoch'],
+            'base_version': current['version'], 'base': {'summary': current['summary']},
+            'changes': {'summary': '其他设备的修改'}}, 'test')
+        self.assertTrue(result['ok'], result)
+        self.page.click('#rail-new-save')
+        self.page.wait_for_function("document.querySelector('#task-editor-status').textContent.includes('修改')")
+        self.assertTrue(self.page.locator('#task-editor-dialog').is_visible())
+        self.assertEqual(self.page.locator('#rail-new-summary').input_value(), '网页上的新修改')
+        self.assertEqual(store.sync_task(task_id)['summary'], '其他设备的修改')
 
     def test_clear_finished_is_confirmed_once_and_reaches_mobile_change_stream(self):
         store = self.fixture.server.store

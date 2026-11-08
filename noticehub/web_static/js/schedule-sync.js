@@ -36,44 +36,44 @@ window.NhSchedule = (function () {
   }
   function lookup(taskId) { return api('/api/v1/tasks/lookup?id='+encodeURIComponent(taskId)).then(function(x){return x.task;}); }
   function editTask(task) {
-    var panel = el('details','correction'); panel.appendChild(el('summary','','编辑内容与备注'));
-    var form=el('form','correct-grid'), title=el('input','correct-date'), notes=el('textarea','correct-date'), deadline=el('input','correct-date');
-    title.setAttribute('aria-label','待办内容'); title.maxLength=200; title.required=true; title.value=task.summary||'';
-    notes.setAttribute('aria-label','人工备注'); notes.maxLength=10000; notes.value=task.notes||'';
-    deadline.setAttribute('aria-label','截止时间'); deadline.type='datetime-local'; deadline.value=task.deadline?String(task.deadline).slice(0,16):'';
-    var dateOnly=el('input'); dateOnly.type='checkbox'; dateOnly.checked=String(task.deadline||'').length===10;
-    var dateLabel=el('label','','仅设置日期'); dateLabel.prepend(dateOnly);
-    if(dateOnly.checked){deadline.type='date';deadline.value=String(task.deadline).slice(0,10);}
-    dateOnly.onchange=function(){var v=deadline.value;deadline.type=dateOnly.checked?'date':'datetime-local';deadline.value=dateOnly.checked?v.slice(0,10):(v.length===10?v+'T18:00':v);};
-    var save=el('button','btn primary','保存内容'), remove=el('button','btn ghost','删除日程'); remove.type='button';
-    form.appendChild(title);form.appendChild(notes);form.appendChild(dateLabel);form.appendChild(deadline);form.appendChild(save);form.appendChild(remove);panel.appendChild(form);
-    // 展开时锁定用户看见的版本；保存时不能用重新查询的新版掩盖并发冲突。
-    var openedTask=null,loading=false;
-    panel.addEventListener('toggle',function(){
-      if(!panel.open||openedTask||loading)return;loading=true;
-      [title,notes,deadline,dateOnly,save,remove].forEach(function(input){input.disabled=true;});
-      lookup(task.id).then(function(t){
-        openedTask=t;title.value=t.summary;notes.value=t.notes||'';dateOnly.checked=t.deadline.kind==='date';
-        deadline.type=dateOnly.checked?'date':'datetime-local';
-        var stamp=t.deadline.value;
-        if(t.deadline.kind==='datetime'){var d=new Date(stamp);stamp=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
-        deadline.value=stamp;
-      }).catch(function(e){showFeedback(e.message,'error');}).then(function(){loading=false;[title,notes,deadline,dateOnly,save,remove].forEach(function(input){input.disabled=false;});});
-    });
-    form.onsubmit=function(event){event.preventDefault();save.disabled=true;
-      (openedTask?Promise.resolve(openedTask):Promise.reject(Error('请重新展开编辑，等待读取日程后再保存'))).then(function(t){
-        return submit(t,'update',{summary:title.value.trim(),notes:notes.value,deadline:when(deadline.value)},'editor:'+task.id+':'+JSON.stringify([title.value,notes.value,deadline.value]));
-      }).then(function(){return syncTasks();}).then(function(){showFeedback('内容已保存并同步','success');}).catch(function(e){showFeedback(e.message,'error');}).then(function(){save.disabled=false;});
+    var button = el('button', 'btn task-edit-button', '编辑'); button.type = 'button';
+    button.id = 'task-edit-' + task.id;
+    button.setAttribute('aria-label', '编辑待办：' + (task.summary || '待办事项'));
+    button.setAttribute('aria-haspopup', 'dialog');
+    button.onclick = function () {
+      // 打开时锁定版本；保存沿用这个版本，不能重新查询并覆盖其他设备的修改。
+      var openedTask = null;
+      window.NhTaskEditor.open({
+        title: '编辑待办', submitLabel: '保存修改', trigger: button,
+        values: {summary: task.summary, notes: task.notes},
+        load: function () { return lookup(task.id).then(function (value) {
+          openedTask = value;
+          var stamp = value.deadline.value;
+          if (value.deadline.kind === 'datetime') { var date = new Date(stamp); stamp = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
+          return {summary: value.summary, notes: value.notes, deadline: stamp};
+        }); },
+        onSave: function (value) {
+          if (!openedTask) throw Error('待办尚未读取，请重新读取后再保存');
+          return submit(openedTask, 'update', {summary: value.summary, notes: value.notes, deadline: when(value.deadline)}, 'editor:' + task.id + ':' + openedTask.version + ':' + JSON.stringify(value));
+        },
+        onSaved: function () {
+          showFeedback('待办已保存并同步', 'success');
+          return syncTasks().then(function () {
+            var replacement = document.getElementById(button.id);
+            // 列表重绘会移除原按钮；用户已开始下一次操作时不抢焦点。
+            if (replacement && !document.getElementById('task-editor-dialog').open &&
+                (document.activeElement === document.body || document.activeElement === button)) replacement.focus({preventScroll: true});
+          });
+        }
+      });
     };
-    remove.onclick=function(){if(!window.confirm('删除这条日程？'))return;
-      (openedTask?Promise.resolve(openedTask):Promise.reject(Error('请重新展开编辑，等待读取日程后再删除'))).then(function(t){return submit(t,'delete',{},'delete:'+task.id);}).then(syncTasks).catch(function(e){showFeedback(e.message,'error');});};
-    return panel;
+    return button;
   }
   function intercept(path, options) {
     if (!options || options.method !== 'POST' || path.indexOf('/api/tasks/') !== 0) return null;
     var p; try { p=JSON.parse(options.body||'{}'); } catch(ignore){return null;}
     var taskId=/^\/api\/tasks\/(\d+)$/.exec(path), key=path+':'+JSON.stringify(p);
-    if (path==='/api/tasks/create') return submit(null,'create',{summary:p.summary,deadline:when(p.deadline)},key).then(function(r){return{ok:true,task_id:r.task.id,summary:r.task.summary,deadline:r.task.deadline.value};});
+    if (path==='/api/tasks/create') return submit(null,'create',{summary:p.summary,notes:p.notes||'',deadline:when(p.deadline)},key).then(function(r){return{ok:true,task_id:r.task.id,summary:r.task.summary,deadline:r.task.deadline.value};});
     // 批量清理保留专用接口：一次提交后按服务端当前状态删除，删除记录由
     // SQLite 同步账本一起写入。不要先全量拉取，再在浏览器逐条删除。
     if (path==='/api/tasks/clear-finished') return null;

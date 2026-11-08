@@ -1031,7 +1031,7 @@ class QrViewportBrowserTest(unittest.TestCase):
                     open_authed_page(context, page, self.base, TOKEN)
                     page.wait_for_selector("#inbox-items", state="attached", timeout=15000)
                     measured = page.evaluate("""() => {
-                        const base = {content: '[图片]', received_at: '2026-10-31 01:00',
+                        const base = {content: '[图片]' + '测试正文'.repeat(50), received_at: '2026-10-31 01:00',
                                       group_name: '测试群', verdict: 'notice',
                                       method: 'llm', reason: '含图片'};
                         const render = (extra) => {
@@ -1043,6 +1043,7 @@ class QrViewportBrowserTest(unittest.TestCase):
                         const has = render({msg_id: 'm-has', has_image: true});
                         const none = render({msg_id: 'm-none', has_image: false});
                         const missing = render({msg_id: 'm-missing'});
+                        const short = render({msg_id: 'm-short', content:'短消息', has_image:false});
                         const read = (box) => {
                           const img = box.querySelector('img');
                           const link = box.querySelector('a.inbox-attachment-link');
@@ -1060,6 +1061,8 @@ class QrViewportBrowserTest(unittest.TestCase):
                         const out = {
                           has: read(has), none: read(none), missing: read(missing),
                           hasText: has.textContent.indexOf('[图片]') >= 0,
+                          shortPreview: short.querySelector('.inbox-preview').textContent,
+                          shortHasDetails: !!short.querySelector('details'),
                           // 图片不能待在那个默认收起的折叠块里
                           inDetails: !!(img && img.closest('details')),
                           // 而且要排在 details 之后（DOM 顺序）
@@ -1070,7 +1073,7 @@ class QrViewportBrowserTest(unittest.TestCase):
                         img.dispatchEvent(new Event('error'));
                         out.linksAfterError = has.querySelectorAll('a.inbox-attachment-link').length;
                         out.imgsAfterError = has.querySelectorAll('img').length;
-                        has.remove(); none.remove(); missing.remove();
+                        has.remove(); none.remove(); missing.remove(); short.remove();
                         return out;
                     }""")
                     has, none, missing = measured["has"], measured["none"], measured["missing"]
@@ -1093,6 +1096,8 @@ class QrViewportBrowserTest(unittest.TestCase):
                     self.assertEqual(measured["imgsAfterError"], 0, measured)
                     self.assertEqual(measured["linksAfterError"], 0, measured)
                     self.assertTrue(measured["hasText"], "正文里的 [图片] 不能因此丢：%s" % measured)
+                    self.assertEqual(measured['shortPreview'], '短消息', measured)
+                    self.assertFalse(measured['shortHasDetails'], measured)
                 finally:
                     context.close()
             finally:

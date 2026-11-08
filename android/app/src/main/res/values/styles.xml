@@ -2,7 +2,8 @@
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">@color/primary</item>
-        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:windowBackground">@color/surface</item>
         <!-- 刘海屏/挖孔屏让内容铺到挖孔区（API 27+；更低版本会忽略这条未知属性）。 -->
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>

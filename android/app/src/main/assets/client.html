@@ -10,50 +10,90 @@
 main{max-width:680px;margin:auto;padding:18px 18px 108px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 0 20px}h1{font-size:25px;line-height:1.3;margin:0}h2{font-size:18px;margin:24px 0 12px}p{margin:8px 0 16px}.muted,small{color:var(--muted)}.status{font-size:13px;color:var(--muted);min-height:22px;margin-top:6px}.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 16px}.tools label{flex:1}.tools select{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 10px}.task{border-bottom:1px solid var(--line);padding:16px 0}.task:first-child{border-top:1px solid var(--line)}.task-head{display:flex;align-items:flex-start;gap:12px}.task-title{background:none;border:0;text-align:left;padding:0;flex:1;font-size:17px;font-weight:650;overflow-wrap:anywhere}.task-done{min-width:60px;padding:7px 10px;flex:none}.meta{color:var(--muted);font-size:13px;margin-top:6px;display:flex;flex-wrap:wrap;gap:8px}.pending{color:var(--amber)}.urgent{color:var(--red)}.tag{background:var(--soft);padding:2px 7px;border-radius:6px}.empty{padding:32px 0;color:var(--muted)}.notice{padding:12px 14px;background:var(--amber-bg);color:var(--amber);border-radius:10px;margin-bottom:16px}.note{white-space:pre-wrap;overflow-wrap:anywhere}.actions{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.section{border-top:1px solid var(--line);padding:16px 0}dl{margin:16px 0}dt{color:var(--muted);font-size:13px;margin-top:16px}dd{margin:4px 0;overflow-wrap:anywhere}.bottom{position:fixed;bottom:0;left:0;right:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);display:flex;gap:8px;justify-content:center;z-index:5}.bottom button{flex:1;max-width:200px;border:0;background:transparent}.bottom button[aria-current=page]{color:var(--green);background:var(--soft);font-weight:700}.field{display:block;margin:16px 0}.field input:not([type=checkbox]),.field textarea,.field select{display:block;width:100%;margin-top:7px;padding:10px 12px;border:1px solid #9eafa6;border-radius:9px;background:var(--card)}textarea{resize:vertical;min-height:120px}.check{display:flex;gap:10px;align-items:center}.check input{width:22px;height:22px}.editor-actions{display:flex;gap:8px;margin-top:24px}.editor-actions button{flex:1}pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}.calendar-nav{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:14px 0}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.calendar-grid button{padding:5px 0;min-width:0;border-radius:8px}.calendar-grid small{display:block;font-size:10px;color:var(--green)}.calendar-grid .selected{background:var(--green);color:white}.calendar-grid .selected small{color:white}.weekday{text-align:center;color:var(--muted);font-size:12px;padding:4px 0}.conflict{padding:16px 0;border-bottom:1px solid var(--line)}.conflict h3{font-size:16px;margin:0 0 10px}.choices{border:0;margin:12px 0;padding:0}.choices legend{font-weight:650;margin-bottom:6px}.choices label{display:flex;gap:8px;align-items:flex-start;margin:8px 0;overflow-wrap:anywhere}.choices input{min-height:24px;width:20px;flex:none}#feedback{position:fixed;bottom:78px;left:18px;right:18px;max-width:644px;margin:auto;padding:12px 15px;border-radius:10px;background:#17231f;color:white;z-index:10;box-shadow:0 5px 18px #17231f26}#feedback.error{background:var(--red)}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 /* 旧版 Android WebView 不支持 flex gap，间距采用同样可读的外边距。 */
 main,.top,.tools{background:var(--paper)}.meta{gap:0}.meta>span{margin-right:8px}.tools{gap:0}.tools>*{margin-right:8px}.tools>:last-child{margin-right:0}.top{gap:0}.top>div{margin-right:12px}
+:root{--ink:#172722;--muted:#4e6358;--paper:#f3f6f2;--card:#fff;--line:#b0beb3;--outline:#73877a;--green:#216346;--on-green:#fff;--soft:#dcecdf;--amber:#74500f;--amber-bg:#fff0ce;--red:#a5312d;--red-bg:#ffedeb}
+html[data-theme=dark]{color-scheme:dark;--ink:#e0e7e1;--muted:#a9b8ae;--paper:#1d221f;--card:#242c26;--line:#536459;--outline:#91a397;--green:#9bd3ae;--on-green:#173523;--soft:#304d39;--amber:#dfc28c;--amber-bg:#373022;--red:#ffb4ac;--red-bg:#502925}
+body{font-size:16px;-webkit-text-size-adjust:100%}button,input,select{min-height:48px}button{min-width:48px;border-radius:12px;touch-action:manipulation;border-color:var(--outline)}button:disabled{cursor:default}.primary{color:var(--on-green)}main{max-width:720px;padding:12px 16px 172px}.top{min-height:72px;padding:0;margin-bottom:20px}.top>div{margin-right:8px}h1{font-size:28px}h2{font-size:20px}h3{font-size:17px}.status{font-size:13px}.sync-shortcut{max-width:44%;padding:8px 12px;font-size:13px;border:0;color:var(--green);background:var(--soft)}.text-button{background:transparent;border-color:transparent;color:var(--green);padding:8px;font-size:14px}.icon-button{display:inline-flex;align-items:center;justify-content:center;width:48px;min-width:48px;padding:12px;border:0;background:transparent}.icon{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.search{display:flex;align-items:center;padding:0 12px;background:var(--card);border:1px solid var(--outline);border-radius:16px;margin-bottom:12px}.search .icon{margin-right:10px;color:var(--muted)}.search input{min-width:0;width:100%;min-height:52px;background:transparent;border:0;font-size:16px}.search input::placeholder,input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}.tools{margin-bottom:8px;background:transparent}.tools label{min-width:0}.tools select{border-color:var(--outline);font-size:14px}.tools>button{margin-left:auto;font-size:13px}.tools label+label{margin-right:0}#list-result{margin:0 0 12px}
+.task{padding:16px 0}.task-title{font-size:17px;font-weight:600;line-height:1.5;padding:3px 4px 3px 0;min-height:48px}.task-done{order:-1;margin-right:12px;min-width:48px;width:48px;padding:10px;border:0;border-radius:50%;background:transparent;color:var(--green)}.task-done .icon{width:26px;height:26px}.task-head{gap:0}.meta{margin-left:60px}.note{font-size:14px;margin:5px 0 0 60px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.tag{color:var(--green)}.task:first-child{border-top:0}.list-heading{font-size:15px;font-weight:650;color:var(--muted);margin:24px 0 8px}.empty{text-align:center;padding:40px 12px}.empty h2{font-size:20px;color:var(--ink);margin:0 0 8px}.empty p{line-height:1.75}.empty button{margin:6px}.fab{position:fixed;right:max(20px,calc((100vw - 680px)/2));bottom:104px;z-index:4;display:flex;align-items:center;min-height:58px;padding:14px 20px;border:0;border-radius:18px;box-shadow:0 6px 16px rgba(0,0,0,.16);font-weight:650}.fab .icon{margin-right:8px}.bottom{gap:0;padding:8px 8px 10px}.bottom button{max-width:240px;min-width:0;min-height:64px;padding:4px;border-radius:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}.bottom button[aria-current=page]{background:transparent;color:var(--green)}.nav-icon{display:flex;align-items:center;justify-content:center;width:64px;height:32px;border-radius:18px;margin-bottom:4px}.bottom button[aria-current=page] .nav-icon{background:var(--soft)}.badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;background:var(--red-bg);color:var(--red);border-radius:10px;font-size:12px}
+#calendar{padding:12px 8px;border-radius:16px;background:var(--card);margin-bottom:16px}.calendar-nav{margin:0 0 8px;gap:0}.calendar-nav strong{flex:1;text-align:center;font-size:17px}.calendar-nav .text-button{font-size:13px;margin-left:4px}.calendar-grid{gap:0;row-gap:6px}.calendar-grid button{display:flex;align-items:center;justify-content:center;flex-direction:column;min-height:52px;border:0;border-radius:14px;background:transparent;font-size:15px;padding:4px 0}.calendar-grid button.today{box-shadow:inset 0 0 0 1px var(--outline)}.calendar-grid small{height:16px;font-size:11px;color:var(--muted)}.calendar-grid button.selected{background:var(--green);color:var(--on-green)}.calendar-grid button.selected small{color:inherit}.weekday{font-size:13px;padding:8px 0}.agenda-head{display:flex;align-items:center;justify-content:space-between;margin-top:12px}.agenda-head h2{font-size:16px;margin:0}.agenda-head button{font-size:13px;padding:8px}
+.account-status{padding:20px;background:var(--soft);border-radius:16px;margin-bottom:24px}.account-status h2{margin:0 0 8px;font-size:21px}.account-status p{color:var(--muted);font-size:14px;overflow-wrap:anywhere}.account-status button{width:100%}.menu-group{padding:0 16px;margin-bottom:20px;background:var(--card);border-radius:16px}.menu-row{display:flex;align-items:center;justify-content:space-between;min-height:76px;width:100%;padding:12px 0;border:0;border-radius:0;background:transparent;text-align:left}.menu-row+.menu-row{border-top:1px solid var(--line)}.menu-row>span:first-child{flex:1;min-width:0}.menu-row small{display:block;margin-top:4px;font-size:13px;font-weight:400;line-height:1.5}.menu-chevron{display:flex;margin-left:12px;color:var(--muted)}.page-back{margin:0 0 16px -8px}.conflict{padding:20px 0}.choices label{padding:12px;min-height:56px;background:var(--card);border:1px solid var(--line);border-radius:10px}.choices input{width:22px;min-height:22px;height:22px;margin-right:8px;accent-color:var(--green)}.actions{gap:0}.actions button{margin:0 8px 8px 0}
+body.editing .top,body.editing .bottom,body.editing #connection-warning,body.editing #task-tools{display:none!important}body.editing main{padding-bottom:112px}.editor-bar{position:sticky;top:0;z-index:3;display:flex;align-items:center;min-height:64px;margin:-12px -16px 16px;padding:4px 12px;background:var(--paper);border-bottom:1px solid var(--line)}.editor-bar h2{font-size:20px;flex:1;margin:0}.editor-bar .icon-button{margin-right:4px}.field{font-size:14px;font-weight:650;margin:24px 0}.field input:not([type=checkbox]),.field textarea,.field select{min-width:0;min-height:52px;margin-top:8px;padding:12px;border-color:var(--outline);border-radius:10px;font-size:16px;font-weight:400;background:var(--card)}.field textarea{min-height:100px}.field small{display:block;font-weight:400;margin-top:8px;line-height:1.65}.field.check{min-height:56px;font-size:16px;font-weight:400}.field.check{gap:0}.check input{accent-color:var(--green);min-height:24px;height:24px;width:24px;margin-right:10px}.advanced{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:24px 0}.advanced>summary{cursor:pointer;padding:18px 4px;min-height:56px;font-weight:600}.advanced>div,.advanced>pre{padding:0 4px}.advanced .field:first-child{margin-top:8px}.editor-delete{width:100%;margin-top:20px;background:transparent;border:0;min-height:52px}.editor-actions{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;justify-content:center;margin:0;padding:12px 16px;background:var(--card);border-top:1px solid var(--line);gap:0}.editor-actions button{max-width:688px;min-height:52px}.editor-message{font-size:14px;line-height:1.75;color:var(--red);overflow-wrap:anywhere}.notice{font-size:14px;line-height:1.65}.notice button{margin-top:8px}#feedback{bottom:96px;left:16px;right:16px;max-width:688px;background:var(--ink);color:var(--paper);border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;font-size:14px;box-shadow:0 5px 18px rgba(0,0,0,.18)}#feedback.error{background:var(--red);color:var(--paper)}#feedback-message{flex:1;min-width:0;overflow-wrap:anywhere}#feedback button{padding:8px;margin-left:8px;flex:none;border:0;background:transparent;color:inherit;font-size:13px}
+@media(min-width:720px){main{padding-left:104px;max-width:900px}.bottom{right:auto;top:0;bottom:0;left:0;width:84px;border-top:0;border-right:1px solid var(--line);flex-direction:column;justify-content:center;padding:8px}.bottom button{flex:none;min-height:80px;margin:8px 0}.bottom .nav-icon{width:60px}.fab{right:24px;bottom:24px}body.editing main{padding-left:16px}#feedback{left:104px;right:180px;bottom:24px}body.editing #feedback{left:16px;right:16px;bottom:96px}}
+body[data-page=calendar] .search,body[data-page=calendar]:not(.has-search) #list-result,body[data-page=calendar] #summary{display:none}
+body[data-page=calendar] .top{min-height:64px;margin-bottom:12px}
+.calendar-grid{row-gap:4px}.calendar-grid button{min-height:48px}
+.tools label{flex:1 1 130px}
+.sync-shortcut{display:flex;align-items:center;justify-content:center;min-width:120px}
+.sync-spinner{display:inline-block;flex:none;width:16px;height:16px;margin-right:8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sync-spin .8s linear infinite}
+@keyframes sync-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.sync-spinner{animation:none}}
 </style>
 </head>
 <body>
 <main>
-<header class="top"><div><h1 id="heading">日程</h1><div id="summary" class="status" aria-live="polite">正在读取手机上的日程…</div></div><button id="new" class="primary" type="button">新建</button></header>
+<header class="top"><div><h1 id="heading">日程</h1><div id="summary" class="status" aria-live="polite">正在读取本地日程…</div></div><button id="sync-shortcut" class="sync-shortcut" aria-label="立即同步日程" aria-busy="false"><span id="sync-spinner" class="sync-spinner" aria-hidden="true" hidden></span><span id="sync-shortcut-text">同步</span></button></header>
 <div id="connection-warning" class="notice" hidden></div>
 <section id="page-tasks">
-<div class="tools"><label><span class="muted">显示</span><select id="filter" aria-label="筛选日程"><option value="active">待处理</option><option value="all">全部</option><option value="done">已完成</option><option value="overdue">已逾期</option><option value="pinned">置顶</option><option value="candidate">待确认</option><option value="dismissed">已忽略</option></select></label><button id="calendar-toggle" type="button" aria-expanded="false">查看月历</button></div>
-<div id="calendar" hidden><div class="calendar-nav"><button id="prev" aria-label="上一月">上一月</button><strong id="month"></strong><button id="next" aria-label="下一月">下一月</button></div><div id="calendar-grid" class="calendar-grid"></div><div class="actions"><button id="clear-day">显示所有日期</button></div></div>
+<div id="task-tools"><label class="search"><span id="search-icon"></span><input id="search" type="search" aria-label="搜索日程" placeholder="搜索日程、备注或群名" autocomplete="off"></label><div class="tools"><label><span class="sr-only">显示状态</span><select id="filter" aria-label="筛选日程"><option value="active">待处理</option><option value="all">全部</option><option value="done">已完成</option><option value="overdue">已逾期</option><option value="pinned">置顶</option><option value="candidate">待确认</option><option value="dismissed">已忽略</option><option value="expired">已过期</option></select></label><label><span class="sr-only">排序</span><select id="sort" aria-label="日程排序"><option value="deadline">最近到期</option><option value="title">按标题</option></select></label><button id="reset-filters" class="text-button" hidden>清除筛选</button></div><p id="list-result" class="status" role="status"></p></div>
+<div id="calendar" hidden><div class="calendar-nav"><button id="prev" class="icon-button" aria-label="上一月"></button><strong id="month"></strong><button id="today" class="text-button">今天</button><button id="next" class="icon-button" aria-label="下一月"></button></div><div id="calendar-grid" class="calendar-grid"></div><div class="agenda-head"><h2 id="agenda-title">当天日程</h2><button id="clear-day" class="text-button">显示所有日期</button></div></div>
 <div id="list"></div>
 </section>
-<section id="page-sync" hidden><p>编辑先保存在手机，再同步到电脑。电脑关机或网络不可用时，你仍可继续管理日程。</p><dl><dt>未同步操作</dt><dd id="pending-count">0</dd><dt>最近一次同步完成</dt><dd id="last-success">尚未同步</dd></dl><p id="sync-error" class="urgent" role="status"></p><div class="actions"><button id="sync-now" class="primary">立即同步</button><button id="export">导出未同步编辑</button></div><h2>需要你处理</h2><div id="conflicts"></div></section>
-<section id="page-connection" hidden><p>电脑负责自动生成和保存日程，手机通过下面的入口同步。</p><dl><dt>固定入口</dt><dd id="base"></dd><dt>后端身份</dt><dd id="server-id"></dd><dt>配对状态</dt><dd id="paired"></dd></dl><div class="actions"><button id="reconnect">重新配对或更换电脑</button></div><p class="muted">重新配对时保留本地日程。切换电脑前，未同步编辑可以导出；未经明确选择不会丢弃。</p></section>
+<section id="page-calendar" aria-label="日程月历" hidden></section>
+<section id="page-account" aria-label="我的" hidden>
+<div class="account-status"><h2 id="account-state">尚未配对</h2><p id="account-note">连接电脑后，日程会保存在手机，离线也能编辑。</p><button id="account-sync" class="primary">立即同步</button></div>
+<div class="menu-group"><button class="menu-row" data-page="sync"><span><strong>同步与冲突 <span id="conflict-badge" class="badge" hidden>0</span></strong><small id="account-pending">查看同步进度与待处理内容</small></span><span class="menu-chevron"></span></button><button class="menu-row" data-page="connection"><span><strong>电脑连接</strong><small id="account-connection">查看连接地址与配对状态</small></span><span class="menu-chevron"></span></button></div>
+<div class="menu-group"><button id="account-export" class="menu-row"><span><strong>导出未同步编辑</strong><small>保留本地修改记录，不包含连接凭据</small></span><span class="menu-chevron"></span></button></div>
+<p class="muted">编辑先保存到手机，电脑可连接时再同步。提醒由电脑发送，电脑关机时不会产生新提醒。</p>
+</section>
+<section id="page-sync" hidden><button class="page-back text-button" data-page="account">返回我的</button><p>编辑先保存在手机，再同步到电脑。电脑关机或网络不可用时，你仍可继续管理日程。</p><dl><dt>未同步操作</dt><dd id="pending-count">0</dd><dt>最近一次同步完成</dt><dd id="last-success">尚未同步</dd></dl><p id="sync-error" class="urgent" role="status"></p><details id="sync-error-details" class="advanced" hidden><summary>查看错误详情</summary><pre id="sync-error-raw"></pre></details><div class="actions"><button id="sync-now" class="primary">立即同步</button><button id="export">导出未同步编辑</button></div><h2>需要处理的冲突</h2><div id="conflicts"></div></section>
+<section id="page-connection" hidden><button class="page-back text-button" data-page="account">返回我的</button><p>在电脑「设置 → 手机日程同步」生成二维码即可连接，每台手机有独立的凭据。</p><dl><dt>连接地址</dt><dd id="base"></dd><dt>配对状态</dt><dd id="paired"></dd></dl><div class="actions"><button id="reconnect" class="primary">重新配对或更换电脑</button></div><details class="advanced"><summary>连接详情</summary><dl><dt>电脑标识</dt><dd id="server-id"></dd></dl></details><p class="muted">重新配对时保留本地日程。切换电脑前，未同步编辑可以导出；未经明确选择不会丢弃。</p></section>
 <section id="editor" hidden>
-<button id="editor-back">返回日程</button><h2 id="editor-title">编辑日程</h2>
+<div class="editor-bar"><button id="editor-back" class="icon-button" aria-label="取消编辑并返回"></button><h2 id="editor-title">编辑日程</h2></div>
 <form id="edit-form">
-<label class="field">待办内容<input id="edit-summary" maxlength="200" required autocomplete="off"></label>
-<label class="field">人工备注<textarea id="edit-notes" maxlength="10000"></textarea></label>
+<label class="field">待办内容 · 必填<textarea id="edit-summary" rows="2" maxlength="200" required autocomplete="off" aria-label="待办内容" placeholder="需要做什么？"></textarea></label>
 <label class="field">截止时间类型<select id="edit-kind"><option value="none">不设置</option><option value="date">仅日期</option><option value="datetime">日期和时刻</option></select></label>
 <label class="field" id="date-field" hidden>截止日期<input id="edit-date" type="date"></label>
 <label class="field" id="datetime-field" hidden>截止时刻<input id="edit-datetime" type="datetime-local" step="60"></label>
+<label class="field">备注 · 选填<textarea id="edit-notes" rows="3" maxlength="10000" aria-label="备注" placeholder="补充要求、安排或相关链接"></textarea></label>
+<details id="editor-advanced" class="advanced"><summary>更多选项</summary><div>
 <label class="field">分类<select id="edit-category"><option value="action">待办</option><option value="academic">学业</option><option value="urgent">紧急</option><option value="info">通知</option></select></label>
 <label class="field">状态<select id="edit-status"><option value="open">待处理</option><option value="candidate">待确认</option><option value="done">已完成</option><option value="dismissed">已忽略</option><option value="expired">已过期</option></select></label>
 <label class="field check"><input id="edit-pinned" type="checkbox">置顶</label>
 <label class="field">紧急标记<select id="edit-urgent"><option value="auto">跟随自动判断</option><option value="true">紧急</option><option value="false">不紧急</option></select></label>
 <label class="field">稍后提醒时刻<input id="edit-snooze" type="datetime-local" step="60"><small>留空表示不设置；提醒仍由电脑在线时执行。</small></label>
-<div id="source" class="section" hidden><h3>来源与自动提取内容</h3><pre id="source-text"></pre></div>
-<div class="editor-actions"><button id="save" type="submit" class="primary">保存到手机</button><button id="delete" type="button" class="danger">删除</button></div>
+</div></details>
+<details id="source" class="advanced" hidden><summary>来源与详细要求</summary><pre id="source-text"></pre></details>
+<p id="editor-error" class="editor-message" role="status" hidden></p>
+<button id="delete" type="button" class="editor-delete danger">删除这条日程</button><div class="editor-actions"><button id="save" type="submit" class="primary">保存到手机</button></div>
 </form></section>
 </main>
-<nav class="bottom" aria-label="主导航"><button data-page="tasks" aria-current="page">日程</button><button data-page="sync">同步</button><button data-page="connection">连接</button></nav>
-<div id="feedback" role="status" hidden></div>
+<button id="new" class="fab primary" type="button"><span id="new-icon"></span>新建日程</button>
+<nav class="bottom" aria-label="主导航"><button data-page="tasks" aria-current="page"><span class="nav-icon" data-icon="tasks"></span>日程</button><button id="calendar-toggle" data-page="calendar"><span class="nav-icon" data-icon="calendar"></span>月历</button><button data-page="account"><span class="nav-icon" data-icon="account"></span><span>我的 <span id="nav-conflicts" class="badge" hidden>0</span></span></button></nav>
+<div id="feedback" role="status" hidden><span id="feedback-message"></span><button id="feedback-close">关闭</button></div>
 <script>
 (function(){
 'use strict';
 var data={tasks:[],conflicts:[],pending:0}, page='tasks', editing=null, editorOpen=false, saving=false, selectedDay='', cursor=new Date(), timer;
+var initialEditor='', editorReturn='tasks', editorScroll=0, requestSerial=0, pendingEditor='', requests={}, positions={};
+var requestPrefix=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+var conflictChoices={},lastConflictSignature='';
+var syncRequest='',syncing=false;
 cursor.setDate(1);
 var labels={candidate:'待确认',open:'待处理',done:'已完成',dismissed:'已忽略',expired:'已过期'};
 var fieldLabels={summary:'待办内容',notes:'备注',deadline:'截止时间',category:'分类',status:'状态',pinned:'置顶',urgent_override:'紧急标记',snooze_until:'稍后提醒',deleted:'删除状态',uuid:'日程身份'};
 function $(id){return document.getElementById(id)}
 function node(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}
+var iconPaths={tasks:'M5 4h14v16H5z M8 10l2 2 5-5 M8 16h7',calendar:'M5 5h14v15H5z M8 3v4 M16 3v4 M5 10h14 M9 14h1 M14 14h1',account:'M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0 M4 21v-2a8 8 0 0 1 16 0v2',add:'M12 5v14 M5 12h14',search:'M10 3a7 7 0 1 0 0 14a7 7 0 1 0 0-14 M15 15l6 6',back:'M15 5l-7 7 7 7',next:'M9 5l7 7-7 7',unchecked:'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20',checked:'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20 M7 12l3 3 7-7',confirm:'M5 12l4 4L19 6'};
+function icon(name){var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('class','icon');svg.setAttribute('aria-hidden','true');var path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',iconPaths[name]||iconPaths.next);svg.appendChild(path);return svg}
+[['search-icon','search'],['new-icon','add'],['prev','back'],['next','next'],['editor-back','back']].forEach(function(pair){$(pair[0]).appendChild(icon(pair[1]))});
+document.querySelectorAll('[data-icon]').forEach(function(target){target.appendChild(icon(target.dataset.icon))});
+document.querySelectorAll('.menu-chevron').forEach(function(target){target.appendChild(icon('next'))});
+$('page-tasks').before($('task-tools'));
+$('page-calendar').appendChild($('calendar'));
 function bridge(name,value){if(window.AndroidBridge&&typeof AndroidBridge[name]==='function')AndroidBridge[name](value)}
-function message(text,error){$('feedback').textContent=text;$('feedback').className=error?'error':'';$('feedback').hidden=false;clearTimeout(timer);timer=setTimeout(function(){$('feedback').hidden=true},5000)}
-function command(value){bridge('command',JSON.stringify(value))}
+function message(text,error){$('feedback-message').textContent=text;$('feedback').className=error?'error':'';$('feedback').hidden=false;clearTimeout(timer);if(!error)timer=setTimeout(function(){$('feedback').hidden=true},5000)}
+$('feedback-close').onclick=function(){clearTimeout(timer);$('feedback').hidden=true};
+function command(value,fromEditor){var id=requestPrefix+'-'+(++requestSerial);value.requestId=id;requests[id]={uuid:value.uuid||'',editor:!!fromEditor};if(fromEditor)pendingEditor=id;bridge('command',JSON.stringify(value));return id}
+function pendingTask(uuid){return Object.keys(requests).some(function(id){return requests[id].uuid===uuid})}
 function none(){return{kind:'none',value:''}}
 function pad(n){return String(n).padStart(2,'0')}
 function localInput(value){if(!value)return'';var d=new Date(value);if(isNaN(d))return'';return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())}
@@ -64,32 +104,40 @@ function late(t){var dl=t.deadline||none();if(dl.kind==='none')return false;if(d
 function active(t){return t.status==='open'||t.status==='candidate'}
 function defaultTask(){return{uuid:'',summary:'',notes:'',deadline:none(),category:'action',status:'open',pinned:false,urgent_override:null,snooze_until:none()}}
 function observed(task){var base={uuid:task.uuid,version:task.version||0};['summary','notes','deadline','category','status','pinned','urgent_override','snooze_until'].forEach(function(key){base[key]=task[key]});return base}
-function gotoPage(next){page=next;editorOpen=false;editing=null;$('editor').hidden=true;renderPage()}
+function today(){return localInput(new Date().toISOString()).slice(0,10)}
+function gotoPage(next){if(saving)return;positions[page]=window.scrollY;page=next;editorOpen=false;editing=null;$('editor').hidden=true;if(next==='calendar'&&!selectedDay){selectedDay=today();cursor=new Date();cursor.setDate(1)}renderPage();renderList();renderCalendar();window.scrollTo(0,positions[page]||0)}
 function renderPage(){
-['tasks','sync','connection'].forEach(function(name){$('page-'+name).hidden=editorOpen||page!==name});
-$('new').hidden=editorOpen||page!=='tasks';$('heading').textContent=editorOpen?'日程':({tasks:'日程',sync:'同步',connection:'连接'})[page];
-document.querySelectorAll('[data-page]').forEach(function(button){if(button.dataset.page===page)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
+['tasks','calendar','account','sync','connection'].forEach(function(name){$('page-'+name).hidden=editorOpen||page!==name});
+document.body.classList.toggle('editing',editorOpen);
+document.body.dataset.page=page;
+$('task-tools').hidden=page!=='tasks'&&page!=='calendar';$('calendar').hidden=page!=='calendar';
+if(page==='tasks'||page==='calendar')$('page-'+page).appendChild($('list'));
+$('new').hidden=editorOpen||(page!=='tasks'&&page!=='calendar');$('heading').textContent=({tasks:'日程',calendar:'月历',account:'我的',sync:'同步状态',connection:'电脑连接'})[page];
+$('sync-shortcut').hidden=page!=='tasks'&&page!=='calendar';
+$('connection-warning').hidden=data.connected!==false||page!=='tasks'&&page!=='calendar';
+$('summary').textContent=page==='tasks'?data.tasks.filter(active).length+' 项待处理':page==='calendar'?'按截止日期安排日程':'本地编辑与电脑同步';
+var destination=page==='sync'||page==='connection'?'account':page;
+document.querySelectorAll('.bottom [data-page]').forEach(function(button){if(button.dataset.page===destination)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
 }
+function filteredTasks(){var filter=$('filter').value,query=$('search').value.trim().toLocaleLowerCase();return data.tasks.filter(function(t){if(filter==='active'&&!active(t))return false;if(filter==='overdue'&&!(active(t)&&late(t)))return false;if(filter==='pinned'&&!t.pinned)return false;if(['active','overdue','pinned','all'].indexOf(filter)<0&&t.status!==filter)return false;return !query||[t.summary,t.notes,(t.groups||[]).join(' ')].join(' ').toLocaleLowerCase().indexOf(query)>=0})}
 function renderList(){
 var root=$('list');root.textContent='';
-var filter=$('filter').value;
-var tasks=data.tasks.filter(function(t){
-if(selectedDay&&day(t.deadline)!==selectedDay)return false;
-if(filter==='active')return active(t);
-if(filter==='overdue')return active(t)&&late(t);
-if(filter==='pinned')return t.pinned===true;
-return filter==='all'||t.status===filter;
-});
-tasks.sort(function(a,b){return Number(b.pinned)-Number(a.pinned)||(day(a.deadline)||'9999').localeCompare(day(b.deadline)||'9999')||(a.deadline.value||'9999').localeCompare(b.deadline.value||'9999')||a.summary.localeCompare(b.summary)});
-if(!tasks.length){root.appendChild(node('p','empty',selectedDay?'这一天没有符合筛选的日程。':'这里还没有符合筛选的日程。可以新建，也可以连接电脑后同步。'));return}
+var filtered=filteredTasks(),tasks=filtered.filter(function(t){return page!=='calendar'||!selectedDay||day(t.deadline)===selectedDay});
+document.body.classList.toggle('has-search',!!$('search').value.trim());
+$('list-result').textContent=($('search').value.trim()?'搜索「'+$('search').value.trim()+'」 · ':'')+$('filter').selectedOptions[0].textContent+' · '+filtered.length+' 项';
+$('reset-filters').hidden=$('filter').value==='active'&&$('sort').value==='deadline'&&!$('search').value;
+$('agenda-title').textContent=(selectedDay||'全部日期')+' · '+tasks.length+' 项';$('clear-day').hidden=!selectedDay;
+function deadline(t){var value=t.deadline||none();return value.kind==='none'?Infinity:new Date(value.kind==='date'?value.value+'T23:59:59':value.value).getTime()}
+tasks.sort(function(a,b){if($('sort').value==='title')return a.summary.localeCompare(b.summary);var first=deadline(a),second=deadline(b);return Number(b.pinned)-Number(a.pinned)||(first===second?a.summary.localeCompare(b.summary):first<second?-1:1)});
+if(!tasks.length){var empty=node('div','empty');empty.appendChild(node('h2','',page==='calendar'&&selectedDay?'这一天没有日程':'没有符合条件的日程'));empty.appendChild(node('p','',data.server_id?'可以新建日程，或调整筛选条件。':'连接电脑同步已有日程，也可以先查看本地记录。'));var action=node('button','primary',data.server_id?'新建日程':'连接电脑');action.onclick=function(){if(data.server_id)openEditor();else bridge('reconnect')};empty.appendChild(action);root.appendChild(empty);return}
 var group='';
 tasks.forEach(function(t){
-var nextGroup=t.pinned?'置顶':(day(t.deadline)||'未设截止时间');if(group!==nextGroup){group=nextGroup;root.appendChild(node('h2','',group))}
+var nextGroup=t.pinned?'置顶':(day(t.deadline)||'未设截止时间');if(group!==nextGroup){group=nextGroup;if(page!=='calendar'||!selectedDay||t.pinned)root.appendChild(node('h2','list-heading',group))}
 var row=node('article','task'),head=node('div','task-head'),title=node('button','task-title',t.summary||'未命名日程');
 title.onclick=function(){openEditor(t)};head.appendChild(title);
-var done=node('button','task-done',t.status==='done'?'恢复':'完成');done.onclick=function(){command({type:'update',uuid:t.uuid,base:observed(t),changes:{status:t.status==='done'?'open':'done'}})};
-if(t.status==='dismissed'||t.status==='expired')done.textContent='恢复';
-if(t.status==='dismissed'||t.status==='expired')done.onclick=function(){command({type:'update',uuid:t.uuid,base:observed(t),changes:{status:'open'}})};
+var restore=['done','dismissed','expired'].indexOf(t.status)>=0;
+var done=node('button','task-done');done.setAttribute('aria-label',restore?'恢复':t.status==='candidate'?'确认待办':'完成');done.setAttribute('aria-pressed',String(t.status==='done'));done.appendChild(icon(restore?'checked':t.status==='candidate'?'confirm':'unchecked'));done.disabled=pendingTask(t.uuid);
+done.onclick=function(){if(pendingTask(t.uuid))return;command({type:'update',uuid:t.uuid,base:observed(t),changes:{status:restore||t.status==='candidate'?'open':'done'}});renderList()};
 head.appendChild(done);row.appendChild(head);
 var meta=node('div','meta');meta.appendChild(node('span',late(t)&&active(t)?'urgent':'',timeText(t.deadline)));
 meta.appendChild(node('span','',labels[t.status]||t.status));
@@ -106,80 +154,122 @@ var root=$('calendar-grid');root.textContent='';
 for(var i=0;i<cursor.getDay();i++)root.appendChild(node('span'));
 var y=cursor.getFullYear(),m=cursor.getMonth(),count=new Date(y,m+1,0).getDate();
 for(var d=1;d<=count;d++)(function(date){
-var key=y+'-'+pad(m+1)+'-'+pad(date),n=data.tasks.filter(function(t){return day(t.deadline)===key}).length;
-var button=node('button',key===selectedDay?'selected':'',date);button.setAttribute('aria-label',key+'，'+n+'项日程');
-if(n)button.appendChild(node('small','',n+'项'));
+var key=y+'-'+pad(m+1)+'-'+pad(date),n=filteredTasks().filter(function(t){return day(t.deadline)===key}).length;
+var button=node('button',(key===selectedDay?'selected ':'')+(key===today()?'today':''),date);button.setAttribute('aria-label',key+'，'+n+'项日程');button.setAttribute('aria-pressed',String(key===selectedDay));
+button.appendChild(node('small','',n?n+'项':''));
 button.onclick=function(){selectedDay=key;renderCalendar();renderList()};root.appendChild(button);
 })(d);
 }
 function display(value){if(value&&typeof value==='object'&&value.kind)return timeText(value);if(value===true)return'是';if(value===false)return'否';if(value===null||value===undefined)return'跟随自动判断';return labels[value]||String(value)}
 function renderConflicts(){
+var signature=JSON.stringify(data.conflicts)+JSON.stringify(Object.keys(requests));if(signature===lastConflictSignature)return;lastConflictSignature=signature;
 var root=$('conflicts');root.textContent='';
 if(!data.conflicts.length){root.appendChild(node('p','muted','没有需要处理的冲突。'));return}
 data.conflicts.forEach(function(c){
-var section=node('section','conflict'),r=c.result||{},current=r.current,local=c.local||{},choices={};
+var section=node('section','conflict'),r=c.result||{},current=r.current,local=c.local||{},choices=conflictChoices[c.operation_id]||(conflictChoices[c.operation_id]={});
 section.appendChild(node('h3','',local.summary||'已删除的日程'));section.appendChild(node('p','muted',r.error||((!current||current.deleted)?'电脑上已删除或不存在。本地编辑仍保留。':(c.type==='delete'?'删除前，电脑上的内容发生了变化。':'两端修改了相同字段，请选择保留的值。'))));
 (r.fields||[]).forEach(function(field){
 if(!current||current.deleted||field==='uuid')return;
-var group=node('fieldset','choices');group.appendChild(node('legend','',fieldLabels[field]||field));choices[field]=true;
+var group=node('fieldset','choices');group.appendChild(node('legend','',fieldLabels[field]||field));if(!Object.prototype.hasOwnProperty.call(choices,field))choices[field]=true;
 [['手机修改',local[field],true],['电脑当前值',current[field],false]].forEach(function(option){
-var label=node('label'),radio=node('input');radio.type='radio';radio.name=c.operation_id+'-'+field;radio.checked=option[2];radio.onchange=function(){choices[field]=option[2]};label.appendChild(radio);label.appendChild(node('span','',option[0]+'：'+display(option[1])));group.appendChild(label)
+var label=node('label'),radio=node('input');radio.type='radio';radio.name=c.operation_id+'-'+field;radio.checked=choices[field]===option[2];radio.onchange=function(){choices[field]=option[2]};label.appendChild(radio);label.appendChild(node('span','',option[0]+'：'+display(option[1])));group.appendChild(label)
 });section.appendChild(group)
 });
 var actions=node('div','actions');
 if(current&&!current.deleted&&r.code!=='validation'){
-var apply=node('button','primary',c.type==='delete'?'确认删除当前版本':'按选择合并提交');apply.onclick=function(){if(c.type==='delete'&&!confirm('确定删除电脑当前版本？'))return;command({type:'resolve',uuid:c.uuid,choices:choices})};actions.appendChild(apply)
+var apply=node('button','primary',c.type==='delete'?'确认删除当前版本':'按选择合并提交');apply.disabled=pendingTask(c.uuid);apply.onclick=function(){if(pendingTask(c.uuid)||c.type==='delete'&&!confirm('确定删除电脑当前版本？'))return;command({type:'resolve',uuid:c.uuid,choices:choices});renderConflicts()};actions.appendChild(apply)
 }
-if(!current||current.deleted||r.code==='validation'){var copy=node('button','', '另存为新日程');copy.onclick=function(){command({type:'resolve',uuid:c.uuid,saveCopy:true})};actions.appendChild(copy)}
-var discard=node('button','danger','放弃此条全部本地修改');discard.onclick=function(){if(confirm('放弃这条日程的全部未同步修改？'))command({type:'discard',uuid:c.uuid})};actions.appendChild(discard);section.appendChild(actions);root.appendChild(section);
+if(!current||current.deleted||r.code==='validation'){var copy=node('button','', '另存为新日程');copy.disabled=pendingTask(c.uuid);copy.onclick=function(){if(pendingTask(c.uuid))return;command({type:'resolve',uuid:c.uuid,saveCopy:true});renderConflicts()};actions.appendChild(copy)}
+var discard=node('button','danger','放弃此条全部本地修改');discard.disabled=pendingTask(c.uuid);discard.onclick=function(){if(!pendingTask(c.uuid)&&confirm('放弃这条日程的全部未同步修改？其他日程不受影响。')){command({type:'discard',uuid:c.uuid});renderConflicts()}};actions.appendChild(discard);section.appendChild(actions);root.appendChild(section);
 })
 }
 function openEditor(task){
+if(!task&&!data.server_id){message('请先连接电脑，完成首次配对。',true);return}
+if(task&&pendingTask(task.uuid)){message('这条日程正在保存，请稍后再编辑。');return}
+editorReturn=page;editorScroll=window.scrollY;
 editing=JSON.parse(JSON.stringify(task||defaultTask()));editorOpen=true;renderPage();$('editor').hidden=false;
+if(!task&&page==='calendar'&&selectedDay)editing.deadline={kind:'date',value:selectedDay};
 $('editor-title').textContent=editing.uuid?'编辑日程':'新建日程';$('edit-summary').value=editing.summary;$('edit-notes').value=editing.notes||'';
 $('edit-kind').value=editing.deadline.kind;$('edit-date').value=editing.deadline.kind==='date'?editing.deadline.value:'';
 $('edit-datetime').value=editing.deadline.kind==='datetime'?localInput(editing.deadline.value):'';
 $('edit-category').value=editing.category;$('edit-status').value=editing.status;$('edit-pinned').checked=editing.pinned;
-$('edit-urgent').value=editing.urgent_override===null?'auto':String(editing.urgent_override);
+$('edit-urgent').value=editing.urgent_override==null?'auto':String(editing.urgent_override);
 $('edit-snooze').value=localInput((editing.snooze_until||{}).value);
 $('delete').hidden=!editing.uuid;$('source').hidden=!(editing.evidence||(editing.details||[]).length);
 $('source-text').textContent=[editing.evidence||'',(editing.details||[]).join('\n'),(editing.groups||[]).join('、')].filter(Boolean).join('\n\n');
-kindChanged();$('save').disabled=false;saving=false;window.scrollTo(0,0);
+$('editor-advanced').open=false;$('source').open=false;$('editor-error').hidden=true;
+kindChanged();editorBusy(false);initialEditor=editorSnapshot();window.scrollTo(0,0);
 }
+var editorFields=['edit-summary','edit-notes','edit-kind','edit-date','edit-datetime','edit-category','edit-status','edit-pinned','edit-urgent','edit-snooze'];
+function editorSnapshot(){return JSON.stringify(editorFields.map(function(id){return $(id).type==='checkbox'?$(id).checked:$(id).value}))}
+function editorBusy(busy){saving=busy;$('save').textContent=busy?'正在保存…':'保存到手机';editorFields.concat(['save','delete','editor-back']).forEach(function(id){$(id).disabled=busy})}
+function closeEditor(){editorOpen=false;editing=null;page=editorReturn;$('editor').hidden=true;renderPage();renderList();window.scrollTo(0,editorScroll)}
+function leaveEditor(next){if(saving)return false;if(editorSnapshot()!==initialEditor&&!confirm('有尚未保存的内容，放弃修改？'))return false;closeEditor();if(next)gotoPage(next);return true}
 function kindChanged(){$('date-field').hidden=$('edit-kind').value!=='date';$('datetime-field').hidden=$('edit-kind').value!=='datetime'}
 $('edit-kind').onchange=kindChanged;
 $('edit-form').onsubmit=function(event){
 event.preventDefault();if(saving)return;
 try{
+if(!$('edit-summary').value.trim())throw Error('请填写待办内容。');
 var kind=$('edit-kind').value,deadline=kind==='date'?{kind:'date',value:$('edit-date').value}:kind==='datetime'?zoned($('edit-datetime').value):none();
 if(kind==='date'&&!deadline.value)throw Error('请选择截止日期');
 if(kind==='datetime'&&deadline.kind==='none')throw Error('请选择截止时刻');
 var state=$('edit-status').value,finished=['done','dismissed','expired'].indexOf(state)>=0;
 var values={summary:$('edit-summary').value.trim(),notes:$('edit-notes').value,deadline:deadline,category:$('edit-category').value,status:state,pinned:finished?false:$('edit-pinned').checked,urgent_override:$('edit-urgent').value==='auto'?null:$('edit-urgent').value==='true',snooze_until:finished?none():zoned($('edit-snooze').value)};
 var changes={};Object.keys(values).forEach(function(key){if(!editing.uuid||JSON.stringify(values[key])!==JSON.stringify(editing[key]))changes[key]=values[key]});
-if(!Object.keys(changes).length){gotoPage('tasks');return}
-saving=true;$('save').disabled=true;command({type:editing.uuid?'update':'create',uuid:editing.uuid,base:observed(editing),changes:changes});
-}catch(error){message(error.message,true)}
+if(!Object.keys(changes).length){closeEditor();return}
+$('editor-error').hidden=true;editorBusy(true);command({type:editing.uuid?'update':'create',uuid:editing.uuid,base:observed(editing),changes:changes},true);
+}catch(error){$('editor-error').textContent=error.message;$('editor-error').hidden=false}
 };
-$('delete').onclick=function(){if(confirm('删除这条日程？离线时会先记录删除，连接电脑后同步。')){saving=true;command({type:'delete',uuid:editing.uuid,base:observed(editing)})}};
-$('editor-back').onclick=function(){if(!saving&&confirm('返回日程列表？尚未保存的输入会丢弃。'))gotoPage('tasks')};
-window.NH_back=function(){if(editorOpen){$('editor-back').click();return true}if(page!=='tasks'){gotoPage('tasks');return true}return false};
-window.NH_saved=function(){saving=false;$('save').disabled=false;if(editorOpen)gotoPage('tasks');message('已保存到手机，等待同步到电脑')};
-window.NH_error=function(text){saving=false;$('save').disabled=false;message(text,true)};
+$('delete').onclick=function(){if(!saving&&confirm('删除这条日程？离线时先保存在手机，连接电脑后同步删除。')){editorBusy(true);command({type:'delete',uuid:editing.uuid,base:observed(editing)},true)}};
+$('editor-back').onclick=function(){leaveEditor()};
+window.NH_back=function(){if(editorOpen){leaveEditor();return true}if(page==='sync'||page==='connection'){gotoPage('account');return true}if(page!=='tasks'){gotoPage('tasks');return true}return false};
+window.NH_saved=function(requestId){var request=requests[requestId];if(requestId&&!request)return;if((!requestId&&saving)||(request&&request.editor&&pendingEditor===requestId)){var created=editing&&!editing.uuid;if(created){$('filter').value='active';$('search').value='';$('sort').value='deadline';if(editorReturn==='calendar'){selectedDay=day($('edit-kind').value==='date'?{kind:'date',value:$('edit-date').value}:$('edit-kind').value==='datetime'?zoned($('edit-datetime').value):none());if(selectedDay){cursor=new Date(selectedDay+'T12:00:00');cursor.setDate(1)}}}editorBusy(false);closeEditor()}if(requestId)delete requests[requestId];renderList();renderCalendar();renderConflicts();message('已保存到手机'+(data.pending?'，连接电脑后同步':''))};
+window.NH_error=function(text,requestId){var request=requests[requestId];if(requestId&&!request)return;if(requestId)delete requests[requestId];if(editorOpen&&((!requestId&&saving)||(request&&request.editor&&pendingEditor===requestId))){editorBusy(false);$('editor-error').textContent=text+'，输入已保留。';$('editor-error').hidden=false}else message(text,true);renderList();renderConflicts()};
+window.NH_theme=function(dark){document.documentElement.dataset.theme=dark?'dark':'light'};
+function renderSyncButton(){
+var button=$('sync-shortcut');button.disabled=syncing;button.setAttribute('aria-busy',String(syncing));button.setAttribute('aria-label',syncing?'正在同步日程':'立即同步日程');
+$('sync-spinner').hidden=!syncing;
+$('sync-shortcut-text').textContent=syncing?'正在同步…':data.conflicts.length?data.conflicts.length+' 项冲突':data.pending?data.pending+' 项待同步':data.error?'离线可用':data.connected?'已配对':'未连接';
+['sync-now','account-sync'].forEach(function(id){$(id).disabled=syncing});
+}
+function requestSync(){
+if(syncing)return;
+if(!data.server_id||!data.connected){bridge('reconnect');return}
+if(!window.AndroidBridge||typeof AndroidBridge.requestSync!=='function'){message('同步功能暂不可用，请重新打开 App。',true);return}
+syncRequest=requestPrefix+'-sync-'+(++requestSerial);syncing=true;renderSyncButton();
+try{bridge('requestSync',syncRequest)}catch(error){window.NH_syncFinished(syncRequest,false,error.message)}
+}
+window.NH_syncFinished=function(requestId,success,error){
+if(!syncing||requestId!==syncRequest)return;
+syncing=false;syncRequest='';renderSyncButton();
+if(success)message(data.conflicts.length?'同步完成，有 '+data.conflicts.length+' 项冲突需要处理。':data.pending?'本次同步结束，仍有 '+data.pending+' 项操作待同步。':'同步完成');
+else message(friendlySyncError(error||data.error)||'同步尚未完成，请稍后重试。本地编辑仍保留。',true);
+};
+function friendlySyncError(error){if(!error)return '';if(/配对|令牌|撤销|未授权|身份|另一台|协议|升级|401|403/.test(error))return '连接凭据需要核对，请到「电脑连接」检查或重新配对。';if(/SSL|证书|certificate|handshake/i.test(error))return '安全连接未建立，请核对电脑同步地址和证书。';return '暂时连不上电脑，本地编辑已保留，可继续离线使用。'}
 window.NH_render=function(payload){
 data=payload||{};data.tasks=data.tasks||[];data.conflicts=data.conflicts||[];
-$('summary').textContent=data.pending?data.pending+' 项操作待同步':(data.lastSuccess?'已同步 · '+new Date(data.lastSuccess).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):'尚未完成首次同步');
-$('connection-warning').hidden=data.connected!==false;$('connection-warning').textContent='配对尚未完成或已失效。本地日程与编辑仍保留，请到连接页重新配对。';
+renderSyncButton();
+$('connection-warning').textContent='配对尚未完成或已失效，本地编辑仍保留。';var connect=node('button','text-button','连接电脑');connect.onclick=function(){bridge('reconnect')};$('connection-warning').appendChild(connect);
 $('pending-count').textContent=data.pending||0;$('last-success').textContent=data.lastSuccess?new Date(data.lastSuccess).toLocaleString('zh-CN'):'尚未同步';
-$('sync-error').textContent=data.error||'';$('base').textContent=data.base||'未设置';$('server-id').textContent=data.server_id||'尚未配对';$('paired').textContent=data.connected?'已配对':'需要配对';
+$('sync-error').textContent=friendlySyncError(data.error);$('sync-error-raw').textContent=data.error||'';$('sync-error-details').hidden=!data.error;$('base').textContent=data.base||'未设置';$('server-id').textContent=data.server_id||'尚未配对';$('paired').textContent=data.connected?'已配对':'需要配对';
+$('account-state').textContent=data.conflicts.length?'有 '+data.conflicts.length+' 项冲突待处理':!data.connected?'尚未完成配对':data.error?'离线使用中':data.pending?data.pending+' 项修改待同步':'日程已保存在手机';
+$('account-note').textContent=friendlySyncError(data.error)||(data.lastSuccess?'最近同步：'+new Date(data.lastSuccess).toLocaleString('zh-CN'):'连接电脑同步日程，之后离线也可查看和编辑。');
+$('account-pending').textContent=(data.pending||0)+' 项未同步操作'+(data.conflicts.length?'，需要你确认冲突':'');$('account-connection').textContent=data.base||'查看地址或扫码连接电脑';$('account-sync').textContent=!data.server_id?'连接电脑':data.conflicts.length?'处理冲突':'立即同步';
+['conflict-badge','nav-conflicts'].forEach(function(id){$(id).hidden=!data.conflicts.length;$(id).textContent=data.conflicts.length});
 renderList();renderCalendar();renderConflicts();renderPage();
 };
 $('new').onclick=function(){if(!data.server_id){message('请先连接电脑，完成首次配对',true);return}openEditor()};
-document.querySelectorAll('[data-page]').forEach(function(button){button.onclick=function(){if(editorOpen&&!confirm('离开编辑？尚未保存的输入会丢弃。'))return;gotoPage(button.dataset.page)}});
-$('filter').onchange=renderList;$('calendar-toggle').onclick=function(){$('calendar').hidden=!$('calendar').hidden;this.setAttribute('aria-expanded',String(!$('calendar').hidden));this.textContent=$('calendar').hidden?'查看月历':'收起月历'};
+document.querySelectorAll('[data-page]').forEach(function(button){button.onclick=function(){if(editorOpen){leaveEditor(button.dataset.page);return}gotoPage(button.dataset.page)}});
+function refreshList(){renderList();renderCalendar()}
+$('filter').onchange=refreshList;$('sort').onchange=renderList;
+$('search').addEventListener('input',function(event){if(!event.isComposing)refreshList()});$('search').addEventListener('compositionend',refreshList);
+$('reset-filters').onclick=function(){$('filter').value='active';$('sort').value='deadline';$('search').value='';refreshList()};
 $('prev').onclick=function(){cursor.setMonth(cursor.getMonth()-1);renderCalendar()};$('next').onclick=function(){cursor.setMonth(cursor.getMonth()+1);renderCalendar()};
 $('clear-day').onclick=function(){selectedDay='';renderCalendar();renderList()};
-$('sync-now').onclick=function(){bridge('refresh');message('正在尝试同步')};$('export').onclick=function(){bridge('exportPending')};$('reconnect').onclick=function(){bridge('reconnect')};
+$('today').onclick=function(){cursor=new Date();cursor.setDate(1);selectedDay=today();refreshList()};
+$('sync-shortcut').onclick=$('sync-now').onclick=requestSync;$('account-sync').onclick=function(){if(!data.server_id)bridge('reconnect');else if(data.conflicts.length)gotoPage('sync');else requestSync()};
+$('export').onclick=$('account-export').onclick=function(){bridge('exportPending')};$('reconnect').onclick=function(){bridge('reconnect')};
 renderPage();
 })();
 </script>

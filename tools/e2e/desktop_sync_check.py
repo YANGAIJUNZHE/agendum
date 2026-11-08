@@ -57,17 +57,18 @@ class DesktopSyncTest(unittest.TestCase):
     def editor(self):
         card = self.page.locator("#task-%d" % self.task_id).first
         with self.page.expect_response(lambda response: "/api/v1/tasks/lookup?" in response.url) as response:
-            card.get_by_text("编辑内容与备注", exact=True).click()
+            card.locator('.task-edit-button').click()
         self.assertTrue(response.value.json()["ok"])
-        return card
+        self.page.wait_for_function("!document.querySelector('#rail-new-summary').disabled")
+        return self.page.locator('#task-editor-dialog')
 
     def test_desktop_editor_and_legacy_controls_use_v1(self):
         card = self.editor()
-        card.get_by_label("待办内容", exact=True).fill("电脑修改并同步")
-        card.get_by_label("人工备注", exact=True).fill("桌面人工备注")
+        card.locator('#rail-new-summary').fill("电脑修改并同步")
+        card.locator('#task-editor-notes').fill("桌面人工备注")
         card.get_by_label("仅设置日期", exact=True).check()
-        card.get_by_label("截止时间", exact=True).fill("2026-11-06")
-        card.get_by_role("button", name="保存内容", exact=True).click()
+        card.locator('#rail-new-deadline').fill("2026-11-06")
+        card.get_by_role("button", name="保存修改", exact=True).click()
         self.page.wait_for_function("document.querySelector('#task-%d .t').textContent === '电脑修改并同步'" % self.task_id)
         saved = self.store.sync_task(self.task_id)
         self.assertEqual(saved["notes"], "桌面人工备注")
@@ -87,15 +88,17 @@ class DesktopSyncTest(unittest.TestCase):
 
     def test_open_editor_does_not_overwrite_phone_change_and_pair_card_works(self):
         card = self.editor()
-        card.get_by_label("待办内容", exact=True).fill("浏览器还没保存的标题")
+        card.locator('#rail-new-summary').fill("浏览器还没保存的标题")
         task = self.store.sync_task(self.task_id)
         result = self.store.sync_mutate({**self.store.sync_info(), "operation_id": str(uuid.uuid4()), "uuid": task["uuid"],
             "type": "update", "base_version": task["version"], "base": {"summary": task["summary"]}, "changes": {"summary": "手机已经保存的标题"}}, "phone")
         self.assertTrue(result["ok"])
-        card.get_by_role("button", name="保存内容", exact=True).click()
-        self.page.get_by_text("手机或其他页面已经修改了这条日程，请刷新后核对再编辑", exact=True).wait_for()
+        card.get_by_role("button", name="保存修改", exact=True).click()
+        self.page.wait_for_function("document.querySelector('#task-editor-status').textContent.includes('手机或其他页面已经修改了这条日程，请刷新后核对再编辑')")
         self.assertEqual(self.store.sync_task(self.task_id)["summary"], "手机已经保存的标题")
-        self.assertEqual(card.get_by_label("待办内容", exact=True).input_value(), "浏览器还没保存的标题")
+        self.assertEqual(card.locator('#rail-new-summary').input_value(), "浏览器还没保存的标题")
+        self.page.click('#rail-new-cancel')
+        self.page.click('#task-editor-abandon')
         self.page.evaluate("document.body.appendChild(NhSchedule.mobileCard())")
         pairing = self.page.locator("#mobile-sync-settings")
         pairing.get_by_role("button", name="生成一次性配对二维码", exact=True).click()

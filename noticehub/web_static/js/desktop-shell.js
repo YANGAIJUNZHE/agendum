@@ -168,6 +168,7 @@
     Object.keys(pages).forEach(function (key) { pages[key].panel.hidden = key !== id; pages[key].button.setAttribute('aria-current', key === id ? 'page' : 'false'); });
     groups.forEach(function (group) {
       var selected = group.keys.indexOf(id) >= 0;
+      if (selected) group.lastPage = id;
       group.list.hidden = !selected; group.button.setAttribute('aria-expanded', String(selected));
     });
     var current = pages[id];
@@ -198,7 +199,7 @@
     definitions.forEach(function (definition) {
       var list = make('div', 'settings-subnav');
       var group = {keys: [], list: list};
-      group.button = button(definition[0], 'settings-category', function () { selectPage(group.keys[0], true); });
+      group.button = button(definition[0], 'settings-category', function () { selectPage(group.lastPage || group.keys[0], true); });
       list.id = 'settings-group-' + groups.length; group.button.setAttribute('aria-controls', list.id);
       nav.appendChild(group.button); nav.appendChild(list); groups.push(group);
       definition[1].forEach(function (item) {
@@ -265,7 +266,8 @@
   var toolbar = make('div', 'workspace-toolbar');
   toolbar.appendChild(make('h1', '', '日程与待办'));
   var actions = make('div', 'workspace-toolbar-actions');
-  var createTask = button('新建待办', 'btn primary', function () { var target = document.getElementById('rail-new-form'); reveal(target); if (target.hidden) document.getElementById('rail-new-task').click(); scrollTargetIntoView(target, 'smooth'); document.getElementById('rail-new-summary').focus({preventScroll: true}); });
+  var createTask = button('新建待办', 'btn primary', function () { railShowNewForm(true); });
+  createTask.setAttribute('aria-haspopup', 'dialog'); createTask.setAttribute('aria-controls', 'task-editor-dialog');
   createTask.id = 'task-new-button'; actions.appendChild(createTask);
   toolbar.appendChild(actions); document.querySelector('.primary-view').prepend(toolbar);
   // 引导仍能逐步操作，但不再把日程挤出首屏。

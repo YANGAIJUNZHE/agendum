@@ -44,8 +44,12 @@
   search.addEventListener('input', refresh); searchLabel.appendChild(search); filters.appendChild(searchLabel);
   var results = node('div', 'task-results');
   var count = node('p', '', '正在读取日程…'); count.id = 'task-result-count'; count.setAttribute('role', 'status'); results.appendChild(count);
+  var resultActions = node('div', 'task-result-actions'); results.appendChild(resultActions);
+  var reset = node('button', 'btn', '清除筛选'); reset.type = 'button'; reset.id = 'task-reset-filters';
+  reset.addEventListener('click', function () { dateFilter.value = 'all'; stateFilter.value = 'pending'; sort.value = 'deadline'; search.value = ''; refresh(); });
+  resultActions.appendChild(reset);
   var clear = node('button', 'btn', '清空已完成'); clear.type = 'button'; clear.id = 'tasks-clear-done';
-  clear.setAttribute('aria-label', '清空已完成、已忽略、已过期的任务'); results.appendChild(clear);
+  clear.setAttribute('aria-label', '清空已完成、已忽略、已过期的任务'); resultActions.appendChild(clear);
   var controls = node('div', 'task-workspace-controls'); controls.appendChild(filters); controls.appendChild(results);
   toolbar.after(controls);
 
@@ -88,6 +92,7 @@
     });
   }
   function updateCount() {
+    reset.disabled = dateFilter.value === 'all' && stateFilter.value === 'pending' && sort.value === 'deadline' && !search.value;
     if (!data) return;
     var selected = items(data), undated = selected.filter(function (task) { return !task.deadline; }).length;
     count.textContent = view === 'calendar'

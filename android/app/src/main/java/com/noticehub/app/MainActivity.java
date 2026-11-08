@@ -12,13 +12,17 @@ import com.google.zxing.integration.android.*;
 import org.json.*;
 import java.io.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Activity 负责页面、配对和原生桥；数据库与同步由 Repository 持久化。 */
 public final class MainActivity extends Activity {
     private final ExecutorService dataWorker = Executors.newSingleThreadExecutor(), networkWorker = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final AtomicBoolean syncBusy = new AtomicBoolean(false);
+    private final Object syncState = new Object();
+    private SyncRun activeSync;
+    private static final class SyncRun {
+        String requestId;
+        SyncRun(String requestId) { this.requestId = requestId; }
+    }
     private Credentials credentials;
     private ScheduleRepository repository;
     private final Runnable dataChanged = this::render;
@@ -34,6 +38,8 @@ public final class MainActivity extends Activity {
     private final Runnable pairPoll = () -> exchange(pairingBase, pairId, pairSecret);
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        applySystemTheme();
         credentials = new Credentials(this); repository = new ScheduleRepository(this);
         ScheduleRepository.listen(dataChanged);
         if (handleLink(getIntent() == null ? null : getIntent().getData())) return;
@@ -51,6 +57,36 @@ public final class MainActivity extends Activity {
     }
     private static String normalize(String value) {
         return NetworkEndpoint.normalize(value);
+    }
+    private boolean darkTheme() {
+        return (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+    private void applySystemTheme() {
+        int surface = getColor(R.color.surface);
+        getWindow().setStatusBarColor(surface);
+        getWindow().setNavigationBarColor(Build.VERSION.SDK_INT < 26 ? getColor(R.color.primary) : surface);
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        controller.setAppearanceLightStatusBars(!darkTheme());
+        controller.setAppearanceLightNavigationBars(!darkTheme());
+        if (web != null) {
+            web.setBackgroundColor(surface);
+            web.getSettings().setTextZoom(Math.round(100 * getResources().getConfiguration().fontScale));
+            if (loaded) web.evaluateJavascript("window.NH_theme && window.NH_theme(" + darkTheme() + ");", null);
+        }
+    }
+    @Override public void onConfigurationChanged(android.content.res.Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        applySystemTheme();
+        // 保留 WebView 和当前表单，旋转、字号或主题变化不销毁编辑草稿。
+        if (!showingClient && address != null) {
+            String input = address.getText().toString(), note = status.getText().toString(), digits = code.getText().toString();
+            boolean manual = findViewById(R.id.manual_form).getVisibility() == View.VISIBLE;
+            String savedPairId = pairId, savedSecret = pairSecret;
+            showPairing(); address.setText(input); status.setText(note); code.setText(digits);
+            findViewById(R.id.manual_form).setVisibility(manual ? View.VISIBLE : View.GONE);
+            pairId = savedPairId; pairSecret = savedSecret;
+            if (resumed && pairId != null) handler.postDelayed(pairPoll, 2000);
+        }
     }
     private void insets(View view) {
         int l = view.getPaddingLeft(), t = view.getPaddingTop(), r = view.getPaddingRight(), b = view.getPaddingBottom();
@@ -164,16 +200,17 @@ public final class MainActivity extends Activity {
         handler.removeCallbacks(pairPoll); showingClient = true; loaded = false;
         if (web != null) web.destroy();
         web = new WebView(this);
-        web.setBackgroundColor(android.graphics.Color.rgb(244, 245, 239));
+        web.setBackgroundColor(getColor(R.color.surface));
         if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true);
         WebSettings settings = web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(false);
+        settings.setTextZoom(Math.round(100 * getResources().getConfiguration().fontScale));
         settings.setAllowFileAccess(false); settings.setAllowContentAccess(false); settings.setAllowFileAccessFromFileURLs(false); settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         web.addJavascriptInterface(new Bridge(), "AndroidBridge");
         web.setWebChromeClient(new WebChromeClient());
         FrameLayout container = new FrameLayout(this); container.addView(web); setContentView(container); insets(container);
         web.setWebViewClient(new WebViewClient() {
-            @Override public void onPageFinished(WebView view, String url) { loaded = true; render(); sync(); }
+            @Override public void onPageFinished(WebView view, String url) { loaded = true; applySystemTheme(); render(); sync(); }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return openExternal(request.getUrl()); }
             @Override public boolean shouldOverrideUrlLoading(WebView view, String url) { return openExternal(Uri.parse(url)); }
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
@@ -200,8 +237,40 @@ public final class MainActivity extends Activity {
         });
     }
     private void sync() {
-        if (networkWorker.isShutdown() || !syncBusy.compareAndSet(false, true)) return;
-        networkWorker.execute(() -> { try { repository.sync(); } finally { syncBusy.set(false); render(); } });
+        sync(null);
+    }
+    private void sync(String requestId) {
+        final SyncRun run;
+        synchronized (syncState) {
+            if (networkWorker.isShutdown()) return;
+            if (activeSync != null) {
+                // 手动点击接续已在进行的同步，完成回执仍属于同一轮网络操作。
+                if (requestId != null) activeSync.requestId = requestId;
+                return;
+            }
+            run = new SyncRun(requestId); activeSync = run;
+        }
+        networkWorker.execute(() -> {
+            boolean success = false;
+            try { success = repository.sync(); }
+            finally { finishSync(run, success); }
+        });
+    }
+    private void finishSync(SyncRun run, boolean success) {
+        if (dataWorker.isShutdown()) return;
+        dataWorker.execute(() -> {
+            String json = null, error = "";
+            try { json = repository.snapshot().toString(); }
+            catch (Exception exception) { error = message(exception); }
+            final String snapshot = json, detail = error, requestId;
+            synchronized (syncState) { requestId = run.requestId; if (activeSync == run) activeSync = null; }
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || !showingClient || !loaded || web == null) return;
+                String script = snapshot == null ? "" : "window.NH_render(" + snapshot + ");";
+                if (requestId != null) script += "window.NH_syncFinished(" + JSONObject.quote(requestId) + "," + (success && snapshot != null) + "," + JSONObject.quote(detail) + ");";
+                web.evaluateJavascript(script, null);
+            });
+        });
     }
     private void export() {
         dataWorker.execute(() -> {
@@ -257,25 +326,30 @@ public final class MainActivity extends Activity {
         if (showingClient && web != null) web.evaluateJavascript("window.NH_back && window.NH_back();", result -> { if (!"true".equals(result)) MainActivity.super.onBackPressed(); });
         else super.onBackPressed();
     }
-    @Override public boolean onKeyLongPress(int keyCode, KeyEvent event) { if (keyCode == KeyEvent.KEYCODE_BACK) { unpair(); return true; } return super.onKeyLongPress(keyCode, event); }
     @Override protected void onDestroy() { ScheduleRepository.stopListening(dataChanged); handler.removeCallbacksAndMessages(null); dataWorker.shutdown(); networkWorker.shutdown(); if (web != null) web.destroy(); super.onDestroy(); }
     public final class Bridge {
         @JavascriptInterface public String query() { try { return repository.snapshot().toString(); } catch (Exception error) { return "{}"; } }
         @JavascriptInterface public void refresh() { render(); sync(); }
+        @JavascriptInterface public void requestSync(String requestId) {
+            if (requestId == null || requestId.isEmpty() || requestId.length() > 128) return;
+            runOnUiThread(() -> sync(requestId));
+        }
         @JavascriptInterface public void reconnect() { runOnUiThread(() -> { if (credentials.token().isEmpty()) showPairing(); else unpair(); }); }
         @JavascriptInterface public void exportPending() { export(); }
         @JavascriptInterface public void command(String json) {
             if (json == null || json.length() > 65536) return;
             dataWorker.execute(() -> {
+                String requestId = "";
                 try {
                     JSONObject c = new JSONObject(json); String kind = c.getString("type"), uuid = c.optString("uuid");
+                    requestId = c.optString("requestId");
                     if (kind.equals("resolve")) repository.resolve(uuid, c.optJSONObject("choices") == null ? new JSONObject() : c.getJSONObject("choices"), c.optBoolean("saveCopy"));
                     else if (kind.equals("discard")) repository.discard(uuid);
                     else repository.edit(uuid, kind, c.optJSONObject("changes") == null ? new JSONObject() : c.getJSONObject("changes"), c.optJSONObject("base"));
-                    render();
-                    runOnUiThread(() -> { if (web != null && showingClient) web.evaluateJavascript("window.NH_saved();", null); });
+                    String snapshot = repository.snapshot().toString(), receipt = JSONObject.quote(requestId);
+                    runOnUiThread(() -> { if (web != null && showingClient && loaded) web.evaluateJavascript("window.NH_render(" + snapshot + ");window.NH_saved(" + receipt + ");", null); });
                     ScheduleSyncWorker.schedule(MainActivity.this, true); sync();
-                } catch (Exception error) { String msg = JSONObject.quote(message(error)); runOnUiThread(() -> { if (web != null && showingClient) web.evaluateJavascript("window.NH_error(" + msg + ");", null); }); }
+                } catch (Exception error) { String msg = JSONObject.quote(message(error)), receipt = JSONObject.quote(requestId); runOnUiThread(() -> { if (web != null && showingClient && loaded) web.evaluateJavascript("window.NH_error(" + msg + "," + receipt + ");", null); }); }
             });
         }
     }
