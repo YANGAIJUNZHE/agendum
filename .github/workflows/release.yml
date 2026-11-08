@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: '发布版本标签 (如 v1.1.0-beta.17)'
+        description: 'Release tag (e.g. v1.1.0-beta.18)'
         required: false
         default: ''
 
@@ -45,14 +45,14 @@ jobs:
       - name: Generate SHA256 checksum
         shell: powershell
         run: |
-          $zipPath = "packaging\QQ-Notice-Hub.zip"
+          $zipPath = Join-Path 'packaging' 'QQ-Notice-Hub.zip'
           if (-not (Test-Path -LiteralPath $zipPath)) {
-            Write-Error "找不到构建产物: $zipPath"
-            exit 1
+              Write-Error ('Missing zip: ' + $zipPath)
+              exit 1
           }
           $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLower()
-          "$hash *QQ-Notice-Hub.zip" | Out-File -FilePath packaging\QQ-Notice-Hub.zip.sha256 -Encoding ascii
-          Write-Host "QQ-Notice-Hub.zip SHA256: $hash"
+          "$hash *QQ-Notice-Hub.zip" | Out-File -FilePath (Join-Path 'packaging' 'QQ-Notice-Hub.zip.sha256') -Encoding ascii
+          Write-Host ("QQ-Notice-Hub.zip SHA256: " + $hash)
 
       - name: Determine tag & pre-release status
         id: release_meta
