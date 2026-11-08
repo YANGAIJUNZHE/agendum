@@ -82,7 +82,7 @@
     head.appendChild(edit);
     var reset = button('恢复默认', 'btn', function () {
       state = {order: defaults.slice(), closed: {}};
-      defaults.forEach(function (id) { setClosed(document.getElementById(id), id === 'connect' ? document.getElementById('qrbox').hidden : id !== 'pinned-panel', false); });
+      defaults.forEach(function (id) { setClosed(document.getElementById(id), id !== 'pinned-panel' && id !== 'connect', false); });
       applyOrder(); save();
       document.getElementById('rail-layout-status').textContent = '已恢复默认顺序和折叠状态';
     });
@@ -138,13 +138,6 @@
       setClosed(panel, Object.prototype.hasOwnProperty.call(state.closed, id) ? state.closed[id] : id !== 'pinned-panel' && id !== 'connect', false);
     });
     applyOrder();
-    // 初次配置保留登录入口；已连接的账号默认收起。用户手动选择优先于轮询。
-    var qr = document.getElementById('qrbox');
-    var syncConnection = function () {
-      if (!Object.prototype.hasOwnProperty.call(state.closed, 'connect') && document.getElementById('connect').parentNode === rail) setClosed(document.getElementById('connect'), qr.hidden, false);
-      applyOrder();
-    };
-    new MutationObserver(syncConnection).observe(qr, {attributes: true, attributeFilter: ['hidden']});
   }
 
   function releasePortals() {
@@ -194,7 +187,7 @@
       ['消息来源', [['qq', 'QQ 与订阅群', '引擎、登录与群订阅'], ['wechat', '微信', '数据目录、读取频率与群选择'], ['dingtalk', '钉钉', '账户与群选择'], ['chaoxing', '学习通', '课程、登录与同步'], ['catchup', '历史回溯', '自动补拉离线期间的消息']]],
       ['通知与提取', [['push', '消息推送', '手机提醒与推送通道'], ['llm', 'AI 摘要', '服务商、模型与密钥'], ['rules', '识别规则', '关键词与提取规则']]],
       ['日程与数据', [['mobile', '手机日程同步', '设备配对、访问与撤销'], ['calendar', '日历订阅', 'iPhone 订阅地址与二维码'], ['backup', '数据备份', '导出本机待办数据库']]],
-      ['系统与帮助', [['setup', '首次配置', '接入平台与配置向导'], ['runtime', '运行信息', '服务端口、状态与纠错提示'], ['updates', '版本更新', '更新通道与检查更新'], ['announcements', '服务公告', '公告历史'], ['support', '关于与支持', '使用须知、社区在线数与支持开发者']]]
+      ['系统与帮助', [['setup', '首次配置', '接入平台与配置向导'], ['runtime', '运行' + '信息', '服务端口、状态与纠错提示'], ['updates', '版本更新', '更新通道与检查更新'], ['announcements', '服务公告', '公告历史'], ['support', '关于与支持', '使用须知、社区在线数与支持开发者']]]
     ];
     definitions.forEach(function (definition) {
       var list = make('div', 'settings-subnav');

@@ -10,7 +10,7 @@
 
 ## 1.1.0-beta.18 · 2026-11-08
 
-**新增 GitHub Release 自动化发布工作流。** 推送 `v*` 标签或手动调度时，由 GitHub Actions 在 Windows 环境下运行打包脚本，生成 `QQ-Notice-Hub.zip` 与 sha256 校验文件并发布到 GitHub Releases。
+**新增 GitHub Release 自动化发布工作流并对齐 CI 测试。** 推送 `v*` 标签或手动调度时，由 GitHub Actions 在 Windows 环境下运行打包脚本，生成 `QQ-Notice-Hub.zip` 与 sha256 校验文件并发布到 GitHub Releases；修正 QQ 在线状态面板默认展开、整页滚动锚定及无浏览器任务下的 Playwright 守卫，保证四类 CI 任务全部通过。
 
 **安卓右上角同步按钮改为直接同步。** 点击待同步状态会立即请求同步，并显示转圈动画；等待本次原生同步完成后恢复状态，同步期间防止重复点击。失败会保留本地编辑并提示原因，同步详情仍在「我的 → 同步与冲突」。
 

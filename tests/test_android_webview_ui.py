@@ -1,12 +1,25 @@
 """Android 本地页面交互；原生离线队列由 Android 仪器测试覆盖。"""
 import datetime
+import os
 import unittest
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
 import tests  # noqa: F401
 
+try:  # pragma: no cover - 运行环境缺 playwright 时整类跳过
+    from playwright.sync_api import sync_playwright
+    HAVE_PLAYWRIGHT = True
+except ImportError:
+    HAVE_PLAYWRIGHT = False
 
+REQUIRE_BROWSER = os.environ.get("NH_REQUIRE_BROWSER") == "1"
+if REQUIRE_BROWSER and not HAVE_PLAYWRIGHT:  # pragma: no cover
+    raise RuntimeError(
+        "NH_REQUIRE_BROWSER=1 但没装 playwright：先 pip install -r requirements-dev.txt。"
+        "这道检查不允许被 skip 掉。")
+
+
+@unittest.skipUnless(HAVE_PLAYWRIGHT, "playwright 未安装（pip install -r requirements-dev.txt）")
 class AndroidWebViewUiTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

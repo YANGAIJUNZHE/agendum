@@ -1,18 +1,30 @@
 """桌面工作区：分类导航、折叠排序、跨页入口和日程操作的浏览器契约。"""
 from __future__ import annotations
 
-import unittest
 import datetime
+import os
+import unittest
 import uuid
-
-from playwright.sync_api import sync_playwright
 
 from tests import open_authed_page
 from tests import test_ui_browser as browser_fixture
 
+try:  # pragma: no cover - 运行环境缺 playwright 时整类跳过
+    from playwright.sync_api import sync_playwright
+    HAVE_PLAYWRIGHT = True
+except ImportError:
+    HAVE_PLAYWRIGHT = False
+
+REQUIRE_BROWSER = os.environ.get("NH_REQUIRE_BROWSER") == "1"
+if REQUIRE_BROWSER and not HAVE_PLAYWRIGHT:  # pragma: no cover
+    raise RuntimeError(
+        "NH_REQUIRE_BROWSER=1 但没装 playwright：先 pip install -r requirements-dev.txt。"
+        "这道检查不允许被 skip 掉。")
+
 TOKEN = browser_fixture.TOKEN
 
 
+@unittest.skipUnless(HAVE_PLAYWRIGHT, "playwright 未安装（pip install -r requirements-dev.txt）")
 class DesktopWorkspaceTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
