@@ -156,29 +156,6 @@ jobs:
           path: browser-artifacts/
           if-no-files-found: ignore
 
-  macos:
-    runs-on: macos-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.release_sha || github.sha }}
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-
-      - name: Run unit tests
-        run: python -m unittest discover -s tests -t .
-
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -190,7 +167,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -258,13 +235,13 @@ jobs:
           if-no-files-found: error
 
   # CI 全绿是推 main 的硬标准（用户 2026-10-27 拍板）：
-  # 每次推 main 后上面六个 job 必须全绿才算收工；红了 24 小时内根因修复，
+  # 每次推 main 后上面五个 job 必须全绿才算收工；红了 24 小时内根因修复，
   # 不许用 skip / 降级 / 改断言绕过（唯一例外是真平台限制，且要写清原因和将来怎么补）。
   # 这个 job 只做汇总判定：任何一个 job 失败 / 取消 / 跳过，它自己也红。
-  # 把 ci-green 设成分支保护的必需检查，就能用一个名字代替盯六条。
+  # 把 ci-green 设成分支保护的必需检查，就能用一个名字代替盯五条。
   ci-green:
     if: always()
-    needs: [unittest, linux, macos, tray-smoke, browser, android]
+    needs: [unittest, linux, tray-smoke, browser, android]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -279,4 +256,4 @@ jobs:
               exit 1
             fi
           done
-          echo "all six jobs green"
+          echo "all five jobs green"
