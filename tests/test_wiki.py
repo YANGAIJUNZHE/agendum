@@ -21,6 +21,7 @@ REQUIRED_PAGES = (
     "architecture.md",
     "changelog.md",
     "faq.md",
+    "release.md",
 )
 
 # 正文里指向同目录其它 wiki 页的链接：`[文字](install.md)`、`[文字](install.md#锚点)`

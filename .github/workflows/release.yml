@@ -7,78 +7,107 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag (e.g. v1.1.0-beta.18)'
-        required: false
-        default: ''
+        description: 'Existing release tag (e.g. v1.1.0-beta.19)'
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag_name || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  build-release:
-    name: Build & Release Windows Package
-    runs-on: windows-latest
-    timeout-minutes: 30
-
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      sha: ${{ steps.version.outputs.sha }}
+      channel: ${{ steps.version.outputs.channel }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Create build venv
-        run: |
-          python -m venv .venv
-          .\.venv\Scripts\python.exe -m pip install --upgrade pip
-          .\.venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller
-
-      - name: Build the installer zip
-        shell: powershell
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build.ps1
-
-      - name: Generate SHA256 checksum
-        shell: powershell
-        run: |
-          $zipPath = Join-Path 'packaging' 'QQ-Notice-Hub.zip'
-          if (-not (Test-Path -LiteralPath $zipPath)) {
-              Write-Error ('Missing zip: ' + $zipPath)
-              exit 1
-          }
-          $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLower()
-          "$hash *QQ-Notice-Hub.zip" | Out-File -FilePath (Join-Path 'packaging' 'QQ-Notice-Hub.zip.sha256') -Encoding ascii
-          Write-Host ("QQ-Notice-Hub.zip SHA256: " + $hash)
-
-      - name: Determine tag & pre-release status
-        id: release_meta
-        shell: bash
-        run: |
-          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
-            TAG="${{ github.event.inputs.tag_name }}"
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          if [[ "$TAG" == *"-"* ]] || [[ "$TAG" =~ (beta|alpha|rc) ]]; then
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-          else
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_meta.outputs.tag }}
-          name: ${{ steps.release_meta.outputs.tag }}
-          prerelease: ${{ steps.release_meta.outputs.prerelease == 'true' }}
-          generate_release_notes: true
-          files: |
-            packaging/QQ-Notice-Hub.zip
-            packaging/QQ-Notice-Hub.zip.sha256
+      - name: Validate tag format
+        id: tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag_name || github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then
+            echo "::error::Expected vX.Y.Z or vX.Y.Z-beta.N"
+            exit 1
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.name }}
+          persist-credentials: false
+
+      - name: Verify version and changelog
+        id: version
+        env:
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          if [[ "$GITHUB_EVENT_NAME" == push && "$sha" != "$GITHUB_SHA" ]]; then
+            echo "::error::The tag no longer points at the triggering commit"
+            exit 1
+          fi
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+          from noticehub.version import APP_CHANNEL, APP_VERSION
+
+          tag = os.environ["TAG"]
+          channel = "beta" if "-beta." in tag else "stable"
+          if tag != f"v{APP_VERSION}" or channel != APP_CHANNEL:
+              raise SystemExit("The tag must match APP_VERSION and APP_CHANNEL")
+          changelog = Path("docs/wiki/changelog.md").read_text(encoding="utf-8")
+          if not re.search(rf"^## {re.escape(APP_VERSION)}(?:[ \t]+·[^\n]+)?[ \t]*$", changelog, re.M):
+              raise SystemExit("Add a changelog section for this version")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              print(f"tag={tag}\nchannel={channel}", file=output)
+          PY
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: prepare
+    uses: ./.github/workflows/tests.yml
+    with:
+      release_sha: ${{ needs.prepare.outputs.sha }}
+
+  publish:
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ needs.prepare.outputs.tag }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: release-assets
+
+      - name: Publish tested Windows ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          TESTED_SHA: ${{ needs.prepare.outputs.sha }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+        run: |
+          if [[ "$(git rev-parse HEAD)" != "$TESTED_SHA" ]]; then
+            echo "::error::The tag changed after testing"
+            exit 1
+          fi
+          cd release-assets
+          sha256sum --binary QQ-Notice-Hub.zip > QQ-Notice-Hub.zip.sha256
+          options=()
+          if [[ "$CHANNEL" == beta ]]; then
+            options+=(--prerelease)
+          fi
+          gh release create "$TAG" QQ-Notice-Hub.zip QQ-Notice-Hub.zip.sha256 \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes "${options[@]}"

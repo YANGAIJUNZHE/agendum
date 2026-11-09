@@ -19,8 +19,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $root 'docs\wiki'
-$work = Join-Path $root 'nh-tmp\gh-wiki'
-$remote = 'https://github.com/ExpertKT/notice-hub.wiki.git'
+$work = Join-Path $root 'nh-tmp\gh-wiki-fork'
+$remote = 'https://github.com/YANGAIJUNZHE/notice-hub.wiki.git'
 
 # 这台机器上 ~/.gitconfig 给 github.com 单独配了代理，那条线路不通；直连可用，所以这里显式绕开。
 $gitArgs = @('-c', 'http.https://github.com.proxy=')
@@ -50,11 +50,14 @@ function Invoke-Git {
 }
 
 if (Test-Path (Join-Path $work '.git')) {
+    $origin = Invoke-Git @('-C', $work, 'remote', 'get-url', 'origin')
+    if ($origin.Code -ne 0 -or ($origin.Out -join '') -cne $remote) {
+        throw '本地 wiki 副本的 origin 与发布仓库不一致'
+    }
     $pulled = Invoke-Git (@('-C', $work) + $gitArgs + @('pull', '--ff-only'))
     if ($pulled.Code -ne 0) { throw '拉取 wiki 仓库失败' }
 } else {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $work) | Out-Null
-    if (Test-Path $work) { Remove-Item $work -Recurse -Force }
     $cloned = Invoke-Git ($gitArgs + @('clone', $remote, $work))
     if ($cloned.Code -ne 0) {
         throw "clone wiki 仓库失败。多半是 GitHub 上还没有 wiki 页：去仓库的 Wiki 标签点一次「Create the first page」，再来跑。$($cloned.Out -join ' ')"
@@ -77,11 +80,13 @@ foreach ($file in Get-ChildItem -Path $work -Filter *.md -File) {
     }
 }
 
-$null = Invoke-Git @('-C', $work, 'add', '-A')
-$committed = Invoke-Git @('-C', $work, '-c', 'user.name=notice-hub', '-c', 'user.email=bot@local', 'commit', '-q', '-m', $Message)
-if ($committed.Code -ne 0) {
-    Write-Output 'wiki 没有变化，无需推送'
-    return
+$staged = Invoke-Git @('-C', $work, 'add', '-A')
+if ($staged.Code -ne 0) { throw "暂存 wiki 失败：$($staged.Out -join ' ')" }
+$diff = Invoke-Git @('-C', $work, 'diff', '--cached', '--quiet')
+if ($diff.Code -gt 1) { throw "检查 wiki 变更失败：$($diff.Out -join ' ')" }
+if ($diff.Code -eq 1) {
+    $committed = Invoke-Git @('-C', $work, '-c', 'user.name=notice-hub', '-c', 'user.email=bot@local', 'commit', '-q', '-m', $Message)
+    if ($committed.Code -ne 0) { throw "提交 wiki 失败：$($committed.Out -join ' ')" }
 }
 
 $pushed = Invoke-Git (@('-C', $work) + $gitArgs + @('push', 'origin', 'HEAD'))

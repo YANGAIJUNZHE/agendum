@@ -10,8 +10,8 @@ GITHUB_API = "https://api.github.com"
 GITHUB_RAW = "https://raw.githubusercontent.com/%s/main"
 GITEE_API = "https://gitee.com/api/v5"
 GITEE_RAW = "https://gitee.com/%s/raw/master"
-DEFAULT_REPO = "ExpertKT/notice-hub"
-DEFAULT_MIRROR_REPO = "ExpertKT/notice-hub-mirror"
+DEFAULT_REPO = "YANGAIJUNZHE/notice-hub"
+DEFAULT_BRANCH = "codex/notice-hub-custom"
 MIRROR_ENV = "NOTICEHUB_UPDATE_MIRROR"
 LEGACY_MIRROR_ENV = "QQ_DIGEST_UPDATE_MIRROR"
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
@@ -28,7 +28,7 @@ def mirror_repo(settings: Any = None) -> str:
     if configured:
         return configured
     configured = _valid_repo(os.environ.get(MIRROR_ENV, os.environ.get(LEGACY_MIRROR_ENV, "")))
-    return configured or _valid_repo(DEFAULT_MIRROR_REPO)
+    return configured
 
 
 def sources(settings: Any = None) -> list[dict[str, str]]:
@@ -37,7 +37,7 @@ def sources(settings: Any = None) -> list[dict[str, str]]:
         "id": "github",
         "repo": DEFAULT_REPO,
         "api_root": GITHUB_API,
-        "raw_base": GITHUB_RAW % DEFAULT_REPO,
+        "raw_base": f"https://raw.githubusercontent.com/{DEFAULT_REPO}/{DEFAULT_BRANCH}",
     }]
     mirror = mirror_repo(settings)
     if mirror:

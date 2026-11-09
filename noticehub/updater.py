@@ -177,6 +177,8 @@ def _first_published(releases: Any, *, stable_only: bool = False) -> dict[str, A
 
 def _degraded_note(latest: dict[str, Any]) -> str:
     """ok=True 但仍要告诉用户「能查到，却不能一键更新」的原因。"""
+    if latest.get("manual_download"):
+        return "这个版本尚未加入签名更新清单，请打开发布页手动下载"
     if not latest.get("asset_name"):
         return "这个版本没有 %s 附件，暂时不能一键更新" % ASSET_NAME
     if not latest.get("sha256"):
@@ -340,6 +342,10 @@ def _latest_for_source(source: dict[str, str], timeout: float, *, stable_only: b
         # 它的资产 size / sha256 一律不用于安装判断。
         authority = _manifest_authority(_fetch_manifest(source, timeout), latest["tag"])
         if authority is None:
+            if source["repo"] == DEFAULT_REPO:
+                # 自有 Release 可以用于通知和手动下载。没有签名条目时不提供安装参数。
+                latest.update(asset_name="", size=0, sha256="", download_url="", manual_download=True)
+                return latest
             raise ValueError("更新清单里还没有 %s 这一版，暂不自动更新" % latest["tag"])
         for key in ("size", "sha256", "download_url", "asset_name", "fallbacks"):
             latest[key] = authority[key]
@@ -410,7 +416,7 @@ def check(
 
     try:
         source_list = update_sources.sources(settings)
-        if repo:
+        if repo and target_repo != DEFAULT_REPO:
             source_list = [dict(source) for source in source_list]
             source_list[0]["repo"] = target_repo
             source_list[0]["raw_base"] = update_sources.GITHUB_RAW % target_repo
@@ -456,7 +462,8 @@ def check(
         target_asset_name = latest.get("asset_name") or ASSET_NAME
         matching = [
             (source, candidate) for source, candidate in available
-            if candidate.get("tag") == latest.get("tag")
+            if not latest.get("manual_download")
+            and candidate.get("tag") == latest.get("tag")
             and candidate.get("asset_name") == target_asset_name
         ]
         if not latest.get("asset_name") and matching:

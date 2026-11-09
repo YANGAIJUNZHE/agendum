@@ -5,23 +5,22 @@ from noticehub import update_sources
 
 
 class UpdateSourcesTests(unittest.TestCase):
-    def test_default_sources_include_built_in_mirror(self):
+    def test_default_source_uses_fork_and_its_default_branch(self):
         with patch.dict("os.environ", {}, clear=True):
             sources = update_sources.sources()
-        self.assertEqual([source["id"] for source in sources], ["github", "gitee"])
-        self.assertEqual(sources[0]["repo"], "ExpertKT/notice-hub")
+        self.assertEqual([source["id"] for source in sources], ["github"])
+        self.assertEqual(sources[0]["repo"], "YANGAIJUNZHE/notice-hub")
         self.assertEqual(sources[0]["api_root"], "https://api.github.com")
         self.assertEqual(
             sources[0]["raw_base"],
-            "https://raw.githubusercontent.com/ExpertKT/notice-hub/main",
+            "https://raw.githubusercontent.com/YANGAIJUNZHE/notice-hub/codex/notice-hub-custom",
         )
-        self.assertEqual(sources[1]["repo"], "ExpertKT/notice-hub-mirror")
 
-    def test_empty_environment_and_settings_use_built_in_mirror(self):
+    def test_empty_environment_and_settings_leave_mirror_disabled(self):
         settings = type("Settings", (), {"update_mirror": ""})()
         with patch.dict("os.environ", {}, clear=True):
             sources = update_sources.sources(settings)
-        self.assertEqual(sources[1]["repo"], "ExpertKT/notice-hub-mirror")
+        self.assertEqual([source["id"] for source in sources], ["github"])
 
     def test_mirror_is_second_and_urls_use_its_repo(self):
         with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
@@ -44,7 +43,7 @@ class UpdateSourcesTests(unittest.TestCase):
         with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "owner/environment"}, clear=True):
             self.assertEqual(update_sources.mirror_repo(settings), "owner/environment")
         with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "invalid"}, clear=True):
-            self.assertEqual(update_sources.mirror_repo(), "ExpertKT/notice-hub-mirror")
+            self.assertEqual(update_sources.mirror_repo(), "")
 
 
 if __name__ == "__main__":

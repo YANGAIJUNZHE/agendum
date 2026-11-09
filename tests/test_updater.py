@@ -140,6 +140,22 @@ class SignedManifestCheckMixin(SigningKeyMixin):
 
 
 class CheckUrlTests(SignedManifestCheckMixin, unittest.TestCase):
+    def test_fork_release_without_signed_entry_is_manual_only(self):
+        release = release_payload(tag="v9.9.9")
+        release["html_url"] = "https://github.com/YANGAIJUNZHE/notice-hub/releases/tag/v9.9.9"
+        with (
+            patch.object(updater.update_sources, "sources", return_value=self._github_only()),
+            patch.object(updater, "_fetch_json", return_value=[release]),
+            patch.object(updater, "_fetch_manifest", return_value=_sign_manifest({"version": 1, "items": []})),
+        ):
+            result = updater.check()
+
+        self.assertTrue(result["has_update"])
+        self.assertEqual(result["latest"]["html_url"], release["html_url"])
+        self.assertEqual(result["latest"]["download_url"], "")
+        self.assertEqual(result["latest"]["sha256"], "")
+        self.assertIn("手动下载", result["error"])
+
     @staticmethod
     def _github_only():
         return [{

@@ -10,7 +10,7 @@
 
 ## Windows：解压包
 
-1. 从 [Releases](https://github.com/ExpertKT/notice-hub/releases) 下 `QQ-Notice-Hub.zip`。
+1. 从 [本仓库的 Releases](https://github.com/YANGAIJUNZHE/notice-hub/releases) 下载 `QQ-Notice-Hub.zip`。可在 PowerShell 用 `Get-FileHash .\QQ-Notice-Hub.zip -Algorithm SHA256` 计算哈希，与同页的 `.sha256` 附件核对。
 2. 解压到你想放的位置，例如 `D:\notice-hub`。别在压缩包里直接双击 exe，也别把 exe 单独拖出去——`_internal`、`_launcher_internal` 这些运行时目录要跟它在一起。
 3. 双击 `QQ-Notice-Hub.exe`。第一次会生成 `.env`、启动服务、打开浏览器，并在桌面建一个快捷方式。
 4. 防火墙弹窗选「允许访问」，勾上「专用网络」。手机扫码和日历订阅都要靠它，点「取消」手机就连不上。
@@ -21,7 +21,7 @@
 ### 从源码跑
 
 ```powershell
-git clone https://github.com/ExpertKT/notice-hub.git
+git clone https://github.com/YANGAIJUNZHE/notice-hub.git
 cd notice-hub
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -33,7 +33,7 @@ Copy-Item .env.example .env
 ### Linux（Ubuntu / Debian）
 
 ```bash
-git clone https://github.com/ExpertKT/notice-hub.git ~/notice-hub
+git clone https://github.com/YANGAIJUNZHE/notice-hub.git ~/notice-hub
 cd ~/notice-hub
 bash packaging/linux/install.sh
 ```
@@ -43,7 +43,7 @@ bash packaging/linux/install.sh
 ### macOS
 
 ```bash
-git clone https://github.com/ExpertKT/notice-hub.git ~/notice-hub
+git clone https://github.com/YANGAIJUNZHE/notice-hub.git ~/notice-hub
 cd ~/notice-hub
 bash packaging/macos/install.sh
 ```
@@ -52,7 +52,7 @@ bash packaging/macos/install.sh
 
 ### 安卓 App
 
-在同一个 Releases 页面下 `notice-hub-android-*.apk`。装好后，电脑端「设置 → 手机 App」会显示二维码，用 App 扫它；扫不动就手输那 6 位配对码。
+安卓 APK 由维护者另行构建和签名。需要覆盖安装时，请使用与已安装版本签名一致的 APK。装好后，电脑端「设置 → 手机 App」会显示二维码，用 App 扫它。扫不动就手输那 6 位配对码。
 
 App 是电脑端服务的壳，消息和待办还在电脑上。
 
@@ -70,10 +70,10 @@ App 是电脑端服务的壳，消息和待办还在电脑上。
 
 ## 升级
 
-### 让软件自己更新（推荐）
+### 在软件里检查更新
 
 1. 网页「设置 → 版本更新」→「检查更新」。
-2. 有新版本时卡片会列出新增和修复，右边有「查看完整更新说明 ↗」。
+2. 有新版本时卡片会显示更新说明。若提示手动下载，点「查看完整更新说明 ↗」打开本仓库发布页，按下方步骤覆盖安装。
 3. 「下载更新包」只下载和校验，**不安装**。下完点托盘 →「重启并更新」，十来秒到半分钟换好，刷新网页。
 4. 启动时如果有新版本，页面顶部还会出现一条横幅，点它直接跳到那张卡片。
 
