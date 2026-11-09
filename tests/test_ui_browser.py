@@ -89,6 +89,9 @@ class QrViewportBrowserTest(unittest.TestCase):
             web_port=0,
             web_token=TOKEN,
             data_dir=Path(self.tmp.name) / "data",
+            # Geometry tests need a stable page. Live release/announcement
+            # fetches can insert a banner between two layout measurements.
+            update_channel="off",
         )
         self.server = TaskWebServer(settings, store)
         self.assertTrue(self.server.start(), "TaskWebServer 启动失败")

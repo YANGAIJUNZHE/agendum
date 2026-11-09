@@ -79,8 +79,46 @@ function pointToConnect() {
   window.setTimeout(function () { panel.classList.remove('is-spotlight'); }, 2000);
 }
 window.pointToConnect = pointToConnect;
-function refreshQr() { var image = document.getElementById('qr'); var note = document.getElementById('qr-note'); if (!image) return; image.hidden = true; if (!napcatRunning) { applyNapcatQrState(false); return; } image.onload = function () { image.hidden = false; if (note && !qrStaleActive) note.hidden = true; }; image.onerror = function () { image.hidden = true; var details=document.getElementById('qq-qr-details');if(details)details.open=true;if (note) { note.hidden = false; note.textContent = '二维码暂时取不到。点上面的「重启引擎」再来一次，或等它自动换新。'; } }; image.src = '/api/napcat/qrcode?token=' + encodeURIComponent(setupToken) + '&t=' + Date.now(); }
-function showQrAfterAction(){var details=document.getElementById('qq-qr-details');if(details)details.open=true;applyNapcatQrState(true);refreshQr();window.requestAnimationFrame(function(){var box=document.getElementById('qrbox');if(box)scrollTargetIntoView(box);});}
+var revealQrOnLoad = null;
+function finishQrLoad() {
+  var reveal = revealQrOnLoad;
+  revealQrOnLoad = null;
+  if (reveal) window.requestAnimationFrame(reveal);
+}
+function refreshQr() {
+  var image = document.getElementById('qr');
+  var note = document.getElementById('qr-note');
+  if (!image) return;
+  image.hidden = true;
+  if (!napcatRunning) { applyNapcatQrState(false); return; }
+  image.onload = function () {
+    image.hidden = false;
+    if (note && !qrStaleActive) note.hidden = true;
+    finishQrLoad();
+  };
+  image.onerror = function () {
+    image.hidden = true;
+    var details = document.getElementById('qq-qr-details');
+    if (details) details.open = true;
+    if (note) {
+      note.hidden = false;
+      note.textContent = '二维码暂时取不到。点上面的「重启引擎」再来一次，或等它自动换新。';
+    }
+    finishQrLoad();
+  };
+  image.src = '/api/napcat/qrcode?token=' + encodeURIComponent(setupToken) + '&t=' + Date.now();
+}
+function showQrAfterAction() {
+  var details = document.getElementById('qq-qr-details');
+  if (details) details.open = true;
+  applyNapcatQrState(true);
+  // 图片显示后容器才有最终高度。后台轮询可以换图，但不能抢走这次定位。
+  revealQrOnLoad = () => {
+    var box = document.getElementById('qrbox');
+    if (napcatRunning && box) scrollTargetIntoView(box);
+  };
+  refreshQr();
+}
 // 二维码只在 NapCat 换了新图时才重取（qr_stamp 变了）。之前每 5 秒无脑重载一次，图没变也在闪。
 var lastQrStamp = null;
 function refreshQrIfStale(stamp) { stamp = String(stamp || ''); if (stamp === lastQrStamp) return; lastQrStamp = stamp; refreshQr(); }
