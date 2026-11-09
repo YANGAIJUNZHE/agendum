@@ -52,7 +52,7 @@ bash packaging/macos/install.sh
 
 ### 安卓 App
 
-安卓 APK 由维护者另行构建和签名。需要覆盖安装时，请使用与已安装版本签名一致的 APK。装好后，电脑端「设置 → 手机 App」会显示二维码，用 App 扫它。扫不动就手输那 6 位配对码。
+安卓 APK 可直接在 Releases 页面下载 `notice-hub-android.apk`（由 Release 工作流自动构建和签名）。需要覆盖安装时，请使用与已安装版本签名一致的 APK。装好后，电脑端「设置 → 手机 App」会显示二维码，用 App 扫它。扫不动就手输那 6 位配对码。
 
 App 是电脑端服务的壳，消息和待办还在电脑上。
 

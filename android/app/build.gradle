@@ -12,8 +12,15 @@ def defaultServer = (pairingProperties['server'] ?: '').toString().replace('\\',
  if (signingFile.exists()) signingFile.withInputStream { signingProperties.load(it) }
 
 android { namespace 'com.noticehub.app'; compileSdk 35; buildToolsVersion '35.0.0'
-    defaultConfig { applicationId 'com.noticehub.app'; minSdk 23; targetSdk 35; versionCode 18; versionName '1.1.0-beta.18'; buildConfigField 'String', 'PAIR_SERVER', '"' + defaultServer + '"'
-    buildConfigField 'String', 'DEFAULT_SERVER', '"' + defaultServer + '"' }
+    defaultConfig {
+        applicationId 'com.noticehub.app'
+        minSdk 23
+        targetSdk 35
+        versionCode project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 18
+        versionName project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : '1.1.0-beta.18'
+        buildConfigField 'String', 'PAIR_SERVER', '"' + defaultServer + '"'
+        buildConfigField 'String', 'DEFAULT_SERVER', '"' + defaultServer + '"'
+    }
     buildFeatures { buildConfig true }
     signingConfigs {
         release {
@@ -25,7 +32,14 @@ android { namespace 'com.noticehub.app'; compileSdk 35; buildToolsVersion '35.0.
             }
         }
     }
-    buildTypes { release { signingConfig signingConfigs.release; minifyEnabled false } }
+    buildTypes {
+        release {
+            if (signingFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+        }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
     defaultConfig {
         // 真机验收副本与已发布签名并存；默认构建的正式包名保持不变。

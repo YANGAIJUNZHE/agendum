@@ -6,6 +6,8 @@
 
 ## 未发布
 
+**CI 与 Release 自动化包含 Android APK。** GitHub Actions 增加 Android 单元测试与构建任务；打 tag 发版时通过仓库 Secrets 自动签名并构建 `notice-hub-android.apk`，随 Windows ZIP 及各自的 SHA-256 校验文件一并上传至 GitHub Releases。
+
 **CodeBuddy 的 CI 测试使用实际调用的启动时限。** Windows runner 启动 Node 较慢时，测试仍会等待子进程返回，并检查原有的退出码和 JSON 解析错误。
 
 **浏览器测试隔离线上更新和公告。** 布局和 QQ 状态测试实例关闭联网检查，避免外部请求影响测量。QQ 状态超时会附带浏览器脚本与请求错误，方便排查。

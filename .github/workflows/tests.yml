@@ -8,6 +8,9 @@ on:
       release_sha:
         required: true
         type: string
+      release_tag:
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -176,14 +179,92 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -t .
 
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Run Android unit tests
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Prepare signing keystore
+        if: inputs.release_sha != ''
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Missing Android release signing secrets. Required secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+          KEYSTORE_PATH="$(pwd)/android/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          cat <<EOF > android/keystore.properties
+          storeFile=$KEYSTORE_PATH
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Build Android APK
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          cd android
+          gradle_args=(--no-daemon)
+          if [ -n "$RELEASE_TAG" ]; then
+            version_name="${RELEASE_TAG#v}"
+            gradle_args+=("-PappVersionName=$version_name")
+          fi
+          if [ -f keystore.properties ]; then
+            ./gradlew assembleRelease "${gradle_args[@]}"
+          else
+            ./gradlew assembleDebug "${gradle_args[@]}"
+          fi
+
+      - name: Stage release APK
+        if: inputs.release_sha != ''
+        run: |
+          mkdir -p apk-dist
+          apk_file=$(find android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          if [ -z "$apk_file" ] || [ ! -f "$apk_file" ]; then
+            echo "::error::No release APK found in android/app/build/outputs/apk/release/"
+            exit 1
+          fi
+          cp "$apk_file" apk-dist/notice-hub-android.apk
+
+      - name: Save tested APK
+        if: inputs.release_sha != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          path: apk-dist/notice-hub-android.apk
+          if-no-files-found: error
+
   # CI 全绿是推 main 的硬标准（用户 2026-10-27 拍板）：
-  # 每次推 main 后上面五个 job 必须全绿才算收工；红了 24 小时内根因修复，
+  # 每次推 main 后上面六个 job 必须全绿才算收工；红了 24 小时内根因修复，
   # 不许用 skip / 降级 / 改断言绕过（唯一例外是真平台限制，且要写清原因和将来怎么补）。
   # 这个 job 只做汇总判定：任何一个 job 失败 / 取消 / 跳过，它自己也红。
-  # 把 ci-green 设成分支保护的必需检查，就能用一个名字代替盯五条。
+  # 把 ci-green 设成分支保护的必需检查，就能用一个名字代替盯六条。
   ci-green:
     if: always()
-    needs: [unittest, linux, macos, tray-smoke, browser]
+    needs: [unittest, linux, macos, tray-smoke, browser, android]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -198,4 +279,4 @@ jobs:
               exit 1
             fi
           done
-          echo "all five jobs green"
+          echo "all six jobs green"
