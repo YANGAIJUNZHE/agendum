@@ -59,13 +59,15 @@ class CodeBuddyTests(unittest.TestCase):
     def test_nonzero_exit_reaches_run_codebuddy(self):
         with patch.dict(os.environ, {'FAKE_CODEBUDDY_MODE': 'exit'}):
             with self.assertRaisesRegex(RuntimeError, '退出码 7'):
-                qq_digest.run_codebuddy('x', cli=FIXTURE, timeout=5)
+                qq_digest.run_codebuddy('x', cli=FIXTURE)
 
     @unittest.skipUnless(_HAS_CODEBUDDY_RUNTIME, "Node.js required for the CodeBuddy fixture")
     def test_invalid_json_reaches_run_codebuddy(self):
         with patch.dict(os.environ, {'FAKE_CODEBUDDY_MODE': 'invalid'}):
             with self.assertRaisesRegex(RuntimeError, 'JSON 解析失败'):
-                qq_digest.run_codebuddy('x', cli=FIXTURE, timeout=5)
+                # Keep the production startup budget. This test checks the
+                # subprocess output, and Windows runners can start Node slowly.
+                qq_digest.run_codebuddy('x', cli=FIXTURE)
 
     def test_auto_missing_cli_falls_back_to_http(self):
         items = [{'message': type('M', (), {'timestamp': None, 'sender': 'a', 'text': 'hello'})(), 'category': 'info', 'deadline': None, 'deadline_dt': None, 'score': 1}]
