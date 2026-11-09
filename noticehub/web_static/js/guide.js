@@ -114,8 +114,9 @@ function showQrAfterAction() {
   applyNapcatQrState(true);
   // 图片显示后容器才有最终高度。后台轮询可以换图，但不能抢走这次定位。
   revealQrOnLoad = () => {
+    if (!napcatRunning) return;
     var box = document.getElementById('qrbox');
-    if (napcatRunning && box) scrollTargetIntoView(box);
+    if(box)scrollTargetIntoView(box);
   };
   refreshQr();
 }

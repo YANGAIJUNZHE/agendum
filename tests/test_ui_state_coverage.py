@@ -172,7 +172,7 @@ class QQConnectStateCoverageTest(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         store = Store(Path(cls.tmp.name) / "api.sqlite3")
         settings = Settings(web_host="127.0.0.1", web_port=0, web_token=TOKEN,
-                            data_dir=Path(cls.tmp.name) / "data")
+                            data_dir=Path(cls.tmp.name) / "data", update_channel="off")
         cls.server = TaskWebServer(settings, store)
         assert cls.server.start(), "TaskWebServer 启动失败"
         assert cls.server.server is not None
@@ -220,20 +220,23 @@ class QQConnectStateCoverageTest(unittest.TestCase):
         """按给定 /api/napcat/status 返回渲染一次 QQ 卡，返回可断言的状态。"""
         context = self.browser.new_context(viewport={"width": 1280, "height": 1000})
         page = context.new_page()
+        diagnostics: list[str] = []
+        page.on("pageerror", lambda error: diagnostics.append(str(error)))
+        page.on("requestfailed", lambda request: diagnostics.append(f"{request.url}: {request.failure}"))
 
-        def status_route(route, request):
+        def status_route(route):
             body = json.dumps(dict(payload, napcat_root="fixture"))
-            try:
-                route.fulfill(status=200, content_type="application/json", body=body)
-            except Exception:  # noqa: BLE001 - 页面已关闭时忽略在途轮询
-                pass
+            route.fulfill(status=200, content_type="application/json", body=body)
 
         page.route("**/api/napcat/status", status_route)
         try:
             # 预置会话 Cookie 直接进页面：不带 ?token= 就不会触发那次自动 reload，
             # 也就不会读到换页前的初始态（截图前那些「引擎行还在正在检查」就是它）。
             open_authed_page(context, page, self.base, TOKEN)
-            self._wait_for_state_applied(page, payload)
+            try:
+                self._wait_for_state_applied(page, payload)
+            except AssertionError as error:
+                raise AssertionError(f"{error}\n浏览器诊断：{diagnostics}") from error
             return page.evaluate(MEASURE_JS, self.button_ids)
         finally:
             context.close()
