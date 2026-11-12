@@ -1,7 +1,7 @@
 """agendum 启动器：常驻托盘宿主。
 
 - 首次运行生成 `.env`（随机 token）并创建桌面快捷方式，之后复用。
-- 拉起 `agendum.exe --env <env> run` 作为子进程（无控制台窗口）。
+- 拉起 `agendum-core.exe --env <env> run` 作为子进程（无控制台窗口）。
 - 托盘菜单：开始托管 / 结束托管 / 打开控制台 / 退出（浮窗启用时才多一项「显示/隐藏浮窗」）。
 - **从托盘退出 = 结束托管（停 NapCat、按设置恢复电脑版 QQ）+ 关服务子进程 + 关程序**。
 
@@ -48,7 +48,7 @@ def _open_browser(url: str) -> bool:
 
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-SERVICE_EXE = "agendum.exe"
+SERVICE_EXE = "agendum-core.exe"
 LAUNCHER_EXE = "Agendum.exe"
 SHORTCUT_NAME = "agendum.lnk"
 WATCHDOG_POLL_SECONDS = 2.0

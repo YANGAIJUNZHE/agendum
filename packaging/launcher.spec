@@ -37,4 +37,4 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], [], [], name="Agendum", console=False, icon=_ICON, manifest=_MANIFEST, exclude_binaries=True, contents_directory="_launcher_internal")
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="Agendum")
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="Agendum-launcher")

@@ -98,9 +98,9 @@ try {
     $health = Invoke-RestMethod -Method Get -Uri 'http://127.0.0.1:8765/health' -TimeoutSec 8
 } catch { }
 
-# 统计来自本地进程：冻结包用同目录的 agendum.exe，源码检出才回退到 .venv。
+# 统计来自本地进程：冻结包用同目录的 agendum-core.exe，源码检出才回退到 .venv。
 $stats = $null
-$frozenExe = Join-Path $root 'agendum.exe'
+$frozenExe = Join-Path $root 'agendum-core.exe'
 $venvPython = Join-Path $root '.venv\Scripts\python.exe'
 try {
     if (Test-Path $frozenExe) {
@@ -112,7 +112,7 @@ try {
     } elseif (Test-Path $venvPython) {
         $stats = & $venvPython (Join-Path $root 'main.py') stats | ConvertFrom-Json
     } else {
-        Write-Host '    这是冻结包（没有 .venv），已改用 agendum.exe 读取统计。' -ForegroundColor Yellow
+        Write-Host '    这是冻结包（没有 .venv），已改用 agendum-core.exe 读取统计。' -ForegroundColor Yellow
     }
     if ($stats) {
         Write-Host ('    累计收到群消息 {0} 条 / 生成摘要 {1} 条 / 成功推送 {2} 次' -f $stats.counts.messages, $stats.counts.digests, $stats.counts.deliveries_sent)

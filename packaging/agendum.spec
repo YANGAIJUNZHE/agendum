@@ -45,5 +45,5 @@ a = Analysis(
     noarchive=False,
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], [], [], name="agendum", console=True, exclude_binaries=True, icon=_ICON, manifest=_MANIFEST, contents_directory="_internal")
+exe = EXE(pyz, a.scripts, [], [], [], name="agendum-core", console=True, exclude_binaries=True, icon=_ICON, manifest=_MANIFEST, contents_directory="_internal")
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="agendum")

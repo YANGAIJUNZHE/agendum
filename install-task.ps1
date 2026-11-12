@@ -24,10 +24,10 @@ $runScript = Join-Path $root 'run.ps1'
 $watchdogScript = Join-Path $root 'tools\watchdog-task.ps1'
 
 # C-01: report leftover service binaries instead of silently registering a task that supervises
-# the wrong one. The launcher always starts <root>\agendum.exe, so the root copy is authoritative;
+# the wrong one. The launcher always starts <root>\agendum-core.exe, so the root copy is authoritative;
 # a leftover legacy directory from the old zip layout may still hold an old exe. We do NOT delete
 # anything here (the install dir may be the live production one) -- we print what we found.
-$rootService = Join-Path $root 'agendum.exe'
+$rootService = Join-Path $root 'agendum-core.exe'
 $legacyDir = Join-Path $root 'qq-live-digest'
 if ((Test-Path -LiteralPath $legacyDir -PathType Container) -and (Test-Path -LiteralPath $rootService -PathType Leaf)) {
     Write-Warning ("发现旧布局残留目录：{0}" -f $legacyDir)

@@ -6,7 +6,7 @@
 
 ## 未发布
 
-**第二步改名：内部标识统一为 Agendum。** Python 包 `noticehub` 改为 `agendum`；命令行程序改为 `agendum.exe`，启动器与安装包改为 `Agendum.exe` / `Agendum.zip`；防火墙规则、开机任务、托盘、互斥量等运行时标识同步改名。环境变量改用 `AGENDUM_*` 前缀，旧名 `NOTICEHUB_*`、`QQ_DIGEST_*` 仍按兼容读取（优先级 AGENDUM_ > NOTICEHUB_ > QQ_DIGEST_），网页写回 `.env` 时把旧名行就地改成新名。安卓包名改为 `com.agendum.app`：与旧包名是两个应用，先把旧版待同步编辑同步回电脑，再卸载旧版、装新版并重新配对。历史版本说明与公告保留原名，不改写。
+**第二步改名：内部标识统一为 Agendum。** Python 包 `noticehub` 改为 `agendum`；命令行程序改为 `agendum-core.exe`（与启动器 `Agendum.exe` 在 Windows 大小写不敏感的文件系统上区分开），启动器与安装包改为 `Agendum.exe` / `Agendum.zip`；防火墙规则、开机任务、托盘、互斥量等运行时标识同步改名。环境变量改用 `AGENDUM_*` 前缀，旧名 `NOTICEHUB_*`、`QQ_DIGEST_*` 仍按兼容读取（优先级 AGENDUM_ > NOTICEHUB_ > QQ_DIGEST_），网页写回 `.env` 时把旧名行就地改成新名。安卓包名改为 `com.agendum.app`：与旧包名是两个应用，先把旧版待同步编辑同步回电脑，再卸载旧版、装新版并重新配对。历史版本说明与公告保留原名，不改写。
 
 **项目独立，改名 Agendum。** 与上游 notice-hub 切割，仓库改名为 `YANGAIJUNZHE/agendum`。网页标题与品牌、托盘提示、日历订阅名、安卓 App 名统一改为 Agendum；README 与 wiki 的安装、克隆地址全部指向本仓库。exe 文件名（`QQ-Notice-Hub.exe`）、Python 包名、防火墙规则名与开机任务名这一步不动，留待下一步统一。
 

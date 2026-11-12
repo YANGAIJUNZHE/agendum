@@ -17,7 +17,7 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $appRoot = Join-Path $dist 'agendum'
 if (-not (Test-Path -LiteralPath $appRoot -PathType Container)) { throw "Missing service package: $appRoot" }
-$launcherRoot = Join-Path $dist 'Agendum'
+$launcherRoot = Join-Path $dist 'Agendum-launcher'
 if (-not (Test-Path -LiteralPath $launcherRoot -PathType Container)) { throw "Missing launcher package: $launcherRoot" }
 $launcherExe = Join-Path $launcherRoot 'Agendum.exe'
 $launcherInternal = Join-Path $launcherRoot '_launcher_internal'
@@ -91,7 +91,7 @@ Get-ChildItem -LiteralPath $appRoot -Recurse -File | ForEach-Object {
 Write-Host ("Cleared read-only attribute on {0} file(s) under {1}" -f $readOnlyCleared, $appRoot)
 # C-01: -Path $appRoot would wrap everything in a top-level `agendum\` directory, but
 # install-task.ps1 registers <install root>\Agendum.exe. That mismatch is how production
-# ended up running the stale root-level agendum.exe while a newer nested copy sat unused.
+# ended up running the stale root-level agendum-core.exe while a newer nested copy sat unused.
 # Archive the directory *contents* so the zip top level IS the install root.
 # C-04: entry names must use `/` (ZIP spec). Windows PowerShell 5.1 runs on .NET Framework, where
 # [System.IO.Compression.ZipFile]::CreateFromDirectory writes `\` separators (measured: 280 of 293
