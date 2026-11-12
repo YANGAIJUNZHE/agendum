@@ -56,7 +56,7 @@ jobs:
           import os
           import re
           from pathlib import Path
-          from noticehub.version import APP_CHANNEL, APP_VERSION
+          from agendum.version import APP_CHANNEL, APP_VERSION
 
           tag = os.environ["TAG"]
           channel = "beta" if "-beta." in tag else "stable"
@@ -111,12 +111,12 @@ jobs:
             exit 1
           fi
           cd release-assets
-          assets=(QQ-Notice-Hub.zip)
-          sha256sum --binary QQ-Notice-Hub.zip > QQ-Notice-Hub.zip.sha256
-          assets+=(QQ-Notice-Hub.zip.sha256)
-          if [[ -f notice-hub-android.apk ]]; then
-            sha256sum --binary notice-hub-android.apk > notice-hub-android.apk.sha256
-            assets+=(notice-hub-android.apk notice-hub-android.apk.sha256)
+          assets=(Agendum.zip)
+          sha256sum --binary Agendum.zip > Agendum.zip.sha256
+          assets+=(Agendum.zip.sha256)
+          if [[ -f agendum-android.apk ]]; then
+            sha256sum --binary agendum-android.apk > agendum-android.apk.sha256
+            assets+=(agendum-android.apk agendum-android.apk.sha256)
           fi
           options=()
           if [[ "$CHANNEL" == beta ]]; then

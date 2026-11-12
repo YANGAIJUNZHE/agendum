@@ -1,7 +1,7 @@
-"""冷装：解 zip → 随机端口/令牌 → 起 QQ-Notice-Hub.exe → 等 /api/health → teardown。
+"""冷装：解 zip → 随机端口/令牌 → 起 Agendum.exe → 等 /api/health → teardown。
 
 设计约束（负责人定的红线）：
-* 只在 `%TEMP%\\nh-e2e-<guid>` 里解包，绝不碰 `F:\\notice-hub` 或 8765-8768。
+* 只在 `%TEMP%\\nh-e2e-<guid>` 里解包，绝不碰 `F:\\agendum` 或 8765-8768。
 * 端口随机且避开 8765-8768；令牌随机。
 * 全程隐藏窗口（CREATE_NO_WINDOW），不弹浏览器（BROWSER 指向不存在的程序）。
 * 关掉 LLM / 视觉 / 更新检查 / 社区遥测，E2E 不依赖外网。
@@ -28,7 +28,7 @@ from .cdp import RESERVED_PORTS, free_port
 from .paths import ensure_outside_repo, temp_root
 
 CREATE_NO_WINDOW = 0x08000000
-DEFAULT_ZIP = Path(__file__).resolve().parents[3] / "packaging" / "QQ-Notice-Hub.zip"
+DEFAULT_ZIP = Path(__file__).resolve().parents[3] / "packaging" / "Agendum.zip"
 
 # 冷装环境：一条都不依赖外网，也不给用户机器留自动更新/开机启动的钩子。
 ISOLATION_ENV = {
@@ -82,7 +82,7 @@ class Install:
 
     @property
     def exe(self) -> Path:
-        return self.install_dir / "QQ-Notice-Hub.exe"
+        return self.install_dir / "Agendum.exe"
 
     def alive(self) -> bool:
         if self._stopped or self.process is None:
@@ -248,7 +248,7 @@ def cold_install(
         install = Install(root=root_path, port=chosen_port, token=chosen_token, keep=keep, mode=mode,
                           env_extra={str(k): str(v) for k, v in (extra_env or {}).items()})
         if mode == "zip" and not install.exe.is_file():
-            raise ColdInstallError(f"解包后没有 QQ-Notice-Hub.exe：{install_dir}")
+            raise ColdInstallError(f"解包后没有 Agendum.exe：{install_dir}")
         env_path = _seed_env(install_dir, chosen_port, chosen_token, extra_env)
         # B1：子进程环境必须「白名单化」。config.py 用 os.environ.setdefault 读 .env，
         # 父 shell 里任何一个 QQ_DIGEST_*（比如开发机上的真实 QQ_DIGEST_DATA_DIR /
@@ -294,7 +294,7 @@ def cold_install(
 # 源码模式只复制跑 Web 服务要的东西（含 webapp 用的 RUNTIME_ROOT/assets）。
 # 之前是「整树复制再排除」，仓库根稍有点测试残留（带被锁的 sqlite）就会复制失败；
 # 需要新的根文件就加进这个名单，别回到整树复制。
-SOURCE_COPY = ("main.py", "qq_digest.py", "noticehub", "assets")
+SOURCE_COPY = ("main.py", "qq_digest.py", "agendum", "assets")
 SOURCE_SKIP_SUFFIXES = (".pyc", ".pyo")
 
 
@@ -345,7 +345,7 @@ def _teardown_failed_install(install: "Install | None", root_path: Path) -> None
     """B2：启动失败/健康检查超时也要把进程杀掉、等端口关，再删目录；删不掉要留日志。
 
     只动本轮那个 PID（`--quit` 再 `taskkill /PID`），绝不按镜像名全机杀——
-    用户自己那份 F:\\notice-hub 也是同名 exe。
+    用户自己那份 F:\\agendum 也是同名 exe。
     """
     process = getattr(install, "process", None)
     pid = int(process.pid) if process is not None and process.poll() is None else 0
@@ -382,7 +382,7 @@ def _wait_health(install: Install, *, timeout: float) -> None:
     while time.monotonic() < deadline:
         if install.process is not None and install.process.poll() is not None:
             raise ColdInstallError(
-                f"QQ-Notice-Hub.exe 在健康检查前就退出了（exit={install.process.returncode}）；"
+                f"Agendum.exe 在健康检查前就退出了（exit={install.process.returncode}）；"
                 f"日志：{install.install_dir / 'logs'}"
             )
         try:

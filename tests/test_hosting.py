@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from noticehub import hosting as ho
+from agendum import hosting as ho
 
 
 class FakeSettings:
@@ -127,7 +127,7 @@ class HostingTests(unittest.TestCase):
                 {
                     "ProcessId": 12,
                     "ExecutablePath": str(real),
-                    "CommandLine": '"%s" --user-data-dir=F:\\notice-hub\\data\\napcat-profile' % real,
+                    "CommandLine": '"%s" --user-data-dir=F:\\agendum\\data\\napcat-profile' % real,
                 },
             ]
             with patch.object(ho, "user_qq_path", return_value=real), patch.object(ho, "_processes", return_value=processes):
@@ -186,9 +186,9 @@ class HostingTests(unittest.TestCase):
     def test_set_autostart_writes_and_removes_value(self):
         fake = FakeWinreg()
         with patch.object(ho, "_winreg", return_value=fake):
-            written = ho.set_autostart(True, target=Path("C:/apps/QQ-Notice-Hub.exe"))
+            written = ho.set_autostart(True, target=Path("C:/apps/Agendum.exe"))
             self.assertTrue(written["ok"])
-            self.assertEqual(fake.values[ho.AUTOSTART_NAME], '"C:\\apps\\QQ-Notice-Hub.exe"')
+            self.assertEqual(fake.values[ho.AUTOSTART_NAME], '"C:\\apps\\Agendum.exe"')
             self.assertTrue(ho.autostart_enabled())
             removed = ho.set_autostart(False)
             self.assertTrue(removed["ok"])
@@ -201,8 +201,8 @@ class HostingTests(unittest.TestCase):
             original = (
                 "# 注释要原样保留\r\n"
                 "QQ_DIGEST_WEB=1\r\n"
-                "NOTICEHUB_HOSTING_QUIT_QQ=1\r\n"
-                "NOTICEHUB_AUTOSTART=0\r\n"
+                "AGENDUM_HOSTING_QUIT_QQ=1\r\n"
+                "AGENDUM_AUTOSTART=0\r\n"
                 "QQ_DIGEST_WEB_TOKEN=tok"
             )
             settings.env_file.write_bytes(original.encode("utf-8"))
@@ -214,10 +214,10 @@ class HostingTests(unittest.TestCase):
             autostart.assert_called_once_with(True)
             text = settings.env_file.read_bytes().decode("utf-8")
             self.assertIn("# 注释要原样保留", text)
-            self.assertIn("NOTICEHUB_HOSTING_QUIT_QQ=0", text)
-            self.assertIn("NOTICEHUB_AUTOSTART=1", text)
+            self.assertIn("AGENDUM_HOSTING_QUIT_QQ=0", text)
+            self.assertIn("AGENDUM_AUTOSTART=1", text)
             self.assertIn("QQ_DIGEST_WEB_TOKEN=tok\r\n", text)  # 原有尾行（无换行）保持完整
-            self.assertTrue(text.endswith("NOTICEHUB_HOSTING_AUTO_ON_START=1\r\n"))  # 缺失键被追加到末尾
+            self.assertTrue(text.endswith("AGENDUM_HOSTING_AUTO_ON_START=1\r\n"))  # 缺失键被追加到末尾
             self.assertIn("QQ_DIGEST_WEB=1", text)
 
     def test_save_prefs_rejects_unknown_keys(self):
@@ -250,12 +250,12 @@ class HostingTests(unittest.TestCase):
                 result = ho.save_prefs(settings, {"quit_restore_qq": True})
             self.assertTrue(result["ok"])
             self.assertTrue(settings.quit_restore_qq)
-            self.assertIn("NOTICEHUB_QUIT_RESTORE_QQ=1", settings.env_file.read_text(encoding="utf-8"))
+            self.assertIn("AGENDUM_QUIT_RESTORE_QQ=1", settings.env_file.read_text(encoding="utf-8"))
             with patch.object(ho, "set_autostart"):
                 result = ho.save_prefs(settings, {"quit_restore_qq": False})
             self.assertTrue(result["ok"])
             self.assertFalse(settings.quit_restore_qq)
-            self.assertIn("NOTICEHUB_QUIT_RESTORE_QQ=0", settings.env_file.read_text(encoding="utf-8"))
+            self.assertIn("AGENDUM_QUIT_RESTORE_QQ=0", settings.env_file.read_text(encoding="utf-8"))
 
     def test_hosting_status_uses_state_file(self):
         with tempfile.TemporaryDirectory() as td:

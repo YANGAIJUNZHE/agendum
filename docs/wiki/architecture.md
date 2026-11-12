@@ -25,13 +25,13 @@ v1 路由独立于旧路由表。SQLite 触发器标记日程写入，在原事�
 | 位置 | 里面是什么 |
 | --- | --- |
 | `main.py` | CLI 入口：`run`、`tick`、`preview`、`stats`、`show`、`tasks`、`catchup`、`doctor`、`send-test`、`attach-test` |
-| `noticehub/` | 全部业务代码 |
-| `noticehub/web_static/` | 网页前端：`page.html`、`js/*.js`，没有构建步骤，改完刷新就是新的 |
+| `agendum/` | 全部业务代码 |
+| `agendum/web_static/` | 网页前端：`page.html`、`js/*.js`，没有构建步骤，改完刷新就是新的 |
 | `packaging/` | 出货包：启动器、托盘、安装脚本、各平台打包 |
 | `tests/` | 单测与浏览器级用例 |
 | `docs/wiki/` | 这一套文档 |
 
-## `noticehub/` 里的分层
+## `agendum/` 里的分层
 
 | 模块 | 职责 |
 | --- | --- |
@@ -52,7 +52,7 @@ v1 路由独立于旧路由表。SQLite 触发器标记日程写入，在原事�
 
 | 进程 | 作用 |
 | --- | --- |
-| `QQ-Notice-Hub.exe` | 启动器：单实例互斥、托盘、看门狗（每 2 秒查一次服务，按 5/15/45 秒退避重启） |
+| `Agendum.exe` | 启动器：单实例互斥、托盘、看门狗（每 2 秒查一次服务，按 5/15/45 秒退避重启） |
 | `qq-live-digest.exe` | 真正的服务进程 |
 | NapCat | 独立的 QQ 协议客户端，由Agendum启动时用**独立资料目录** |
 
@@ -82,7 +82,7 @@ NapCat 启动器和它拉起的 `QQ.exe` 生命周期不同，启动器消失不
 ## 一次消息怎么变成待办
 
 1. NapCat 把群消息 POST 到 `8765`。
-2. `receiver` 落库；不在 `NOTICEHUB_GROUPS` 白名单的群直接丢。
+2. `receiver` 落库；不在 `AGENDUM_GROUPS` 白名单的群直接丢。
 3. `service` 按合并窗口把消息攒批，交给 `summarizer`。
 4. `summarizer` 产出待办（标题、截止时间、置信度），拿不准的先进「候选」。
 5. `push` 按通道发出去，失败走回退。

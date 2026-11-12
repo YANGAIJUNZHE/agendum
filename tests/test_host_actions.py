@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from noticehub import host_actions as ha
+from agendum import host_actions as ha
 
 
 def _netsh_output(*blocks: str) -> bytes:
@@ -21,7 +21,7 @@ def _netsh_output(*blocks: str) -> bytes:
 
 class FirewallCommandTests(unittest.TestCase):
     def test_allow_command_matches_webapp_character_for_character(self):
-        from noticehub import webapp
+        from agendum import webapp
 
         for port in (8080, 3001, 65535):
             self.assertEqual(
@@ -34,7 +34,7 @@ class FirewallCommandTests(unittest.TestCase):
         # 不限 profile/remoteip 等于把端口开给公用网络和整个互联网（红队 S17）。
         for port in (8080, 443):
             expected = (
-                'netsh advfirewall firewall add rule name="群务台 %d" dir=in action=allow '
+                'netsh advfirewall firewall add rule name="Agendum %d" dir=in action=allow '
                 "protocol=TCP localport=%d profile=private,domain remoteip=localsubnet" % (port, port)
             )
             self.assertEqual(ha.firewall_allow_command(port), expected)
@@ -42,7 +42,7 @@ class FirewallCommandTests(unittest.TestCase):
     def test_delete_command_uses_the_same_rule_name(self):
         self.assertEqual(
             ha.firewall_delete_command(8080),
-            'netsh advfirewall firewall delete rule name="群务台 8080"',
+            'netsh advfirewall firewall delete rule name="Agendum 8080"',
         )
 
     def test_replace_command_deletes_the_old_rule_before_adding(self):
@@ -54,8 +54,8 @@ class FirewallCommandTests(unittest.TestCase):
         self.assertTrue(command.startswith("cmd.exe /c "))
 
     def test_rule_name(self):
-        self.assertEqual(ha.firewall_rule_name(8080), "群务台 8080")
-        self.assertEqual(ha.firewall_rule_name("443"), "群务台 443")
+        self.assertEqual(ha.firewall_rule_name(8080), "Agendum 8080")
+        self.assertEqual(ha.firewall_rule_name("443"), "Agendum 443")
 
 
 class PlatformTests(unittest.TestCase):
@@ -103,7 +103,7 @@ class FirewallProbeTests(unittest.TestCase):
 
     def test_allows_matching_enabled_inbound_rule(self):
         payload = _netsh_output(
-            "Rule Name: notice-hub 8080\r\nEnabled: Yes\r\n"
+            "Rule Name: agendum 8080\r\nEnabled: Yes\r\n"
             "Direction: In\r\nAction: Allow\r\n"
             "LocalPort: 8080",
             "Rule Name: other\r\nEnabled: Yes\r\n"
@@ -142,7 +142,7 @@ class FirewallProbeTests(unittest.TestCase):
     def test_falls_back_to_elevated_snapshot_when_netsh_needs_admin(self):
         """本机非提权跑 netsh show 返回 1：要退回提权探测写下的快照，而不是判「未放行」。"""
         payload = _netsh_output(
-            "Rule Name: 群务台 8080\r\nEnabled: Yes\r\n"
+            "Rule Name: Agendum 8080\r\nEnabled: Yes\r\n"
             "Direction: In\r\nAction: Allow\r\n"
             "LocalPort: 8080",
         )
@@ -153,7 +153,7 @@ class FirewallProbeTests(unittest.TestCase):
                 result = ha.firewall_allows(8080, tmp)
         self.assertTrue(result["checked"])
         self.assertTrue(result["allowed"])
-        self.assertEqual(result["rule"], "群务台 8080")
+        self.assertEqual(result["rule"], "Agendum 8080")
 
     def test_snapshot_needs_a_data_dir_and_never_lies(self):
         with mock.patch.object(ha.sys, "platform", "win32"), \
@@ -233,7 +233,7 @@ class ElevationTests(unittest.TestCase):
         self.assertEqual(call[2], "netsh")
         self.assertTrue(call[3].startswith("advfirewall firewall add rule name="))
         self.assertIn("localport=8080", call[3])
-        self.assertIn('name="群务台 8080"', call[3])
+        self.assertIn('name="Agendum 8080"', call[3])
 
 
 if __name__ == "__main__":

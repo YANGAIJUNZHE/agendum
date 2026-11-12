@@ -8,7 +8,7 @@
 
 约定：
 * 未安装 playwright 时整类 skipTest，本地与现有三平台 CI 照常绿（requirements-dev.txt 不进 requirements.txt）。
-* 自起 TaskWebServer（随机端口、127.0.0.1）、跑完自停，绝不触碰 F:\\notice-hub 实例。
+* 自起 TaskWebServer（随机端口、127.0.0.1）、跑完自停，绝不触碰 F:\\agendum 实例。
 * 不跑 playwright install：channel="msedge" 用系统 Edge（windows-latest 预装 155）。
 * 设 NH_BROWSER_ARTIFACT_DIR 时留存 trace.zip 与失败截图（CI 失败上传 artifact 用）。
 """
@@ -34,13 +34,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # 推送设置那张「后端键名 → 输入框 id」对照表，直接从产品代码里读出来（不在这里另抄一份）：
 # 抄一份的话，产品和测试会一起错，正是这个 bug 之前的模样。
-SETTINGS_JS_SOURCE = (PROJECT_ROOT / "noticehub" / "web_static" / "js" / "settings.js").read_text(
+SETTINGS_JS_SOURCE = (PROJECT_ROOT / "agendum" / "web_static" / "js" / "settings.js").read_text(
     encoding="utf-8")
 PUSH_FIELD_PAIRS = re.findall(r"\['([a-z_]+)','(push-[a-z_\-]+)'\]", SETTINGS_JS_SOURCE)
 
-from noticehub.store import Store  # noqa: E402
-from noticehub.config import Settings  # noqa: E402
-from noticehub.webapp import SESSION_COOKIE_NAME, TaskWebServer  # noqa: E402
+from agendum.store import Store  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.webapp import SESSION_COOKIE_NAME, TaskWebServer  # noqa: E402
 from tests import (  # noqa: E402
     isolate_browser_temp_env, open_authed_page, restore_browser_temp_env, wait_for_page_settled,
 )
@@ -108,12 +108,12 @@ class QrViewportBrowserTest(unittest.TestCase):
         # 服务端 hosting 动作一律打桩：本类只验浏览器渲染，不起 QQ/NapCat、不查进程
         # （照抄 tests/test_webapp.py TaskApiTest.setUp 的做法）。
         for target, value in (
-            ("noticehub.webapp.hosting.quit_user_qq",
+            ("agendum.webapp.hosting.quit_user_qq",
              {"ok": True, "pids": [], "already_closed": True, "forced": False, "remaining": [], "error": None}),
-            ("noticehub.webapp.hosting.start_user_qq",
+            ("agendum.webapp.hosting.start_user_qq",
              {"ok": True, "pid": None, "already_running": True, "error": None}),
-            ("noticehub.webapp.hosting._processes", []),
-            ("noticehub.webapp.hosting._bridge", {"ok": True, "error": None}),
+            ("agendum.webapp.hosting._processes", []),
+            ("agendum.webapp.hosting._bridge", {"ok": True, "error": None}),
         ):
             patcher = mock.patch(target, return_value=value)
             patcher.start()

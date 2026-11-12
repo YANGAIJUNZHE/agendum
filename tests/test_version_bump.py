@@ -14,7 +14,7 @@ _SPEC = importlib.util.spec_from_file_location("version_bump", _SCRIPT)
 version_bump = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(version_bump)
 
-_README = """# 群务台
+_README = """# Agendum
 
 [下载测试版 v1.1.0-beta.11](https://example.com/releases/tag/v1.1.0-beta.11)
 
@@ -25,7 +25,7 @@ beta.11 只修装机问题，beta.10 修托盘。
 
 _GRADLE = """android {
     defaultConfig {
-        applicationId 'com.noticehub.app'
+        applicationId 'com.agendum.app'
         versionCode 10
         versionName '1.1.0-beta.11'
     }
@@ -33,8 +33,8 @@ _GRADLE = """android {
 """
 
 _ANNOUNCEMENTS = """{"version": 1, "items": [
-  {"id": "a", "date": "2026-10-15", "title": "群务台 1.1.0 测试版（beta.1）已发布"},
-  {"id": "b", "date": "2026-10-24", "title": "群务台 1.1.0 测试版（beta.11）已发布"}
+  {"id": "a", "date": "2026-10-15", "title": "Agendum 1.1.0 测试版（beta.1）已发布"},
+  {"id": "b", "date": "2026-10-24", "title": "Agendum 1.1.0 测试版（beta.11）已发布"}
 ]}
 """
 
@@ -46,7 +46,7 @@ def _version_py(version: str) -> str:
 def _manifest(version: str) -> str:
     return (
         '{"version": 1, "items": [{"tag": "v%s", "version": "%s", '
-        '"asset_name": "QQ-Notice-Hub.zip", "size": 123, "sha256": "%s"}]}'
+        '"asset_name": "Agendum.zip", "size": 123, "sha256": "%s"}]}'
         % (version, version, "a" * 64)
     )
 
@@ -59,10 +59,10 @@ class _Tree:
                  manifest: str | None = None) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
-        (self.root / "noticehub").mkdir()
+        (self.root / "agendum").mkdir()
         (self.root / "android" / "app").mkdir(parents=True)
         (self.root / "release").mkdir()
-        (self.root / "noticehub" / "version.py").write_text(
+        (self.root / "agendum" / "version.py").write_text(
             _version_py(version), encoding="utf-8", newline="")
         (self.root / "README.md").write_text(readme, encoding="utf-8", newline="")
         (self.root / "android" / "app" / "build.gradle").write_text(
@@ -114,7 +114,7 @@ class VersionBumpTests(unittest.TestCase):
 
     def test_check_fails_when_version_file_is_missing(self) -> None:
         tree = self.make_tree()
-        tree.path("noticehub/version.py").unlink()
+        tree.path("agendum/version.py").unlink()
         code, out = tree.run("--check")
         self.assertEqual(code, 1, out)
         self.assertIn("读不到 APP_VERSION", out)
@@ -137,7 +137,7 @@ class VersionBumpTests(unittest.TestCase):
     def test_dry_run_changes_nothing(self) -> None:
         tree = self.make_tree()
         before = {rel: tree.path(rel).read_bytes() for rel in (
-            "noticehub/version.py", "README.md", "android/app/build.gradle")}
+            "agendum/version.py", "README.md", "android/app/build.gradle")}
         code, out = tree.run("--set", "1.1.0-beta.12", "--dry-run")
         self.assertEqual(code, 0, out)
         self.assertIn("dry-run：未写入任何文件", out)
@@ -150,7 +150,7 @@ class VersionBumpTests(unittest.TestCase):
         code, out = tree.run("--set", "1.1.0-beta.12")
         self.assertEqual(code, 0, out)
         self.assertIn("versionCode 不能自动加，记得手动 +1", out)
-        self.assertIn('APP_VERSION = "1.1.0-beta.12"', tree.path("noticehub/version.py").read_text(encoding="utf-8"))
+        self.assertIn('APP_VERSION = "1.1.0-beta.12"', tree.path("agendum/version.py").read_text(encoding="utf-8"))
         readme = tree.path("README.md").read_text(encoding="utf-8")
         self.assertNotIn("1.1.0-beta.11", readme)
         self.assertIn("v1.1.0-beta.12", readme)

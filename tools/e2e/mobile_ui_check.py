@@ -7,7 +7,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 import tests  # noqa: F401 - 隔离环境与临时目录，与项目其余验收一致。
-from noticehub.store import Store
+from agendum.store import Store
 
 ROOT = Path(__file__).resolve().parents[2]
 

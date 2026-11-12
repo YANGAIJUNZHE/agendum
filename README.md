@@ -123,9 +123,9 @@
 
 ### Windows
 
-1. 打开 [Releases](https://github.com/YANGAIJUNZHE/agendum/releases)，下载最新版本的 `QQ-Notice-Hub.zip`。
+1. 打开 [Releases](https://github.com/YANGAIJUNZHE/agendum/releases)，下载最新版本的 `Agendum.zip`。
 2. 将 ZIP 解压到安装目录，例如 `D:\agendum`。目录里有启动器、服务程序以及 `_internal`、`_launcher_internal` 运行时目录；保持目录结构完整，不要在压缩包内运行 exe，也不要单独移动 exe。
-3. 在解压后的目录运行 `QQ-Notice-Hub.exe`。如有 Windows 安全提示，选择「仍要运行」；防火墙提示时允许专用网络。随后按网页向导配置接入。
+3. 在解压后的目录运行 `Agendum.exe`。如有 Windows 安全提示，选择「仍要运行」；防火墙提示时允许专用网络。随后按网页向导配置接入。
 
 ### Linux（Ubuntu / Debian）
 
@@ -218,14 +218,14 @@ Copy-Item .env.example .env
 | 文件 | 作用 |
 | --- | --- |
 | `qq_digest.py` | 消息过滤与摘要入口 |
-| `noticehub/receiver.py` | 接收 NapCat OneBot v11 上报 |
-| `noticehub/store.py` | SQLite 存储、去重和恢复 |
-| `noticehub/summarizer.py` | 提取待办、截止时间和推送文本 |
-| `noticehub/push.py` | 推送通道与失败回退 |
-| `noticehub/service.py` | 调度、补采、重试和服务生命周期 |
-| `noticehub/webapp.py` | 待办台、月历、收件箱和设置页 |
-| `noticehub/napcat_admin.py` | NapCat 探测、启停、配置和登录二维码 |
-| `noticehub/hosting.py` | QQ/NapCat 托管切换与状态持久化 |
+| `agendum/receiver.py` | 接收 NapCat OneBot v11 上报 |
+| `agendum/store.py` | SQLite 存储、去重和恢复 |
+| `agendum/summarizer.py` | 提取待办、截止时间和推送文本 |
+| `agendum/push.py` | 推送通道与失败回退 |
+| `agendum/service.py` | 调度、补采、重试和服务生命周期 |
+| `agendum/webapp.py` | 待办台、月历、收件箱和设置页 |
+| `agendum/napcat_admin.py` | NapCat 探测、启停、配置和登录二维码 |
+| `agendum/hosting.py` | QQ/NapCat 托管切换与状态持久化 |
 | `packaging/launcher.py` | 出货包启动器、托盘和单实例互斥 |
 | `main.py` | CLI 入口 |
 

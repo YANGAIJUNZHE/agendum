@@ -11,9 +11,9 @@ def defaultServer = (pairingProperties['server'] ?: '').toString().replace('\\',
  def signingFile = rootProject.file('keystore.properties')
  if (signingFile.exists()) signingFile.withInputStream { signingProperties.load(it) }
 
-android { namespace 'com.noticehub.app'; compileSdk 35; buildToolsVersion '35.0.0'
+android { namespace 'com.agendum.app'; compileSdk 35; buildToolsVersion '35.0.0'
     defaultConfig {
-        applicationId 'com.noticehub.app'
+        applicationId 'com.agendum.app'
         minSdk 23
         targetSdk 35
         versionCode project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 18
@@ -43,7 +43,7 @@ android { namespace 'com.noticehub.app'; compileSdk 35; buildToolsVersion '35.0.
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
     defaultConfig {
         // 真机验收副本与已发布签名并存；默认构建的正式包名保持不变。
-        if (project.hasProperty('noticehubValidation')) { applicationIdSuffix '.validation' }
+        if (project.hasProperty('agendumValidation')) { applicationIdSuffix '.validation' }
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         javaCompileOptions { annotationProcessorOptions { arguments += ['room.schemaLocation': "$projectDir/schemas".toString()] } }
     }

@@ -4,7 +4,7 @@
 
 ## 类型
 
-`noticehub.bootstrap.Settings` 字段与今天 `qq_live_digest.config.Settings` 一一对应，包括默认值：
+`agendum.bootstrap.Settings` 字段与今天 `qq_live_digest.config.Settings` 一一对应，包括默认值：
 
 - Web `8766`，OneBot `8765`
 - `message_retention_days = 30`
@@ -53,7 +53,7 @@ Settings.from_legacy(env: Mapping[str, str] | None = None, env_file: Path | None
 | domain | 不接收整个 Settings。需要的阈值（如最低分、静默时段）由用例作为普通参数传入 |
 | Web | G3 前仍读 `self.server.settings`。G3 后从 bootstrap 拿同一份 |
 
-import `noticehub.bootstrap` 或 `noticehub.domain` 时不得读环境变量。读文件只发生在 `from_legacy` 被调用时。
+import `agendum.bootstrap` 或 `agendum.domain` 时不得读环境变量。读文件只发生在 `from_legacy` 被调用时。
 
 ## 写回
 

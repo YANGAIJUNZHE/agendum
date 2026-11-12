@@ -52,7 +52,7 @@ Write-Host ''
 Write-Host '==== QQ 群通知摘要 · 状态检查 ====' -ForegroundColor Cyan
 
 Write-Section '[1] 计划任务'
-$taskNames = 'NapCat-QQ', 'NoticeHub', 'QQ-Live-Digest', 'NapCat-QQ-Watchdog'
+$taskNames = 'NapCat-QQ', 'Agendum', 'QQ-Live-Digest', 'NapCat-QQ-Watchdog'
 foreach ($name in $taskNames) {
     $state = (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue).State
     if (-not $state) { $state = '未注册' }
@@ -98,9 +98,9 @@ try {
     $health = Invoke-RestMethod -Method Get -Uri 'http://127.0.0.1:8765/health' -TimeoutSec 8
 } catch { }
 
-# 统计来自本地进程：冻结包用同目录的 noticehub.exe，源码检出才回退到 .venv。
+# 统计来自本地进程：冻结包用同目录的 agendum.exe，源码检出才回退到 .venv。
 $stats = $null
-$frozenExe = Join-Path $root 'noticehub.exe'
+$frozenExe = Join-Path $root 'agendum.exe'
 $venvPython = Join-Path $root '.venv\Scripts\python.exe'
 try {
     if (Test-Path $frozenExe) {
@@ -112,7 +112,7 @@ try {
     } elseif (Test-Path $venvPython) {
         $stats = & $venvPython (Join-Path $root 'main.py') stats | ConvertFrom-Json
     } else {
-        Write-Host '    这是冻结包（没有 .venv），已改用 noticehub.exe 读取统计。' -ForegroundColor Yellow
+        Write-Host '    这是冻结包（没有 .venv），已改用 agendum.exe 读取统计。' -ForegroundColor Yellow
     }
     if ($stats) {
         Write-Host ('    累计收到群消息 {0} 条 / 生成摘要 {1} 条 / 成功推送 {2} 次' -f $stats.counts.messages, $stats.counts.digests, $stats.counts.deliveries_sent)
@@ -133,7 +133,7 @@ if ($health) {
 }
 
 Write-Section '[5] 最近日志'
-$log = Join-Path $root 'logs\noticehub.log'
+$log = Join-Path $root 'logs\agendum.log'
 if (Test-Path $log) {
     Get-Content $log -Tail 5 -Encoding UTF8 | ForEach-Object { Write-Host ('    ' + $_.Substring(0, [Math]::Min(110, $_.Length))) }
 } else {

@@ -1,4 +1,4 @@
-"""群消息检索（noticehub/search.py）的回归测试。"""
+"""群消息检索（agendum/search.py）的回归测试。"""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from noticehub import search as sr
-from noticehub.store import Store
+from agendum import search as sr
+from agendum.store import Store
 
 
 class SearchTests(unittest.TestCase):

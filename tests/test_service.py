@@ -18,14 +18,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from noticehub.config import Settings  # noqa: E402
-from noticehub.event_extract import extract_events  # noqa: E402
-from noticehub.push import Pusher  # noqa: E402
-from noticehub.retry import LLMRequestError  # noqa: E402
-from noticehub.service import DigestService  # noqa: E402
-from noticehub.store import Store  # noqa: E402
-from noticehub.summarizer import Digest, build_digest  # noqa: E402,F401
-from noticehub.timeutil import iso, now_local  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.event_extract import extract_events  # noqa: E402
+from agendum.push import Pusher  # noqa: E402
+from agendum.retry import LLMRequestError  # noqa: E402
+from agendum.service import DigestService  # noqa: E402
+from agendum.store import Store  # noqa: E402
+from agendum.summarizer import Digest, build_digest  # noqa: E402,F401
+from agendum.timeutil import iso, now_local  # noqa: E402
 
 NOW = now_local().replace(hour=18, minute=0, second=0, microsecond=0)
 
@@ -150,7 +150,7 @@ class ServiceTest(unittest.TestCase):
     def test_web_server_gets_safe_manual_scan_callback(self) -> None:
         self.settings.web_enabled = True
         web = mock.Mock()
-        with mock.patch("noticehub.service.TaskWebServer", return_value=web):
+        with mock.patch("agendum.service.TaskWebServer", return_value=web):
             self.svc.start(start_bot=False)
             try:
                 self.assertFalse(web.start_scan("dingtalk"))
@@ -174,7 +174,7 @@ class ServiceTest(unittest.TestCase):
 
     # ---------------------------------------------------------------- 规则
     def test_rules_on_message_creates_task_from_matching_message(self) -> None:
-        from noticehub import rules as rules_module
+        from agendum import rules as rules_module
 
         self.settings.lab_rules = True
         rules_module.save_rules(
@@ -208,7 +208,7 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(tasks[0]["source"], "rule")
 
     def test_rules_do_not_create_task_when_message_does_not_match(self) -> None:
-        from noticehub import rules as rules_module
+        from agendum import rules as rules_module
 
         self.settings.lab_rules = True
         rules_module.save_rules(
@@ -230,7 +230,7 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(self.store.list_tasks(statuses=("candidate", "open"), limit=10), [])
 
     def test_rules_are_inert_when_switch_is_off(self) -> None:
-        from noticehub import rules as rules_module
+        from agendum import rules as rules_module
 
         # 规则文件在，但总开关关着：一条都不许动。
         rules_module.save_rules(
@@ -272,7 +272,7 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(self.store.list_tasks(statuses=("candidate", "open"), limit=10), [])
 
     def test_rule_hit_is_idempotent_for_same_message(self) -> None:
-        from noticehub import rules as rules_module
+        from agendum import rules as rules_module
 
         self.settings.lab_rules = True
         rules_module.save_rules(
@@ -433,7 +433,7 @@ class ServiceTest(unittest.TestCase):
             "msg_id": "m-event-1",
         }
         digest = Digest(kind="window", window_start=NOW, window_end=NOW, items=[item], id=1)
-        with mock.patch("noticehub.event_extract.now_local", return_value=NOW):
+        with mock.patch("agendum.event_extract.now_local", return_value=NOW):
             self.svc._sync_tasks(digest)
 
         tasks = self.store.list_tasks()
@@ -459,7 +459,7 @@ class ServiceTest(unittest.TestCase):
             "msg_id": "m-event-3",
         }
         digest = Digest(kind="window", window_start=NOW, window_end=NOW, items=[item], id=1)
-        with mock.patch("noticehub.event_extract.now_local", return_value=NOW):
+        with mock.patch("agendum.event_extract.now_local", return_value=NOW):
             self.svc._sync_tasks(digest)
 
         task = self.store.list_tasks()[0]
@@ -484,7 +484,7 @@ class ServiceTest(unittest.TestCase):
             "msg_id": "m-event-2",
         }
         digest = Digest(kind="window", window_start=NOW, window_end=NOW, items=[item], id=1)
-        with mock.patch("noticehub.event_extract.now_local", return_value=NOW):
+        with mock.patch("agendum.event_extract.now_local", return_value=NOW):
             self.svc._sync_tasks(digest)
 
         self.assertNotIn("deadline_dt", item)
@@ -501,7 +501,7 @@ class ServiceTest(unittest.TestCase):
             "group_name": "学院通知群",
             "msg_id": "m-event-4",
         }
-        with mock.patch("noticehub.event_extract.now_local", return_value=NOW):
+        with mock.patch("agendum.event_extract.now_local", return_value=NOW):
             self.svc._merge_extracted_event(item)
             self.svc._merge_extracted_event(item)
         self.assertEqual(item["details"], ["地点：A楼202"])
@@ -518,7 +518,7 @@ class ServiceTest(unittest.TestCase):
             "msg_id": "m-event-5",
         }
         digest = Digest(kind="window", window_start=NOW, window_end=NOW, items=[item], id=1)
-        with mock.patch("noticehub.event_extract.now_local", return_value=NOW):
+        with mock.patch("agendum.event_extract.now_local", return_value=NOW):
             self.svc._sync_tasks(digest)
 
         task = self.store.list_tasks()[0]
@@ -539,7 +539,7 @@ class ServiceTest(unittest.TestCase):
             "msg_id": "m-event-6",
         }
         digest = Digest(kind="window", window_start=NOW, window_end=NOW, items=[item], id=1)
-        with mock.patch("noticehub.event_extract.now_local", return_value=NOW):
+        with mock.patch("agendum.event_extract.now_local", return_value=NOW):
             self.svc._sync_tasks(digest)
 
         # 时间确实是事件补出来的，所以这条断言证明门槛收紧生效，而不是没抽到事件。
@@ -567,8 +567,8 @@ class ServiceTest(unittest.TestCase):
                 },
             ],
         )
-        with mock.patch("noticehub.service.now_local", return_value=NOW), mock.patch(
-            "noticehub.event_extract.now_local", return_value=NOW
+        with mock.patch("agendum.service.now_local", return_value=NOW), mock.patch(
+            "agendum.event_extract.now_local", return_value=NOW
         ):
             total = self.svc.import_existing_tasks(days=7)
 
@@ -600,8 +600,8 @@ class ServiceTest(unittest.TestCase):
                 }
             ],
         )
-        with mock.patch("noticehub.service.now_local", return_value=NOW), mock.patch(
-            "noticehub.event_extract.now_local", return_value=NOW
+        with mock.patch("agendum.service.now_local", return_value=NOW), mock.patch(
+            "agendum.event_extract.now_local", return_value=NOW
         ):
             total = self.svc.import_existing_tasks(days=7)
 
@@ -971,7 +971,7 @@ class ServiceTest(unittest.TestCase):
 
         return (
             mock.patch.object(self.svc, "_engine_ready", return_value=(True, "")),
-            mock.patch("noticehub.service.backfill", side_effect=fake_backfill),
+            mock.patch("agendum.service.backfill", side_effect=fake_backfill),
         )
 
     def test_catchup_total_failure_retries_after_one_minute(self) -> None:
@@ -1035,7 +1035,7 @@ class ServiceTest(unittest.TestCase):
 
         with mock.patch.object(
             self.svc, "_engine_ready", return_value=(False, "引擎还没上线")
-        ), mock.patch("noticehub.service.backfill", side_effect=fake_backfill):
+        ), mock.patch("agendum.service.backfill", side_effect=fake_backfill):
             for _ in range(3):
                 self.assertEqual(self.svc.run_catchup(now=NOW), 0)
                 self.assertEqual(self.svc.catchup_state, "waiting_engine")
@@ -1097,7 +1097,7 @@ class DingtalkReloadTest(unittest.TestCase):
                     dingtalk_group_whitelist=whitelist,
                 )
                 svc = DigestService(settings, store=Store(Path(tmp) / "dingtalk.sqlite3"))
-                with mock.patch("noticehub.service.DingTalkLocalReader") as reader_cls:
+                with mock.patch("agendum.service.DingTalkLocalReader") as reader_cls:
                     svc.start(start_bot=False)
                     self.assertEqual(reader_cls.called, should_start)
                     if should_start:

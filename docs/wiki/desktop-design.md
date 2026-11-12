@@ -88,7 +88,7 @@ components:
 
 首页首先服务于查看日程、处理待办和新建待办。主导航负责切换待办、最近推送、收件箱、设置；辅助面板承载置顶、快捷操作、概览、接入、订阅群、健康检查与项目信息；设置目录负责查找和修改配置。三个区域不能混用导航职责。
 
-本页记录当前实现，维护依据是 `noticehub/web_static/page.html` 的主题变量与末尾 `#workspace-layout` 样式，以及 `js/desktop-shell.js`、`js/settings.js` 的行为。前置 YAML 提取实际使用的颜色、字号和组件值；深色值以 `dark-` 区分，对应同名 CSS 变量在深色主题下的取值。修改时应核对完整 CSS 层叠，不能只看最后一个样式块。架构和业务数据流见 [架构](architecture.md)。
+本页记录当前实现，维护依据是 `agendum/web_static/page.html` 的主题变量与末尾 `#workspace-layout` 样式，以及 `js/desktop-shell.js`、`js/settings.js` 的行为。前置 YAML 提取实际使用的颜色、字号和组件值；深色值以 `dark-` 区分，对应同名 CSS 变量在深色主题下的取值。修改时应核对完整 CSS 层叠，不能只看最后一个样式块。架构和业务数据流见 [架构](architecture.md)。
 
 ## Colors
 

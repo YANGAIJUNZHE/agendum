@@ -2,10 +2,10 @@ param([Parameter(Mandatory = $true)][string]$Base)
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $settings = Get-Content -LiteralPath (Join-Path $projectRoot '.env') -Raw
-$port = [regex]::Match($settings, '(?m)^NOTICEHUB_WEB_PORT\s*=\s*(\d+)\s*$').Groups[1].Value
+$port = [regex]::Match($settings, '(?m)^AGENDUM_WEB_PORT\s*=\s*(\d+)\s*$').Groups[1].Value
 if (-not $port) { $port = '8766' }
 $local = 'http://127.0.0.1:' + $port
-$adminToken = [regex]::Match($settings, '(?m)^NOTICEHUB_WEB_TOKEN\s*=\s*(.+)$').Groups[1].Value.Trim().Trim('"').Trim("'")
+$adminToken = [regex]::Match($settings, '(?m)^AGENDUM_WEB_TOKEN\s*=\s*(.+)$').Groups[1].Value.Trim().Trim('"').Trim("'")
 if (-not $adminToken) { throw '验收需要本地管理员令牌。' }
 $admin = @{ 'X-Token' = $adminToken }
 $checks = [Collections.Generic.List[string]]::new()

@@ -4,24 +4,24 @@
 
 ## 包名
 
-新包名 `noticehub`。
+新包名 `agendum`。
 
 领域是通知进入、去重、抽取、归档、待办和推送。QQ 只是其中一个入站适配器。沿用 `qq_live_digest` 会把上游仓库名留在每一条 import 上，也盖不住微信、钉钉、学习通已经在跑的事实。
 
-`QQ-Notice-Hub.exe`、更新清单、`.env` 的 `QQ_DIGEST_*` 键名保持不变。包名和安装名、配置名是三件事。
+`Agendum.exe`、更新清单、`.env` 的 `QQ_DIGEST_*` 键名保持不变。包名和安装名、配置名是三件事。
 
 ## 分层
 
 ```
-noticehub/domain          模型与规则。零 I/O，零框架
-noticehub/ports           仓储、时钟、通知器、群历史抓取、规则集读取
-noticehub/application     用例。只依赖 domain 与 ports
-noticehub/adapters/qq     OneBot 与官方机器人事件归一成 MessageEvent
-noticehub/infrastructure  ports 的实现：SQLite、HTTP、文件、进程
-noticehub/bootstrap       Settings、from_legacy()、装配、日志、CLI
+agendum/domain          模型与规则。零 I/O，零框架
+agendum/ports           仓储、时钟、通知器、群历史抓取、规则集读取
+agendum/application     用例。只依赖 domain 与 ports
+agendum/adapters/qq     OneBot 与官方机器人事件归一成 MessageEvent
+agendum/infrastructure  ports 的实现：SQLite、HTTP、文件、进程
+agendum/bootstrap       Settings、from_legacy()、装配、日志、CLI
 ```
 
-`qq_live_digest/webapp.py` 继续担任 Web 入站，直到主线在 G3 把它收成只做参数校验和用例调用。重写方不建 `noticehub/web`。
+`qq_live_digest/webapp.py` 继续担任 Web 入站，直到主线在 G3 把它收成只做参数校验和用例调用。重写方不建 `agendum/web`。
 
 ## 和上游不同构的理由
 
@@ -56,4 +56,4 @@ G2 落地后用 `import-linter` 断言。G1 不引入该依赖。
 
 ## 版本
 
-程序常量 `APP_VERSION` / `APP_CHANNEL` 只写在 `version.py`。重命名提交可以把该模块挪到 `noticehub.version`，常量仍只写在那里。README、公告、更新清单里的版本文案保持与常量相同，不另做一套比较逻辑。`packaging/launcher.py` 的 import 由主线在同一次重命名里改。
+程序常量 `APP_VERSION` / `APP_CHANNEL` 只写在 `version.py`。重命名提交可以把该模块挪到 `agendum.version`，常量仍只写在那里。README、公告、更新清单里的版本文案保持与常量相同，不另做一套比较逻辑。`packaging/launcher.py` 的 import 由主线在同一次重命名里改。

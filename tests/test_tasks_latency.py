@@ -25,10 +25,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from noticehub.config import Settings  # noqa: E402
-from noticehub.store import Store  # noqa: E402
-from noticehub.timeutil import iso, now_local  # noqa: E402
-from noticehub.webapp import TaskWebServer  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.store import Store  # noqa: E402
+from agendum.timeutil import iso, now_local  # noqa: E402
+from agendum.webapp import TaskWebServer  # noqa: E402
 
 MESSAGES = 60000
 GROUPS = 60

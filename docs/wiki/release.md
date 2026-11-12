@@ -1,6 +1,6 @@
 # 发布版本
 
-1. 在 `noticehub/version.py` 更新 `APP_VERSION` 和 `APP_CHANNEL`。测试版用 `beta` 和 `X.Y.Z-beta.N`，正式版用 `stable` 和 `X.Y.Z`。若涉及 Android 版本递进，同步检查 `android/app/build.gradle` 的 `versionCode`。
+1. 在 `agendum/version.py` 更新 `APP_VERSION` 和 `APP_CHANNEL`。测试版用 `beta` 和 `X.Y.Z-beta.N`，正式版用 `stable` 和 `X.Y.Z`。若涉及 Android 版本递进，同步检查 `android/app/build.gradle` 的 `versionCode`。
 2. 确保仓库已配置 Android 签名密钥（GitHub Actions Secrets）：`ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
 3. 把更新日志中本次交付的条目移入 `## X.Y.Z-beta.N · YYYY-MM-DD`（正式版去掉后缀），保留「未发布」小节。同时在 `release/update-manifest.json` 顶部加入本版条目：`tag`、`version`、`name`、`notes` 先写好，`size`、`sha256`、`download_url` 留待发布后回填（`tools/version_bump.py` 门禁要求最新条目与 `APP_VERSION` 一致）。提交并推送到自己的仓库。
 4. 给准备发布的提交创建一个新标签，并只推送该标签。下面以 beta.19 为例，`fork` 是指向 `YANGAIJUNZHE/agendum` 的 Git 远端。
@@ -10,7 +10,7 @@
    git push fork refs/tags/v1.1.0-beta.19
    ```
 
-5. 在 [Actions](https://github.com/YANGAIJUNZHE/agendum/actions/workflows/release.yml) 查看结果。确认 [Releases](https://github.com/YANGAIJUNZHE/agendum/releases) 包含 `QQ-Notice-Hub.zip` 与 `notice-hub-android.apk` 及其各自的 `.sha256` 校验文件。测试版会标为预发布。安装和校验方法见 [安装与升级](install.md)。
+5. 在 [Actions](https://github.com/YANGAIJUNZHE/agendum/actions/workflows/release.yml) 查看结果。确认 [Releases](https://github.com/YANGAIJUNZHE/agendum/releases) 包含 `Agendum.zip` 与 `agendum-android.apk` 及其各自的 `.sha256` 校验文件。测试版会标为预发布。安装和校验方法见 [安装与升级](install.md)。
 6. 回填并签发更新清单：把本版资产的实际 `size`、`sha256`、`download_url` 填进清单的本版条目，运行 `python release/sign-manifest.py --key <私钥路径>` 写入签名，再 `python release/sign-manifest.py --check` 自验，提交并推送到默认分支。私钥离线保存在 `~/.dsh/agendum-signing/update-signing-key.json`（key_id `agendum-2026-1`），不进仓库、不进 CI。没有签名条目的版本只能从发布页手动下载。
 7. 发版后从该版本的检出目录运行 `pwsh -File tools/wiki_sync.ps1`。脚本推送到自己的 GitHub Wiki。首次同步前需要在仓库 Wiki 创建首页，本地 Git 账号需要有写权限。
 

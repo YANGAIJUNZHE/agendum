@@ -4,13 +4,13 @@
 
 ## 阶段 0 · 现在
 
-主线已签「够接 Web」。行为基线已吸收到当前 `origin/main`。G2 第 1 到第 8 步已完成：CLI 动作在 `noticehub.bootstrap.cli`，`main.py` 仍提供原来的 9 个子命令。单实例锁留在 `main.py`。包名改动是最后一次提交，现在还不动。
+主线已签「够接 Web」。行为基线已吸收到当前 `origin/main`。G2 第 1 到第 8 步已完成：CLI 动作在 `agendum.bootstrap.cli`，`main.py` 仍提供原来的 9 个子命令。单实例锁留在 `main.py`。包名改动是最后一次提交，现在还不动。
 
 `main` 继续按策略 B 发版。clean-room 在 G4 之前不合回 `main`。`main` 上新的提交，重写方在改清单内文件之前先快进吸收。若两边改了同一个清单内文件，停下来把差异记进发现清单，不在重写分支里重做主线已经发布的行为。
 
 ## 阶段 1 · 并存（G2）
 
-新包 `noticehub` 与 `qq_live_digest` 同时存在。
+新包 `agendum` 与 `qq_live_digest` 同时存在。
 
 顺序：
 
@@ -39,7 +39,7 @@ G2 验收环境按 `docs/handover/11-g2-two-env-gate.md`：无软依赖与全依
 
 ## 阶段 3 · 重命名（最后一个提交）
 
-最终形态以 [08-remaining-and-g4.md](08-remaining-and-g4.md) 为准：方案 B，`qq_live_digest` 不删除。已经迁走的实现留在 `noticehub`，旧文件里的再导出继续留着。`main.py`、`packaging/*.spec`、`launcher.py`、CI 不因为这一步改 import。`APP_VERSION` 仍只在 `qq_live_digest/version.py`。
+最终形态以 [08-remaining-and-g4.md](08-remaining-and-g4.md) 为准：方案 B，`qq_live_digest` 不删除。已经迁走的实现留在 `agendum`，旧文件里的再导出继续留着。`main.py`、`packaging/*.spec`、`launcher.py`、CI 不因为这一步改 import。`APP_VERSION` 仍只在 `qq_live_digest/version.py`。
 
 不把包名改动拆进前面的功能提交，避免 bisect 停在 import 断裂的中间态。
 
@@ -47,4 +47,4 @@ G2 验收环境按 `docs/handover/11-g2-two-env-gate.md`：无软依赖与全依
 
 G3 可以先对着契约写适配，用并存期的旧 `Store` 做端口实现，等 G2 的 SQLite 实现替换。Web 不需要知道 SQLite。
 
-主线不要把 `webapp` 逻辑搬进 `noticehub.application`。用例签名以本目录为准。若契约不够覆盖某条核心路由，在发现清单补一行，改契约，再改调用点。
+主线不要把 `webapp` 逻辑搬进 `agendum.application`。用例签名以本目录为准。若契约不够覆盖某条核心路由，在发现清单补一行，改契约，再改调用点。

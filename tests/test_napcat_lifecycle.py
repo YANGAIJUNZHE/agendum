@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from noticehub import hosting, napcat_admin as na
+from agendum import hosting, napcat_admin as na
 
 
 class ManagedQQLifecycleTests(unittest.TestCase):

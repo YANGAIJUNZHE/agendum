@@ -1,6 +1,6 @@
 # G1 · 端口契约
 
-实现放 `noticehub.infrastructure`。本文件是 Web 与用例允许依赖的全部存储和外部能力。方法名是契约，G2 可以让旧 `Store` 做适配层来满足它们。
+实现放 `agendum.infrastructure`。本文件是 Web 与用例允许依赖的全部存储和外部能力。方法名是契约，G2 可以让旧 `Store` 做适配层来满足它们。
 
 类型用下面的字段集描述。落地时用 `dataclass`，字段名与 SQLite 列和现有 JSON 键一致，方便主线把 `dict` 调用点换过来。
 
@@ -25,7 +25,7 @@ now() -> datetime          # naive 本地时间，与今天的 now_local() 相�
 - 读不到库、库还不存在：版本按 0。
 - 版本为 0：加列之后写成 1。
 - 版本等于 1：不动版本号。
-- 版本高于 1：`RuntimeError`，拒绝启动。文案为「数据库结构版本 %d 高于本程序支持的 %d，请升级 notice-hub 后再启动：%s」。不要打开后继续写。
+- 版本高于 1：`RuntimeError`，拒绝启动。文案为「数据库结构版本 %d 高于本程序支持的 %d，请升级 agendum 后再启动：%s」。不要打开后继续写。
 
 启动时先做只读 `PRAGMA integrity_check`。只有库确实损坏才隔离重建。`locked`、`busy`、I/O 这类临时错误不隔离。损坏判定：`integrity_check` 不是 `ok`，或打开错误信息里含 `not a database`、`malformed`、`corrupt`、`encrypted`。空文件和文件不存在不算损坏。
 

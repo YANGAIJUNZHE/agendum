@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from noticehub import napcat_admin as na
+from agendum import napcat_admin as na
 
 
 class Settings:

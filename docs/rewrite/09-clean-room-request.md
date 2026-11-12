@@ -4,15 +4,15 @@
 
 ## 0. 先说清两件事不是一件
 
-`rewrite/clean-room` 做的事是把实现分层、搬进 `noticehub`，旧模块变再导出。这是**架构**上的独立，已验收。
+`rewrite/clean-room` 做的事是把实现分层、搬进 `agendum`，旧模块变再导出。这是**架构**上的独立，已验收。
 
 但它不是**表达**上的重写。用逐行比对（去掉空白后取行集合，算新文件里有多少行原样出现在旧文件里）：
 
 | 新文件 | 旧文件 | 新文件行数 | 与旧文件逐字重合 |
 |---|---|---|---|
-| `noticehub/infrastructure/sqlite/store.py` | `qq_live_digest/store.py` | 1025 | **99%**（1019 行） |
-| `noticehub/bootstrap/settings.py` | `qq_live_digest/config.py` | 177 | 85% |
-| `noticehub/application/attachments.py` | `qq_live_digest/attachments.py` | 208 | 85% |
+| `agendum/infrastructure/sqlite/store.py` | `qq_live_digest/store.py` | 1025 | **99%**（1019 行） |
+| `agendum/bootstrap/settings.py` | `qq_live_digest/config.py` | 177 | 85% |
+| `agendum/application/attachments.py` | `qq_live_digest/attachments.py` | 208 | 85% |
 
 搬过去的代码在法律上仍是上游（`wc985732-lang/qq-live-digest`，MIT）的衍生作品，所以 `NOTICE` 与 `LICENSE-UPSTREAM` 现在还不能删。用户要的是删掉，因此需要把衍生表达换成你们自己写的表达。
 
@@ -62,7 +62,7 @@
 
 ## 4. 谁做什么
 
-- **重写方**：`noticehub/` 内的实现与对应测试、`docs/rewrite-spec/**`、你们的交接文档。**不碰** `main.py`、`packaging/**`、`.github/workflows/**`、`web_static/**`、`qq_live_digest/version.py`。
+- **重写方**：`agendum/` 内的实现与对应测试、`docs/rewrite-spec/**`、你们的交接文档。**不碰** `main.py`、`packaging/**`、`.github/workflows/**`、`web_static/**`、`qq_live_digest/version.py`。
 - **主线**：合并、包名与目录最终形态、环境变量改名前缀与旧名兼容、打包/CI/启动器接线、许可证与文档收口、发布。
 
 ## 5. 动手前必须先做的一件事

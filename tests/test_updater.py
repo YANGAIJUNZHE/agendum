@@ -16,8 +16,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from noticehub import update_signing, updater, update_sources
-from noticehub.version import APP_CHANNEL, APP_VERSION
+from agendum import update_signing, updater, update_sources
+from agendum.version import APP_CHANNEL, APP_VERSION
 from tests.test_update_signing import TEST_D, TEST_E, TEST_KEY_ID, TEST_N, _b64, _sign_raw
 
 
@@ -77,11 +77,11 @@ class FakeResponse:
         return False
 
 
-def release_payload(tag="v1.1.0", *, name="群务台 1.1.0", digest="sha256:" + "a" * 64, size=1234):
+def release_payload(tag="v1.1.0", *, name="Agendum 1.1.0", digest="sha256:" + "a" * 64, size=1234):
     asset = {
         "name": updater.ASSET_NAME,
         "size": size,
-        "browser_download_url": "https://example.invalid/QQ-Notice-Hub.zip",
+        "browser_download_url": "https://example.invalid/Agendum.zip",
     }
     if digest is not None:
         asset["digest"] = digest
@@ -89,7 +89,7 @@ def release_payload(tag="v1.1.0", *, name="群务台 1.1.0", digest="sha256:" + 
         "tag_name": tag,
         "name": name,
         "body": "修复了一堆问题\n\n- 新增：A 功能\n- 修复：B 问题",
-        "html_url": "https://github.com/ExpertKT/notice-hub/releases/tag/" + tag,
+        "html_url": "https://github.com/ExpertKT/agendum/releases/tag/" + tag,
         "published_at": "2026-10-11T01:00:00Z",
         "draft": False,
         "assets": [asset],
@@ -218,18 +218,18 @@ class CheckUrlTests(SignedManifestCheckMixin, unittest.TestCase):
         self.assertEqual(result["latest"]["tag"], "v2026.10.27")
 
     def test_latest_carries_name_notes_and_html_url_verbatim(self):
-        payload = release_payload(tag="v1.1.0", name="群务台 1.1.0 · 更新说明")
+        payload = release_payload(tag="v1.1.0", name="Agendum 1.1.0 · 更新说明")
 
         with patch.object(updater.urllib.request, "urlopen", lambda request, timeout=None: FakeResponse([payload])):
             result = updater.check(channel="stable")
 
         latest = result["latest"]
-        self.assertEqual(latest["name"], "群务台 1.1.0 · 更新说明")
+        self.assertEqual(latest["name"], "Agendum 1.1.0 · 更新说明")
         # notes 必须是 body 原文，不许格式化/截断
         self.assertEqual(latest["notes"], payload["body"])
         self.assertEqual(
             latest["html_url"],
-            "https://github.com/ExpertKT/notice-hub/releases/tag/v1.1.0",
+            "https://github.com/ExpertKT/agendum/releases/tag/v1.1.0",
         )
 
     def test_missing_html_url_degrades_to_empty_string(self):
@@ -489,13 +489,13 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
             "items": [{
                 "tag": tag,
                 "version": version,
-                "name": "notice-hub " + version,
+                "name": "agendum " + version,
                 "notes": "mirror release",
                 "published_at": "2026-10-22T00:00:00Z",
                 "asset_name": updater.ASSET_NAME,
                 "size": 12,
                 "sha256": sha,
-                "download_url": "https://gitee.com/ExpertKT/notice-hub/releases/download/" + tag + "/" + updater.ASSET_NAME,
+                "download_url": "https://gitee.com/ExpertKT/agendum/releases/download/" + tag + "/" + updater.ASSET_NAME,
             }],
         }
 
@@ -509,7 +509,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 raise github_error
             return FakeResponse(self._signed(self._manifest()))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
 
@@ -524,7 +524,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
 
     def test_both_sources_fail_and_error_names_both(self):
         error = urllib.error.URLError("offline")
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", side_effect=error):
                 result = updater.check(channel="beta")
         self.assertFalse(result["ok"])
@@ -545,7 +545,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
             return FakeResponse(self._signed(self._manifest()))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
 
@@ -553,8 +553,8 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
         self.assertEqual(result["source"], "gitee")
         self.assertEqual(result["latest"]["tag"], "v1.2.0")
         self.assertEqual(len(seen), 2, "先试 release/，404 后再退根目录")
-        self.assertTrue(seen[0].endswith("/ExpertKT/notice-hub/raw/master/release/update-manifest.json"))
-        self.assertTrue(seen[1].endswith("/ExpertKT/notice-hub/raw/master/update-manifest.json"))
+        self.assertTrue(seen[0].endswith("/ExpertKT/agendum/raw/master/release/update-manifest.json"))
+        self.assertTrue(seen[1].endswith("/ExpertKT/agendum/raw/master/update-manifest.json"))
 
     def test_gitee_manifest_404_on_both_paths_reports_plain_404(self):
         """两个地址都 404 时，报「Gitee 返回 404」这种人话，不把原始异常抖给用户。"""
@@ -564,7 +564,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 raise urllib.error.URLError("offline")
             raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
 
@@ -581,7 +581,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 raise urllib.error.URLError("offline")
             return FakeResponse({"version": 1, "items": [{"tag": "v1.2.0"}]})
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
         self.assertFalse(result["ok"])
@@ -598,7 +598,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                         raise urllib.error.URLError("offline")
                     return FakeResponse(bad_body) if isinstance(bad_body, bytes) else FakeResponse(bad_body)
 
-                with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+                with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
                     with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                         result = updater.check(channel="beta")
                 self.assertFalse(result["ok"])
@@ -617,7 +617,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 raise urllib.error.URLError("offline")
             return FakeResponse(unsigned)
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
         self.assertFalse(result["ok"])
@@ -638,7 +638,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 raise urllib.error.URLError("offline")
             return FakeResponse(self._signed(manifest))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="stable")
         self.assertTrue(result["ok"])
@@ -654,7 +654,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 return FakeResponse([github])
             return FakeResponse(self._signed(mirror))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
         self.assertEqual(result["source"], "github")
@@ -675,7 +675,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 return FakeResponse([github])
             return FakeResponse(self._signed(mirror))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
         self.assertTrue(result["ok"])
@@ -694,7 +694,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 return FakeResponse([github])
             return FakeResponse(self._signed(mirror))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
         self.assertTrue(result["ok"])
@@ -713,7 +713,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 return FakeResponse([github])
             return FakeResponse(self._signed(mirror))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
         self.assertTrue(result["ok"])
@@ -727,7 +727,7 @@ class MirrorCheckTests(SignedManifestCheckMixin, unittest.TestCase):
                 raise urllib.error.URLError("offline")
             return FakeResponse(self._signed(self._manifest(tag="v1.4.0", version="1.4.0", sha="f" * 64)))
 
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             with patch.object(updater.urllib.request, "urlopen", fake_urlopen):
                 result = updater.check(channel="beta")
         self.assertTrue(result["ok"])
@@ -783,7 +783,7 @@ class DownloadTests(unittest.TestCase):
         return {
             "tag": tag,
             "sha256": digest,
-            "download_url": "https://github.com/qq-notice-hub/QQ-Notice-Hub.zip",
+            "download_url": "https://github.com/agendum/Agendum.zip",
         }
 
     def _download(self, info, dest, **kwargs):
@@ -804,7 +804,7 @@ class DownloadTests(unittest.TestCase):
             self.assertEqual(result["bytes"], len(body))
             self.assertEqual(result["sha256"], digest)
             path = Path(result["path"])
-            self.assertEqual(path.name, "QQ-Notice-Hub-v1.1.0.zip")
+            self.assertEqual(path.name, "Agendum-v1.1.0.zip")
             self.assertEqual(path.read_bytes(), body)
 
     def test_download_deletes_file_when_sha256_mismatches(self):
@@ -919,7 +919,7 @@ class DownloadTests(unittest.TestCase):
     def test_download_rejects_untrusted_host_without_network(self):
         with tempfile.TemporaryDirectory() as tmp:
             info = self._info("a" * 64)
-            info["download_url"] = "https://evil.example/QQ-Notice-Hub.zip"
+            info["download_url"] = "https://evil.example/Agendum.zip"
             with patch.dict(updater.PINNED_SHA256, {"v1.1.0": "a" * 64}, clear=True), patch.object(updater.urllib.request, "urlopen") as fetch:
                 result = updater.download(info, Path(tmp))
             self.assertFalse(result["ok"])
@@ -1013,7 +1013,7 @@ class PendingUpdateTests(unittest.TestCase):
 
 class ApplyAsyncTests(unittest.TestCase):
     def _make_zip(self, tmp):
-        archive = Path(tmp) / "QQ-Notice-Hub-v1.1.0.zip"
+        archive = Path(tmp) / "Agendum-v1.1.0.zip"
         archive.write_bytes(b"PK\x03\x04 pretend zip")
         return archive
 
@@ -1082,7 +1082,7 @@ class ApplyAsyncTests(unittest.TestCase):
                 self.assertIn("for ($i = 1; $i -le 3; $i++)", text)
                 self.assertIn("/health", text)
                 self.assertIn("Start-Sleep -Seconds 2", text)
-                self.assertIn("请手动双击 QQ-Notice-Hub.exe 启动", text)
+                self.assertIn("请手动双击 Agendum.exe 启动", text)
                 self.assertLess(text.index("Start-Process -FilePath $launcher -WorkingDirectory $root"), text.index("/health"))
                 # 探活不能走系统代理（HTTPS_PROXY 会拦 127.0.0.1）
                 self.assertIn("$req.Proxy = $null", text)
@@ -1184,7 +1184,7 @@ class ApplyAsyncTests(unittest.TestCase):
             archive = self._make_zip(tmp)
             updates = data / "updates"
             updates.mkdir(parents=True)
-            release_url = "https://gitee.com/ExpertKT/notice-hub-mirror/releases/tag/v1.1.0"
+            release_url = "https://gitee.com/ExpertKT/agendum-mirror/releases/tag/v1.1.0"
             (updates / "state.json").write_text(
                 json.dumps({"update_result": {"latest": {"html_url": release_url}}}),
                 encoding="utf-8",
@@ -1199,7 +1199,7 @@ class ApplyAsyncTests(unittest.TestCase):
                 self.assertIn(release_url, result["error"])
                 self.assertIn(str(archive), result["error"])
                 self.assertFalse((data / "updates" / "applying.flag").exists())
-                self.assertEqual(list(tmp.glob("notice-hub-update-*.ps1")), [])
+                self.assertEqual(list(tmp.glob("agendum-update-*.ps1")), [])
                 popen.assert_not_called()
 
     @unittest.skipUnless(os.name == "nt", "PowerShell apply script is Windows-only")
@@ -1264,7 +1264,7 @@ class LauncherWatchdogUpdateTests(unittest.TestCase):
             return self.returncode
 
     def _host(self, tmp, process):
-        from noticehub import hosting
+        from agendum import hosting
 
         settings = type("Settings", (), {"data_dir": Path(tmp) / "data"})()
         with patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
@@ -1343,7 +1343,7 @@ class LauncherUpdateCheckTests(unittest.TestCase):
                 "checked_at": "2026-10-11 13:00:00",
                 "has_update": True,
                 "error": "",
-                "latest": {"tag": "v1.1.0", "name": "群务台 1.1.0"},
+                "latest": {"tag": "v1.1.0", "name": "Agendum 1.1.0"},
             }
             shown = []
             with patch.object(updater, "check", return_value=info):

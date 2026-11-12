@@ -93,13 +93,13 @@ def run(app):
 
 ## 4. cold_install() 时序
 
-1. 取安装包（默认 `packaging/QQ-Notice-Hub.zip`；小于 1 MiB 直接报「打包没完成」）。
+1. 取安装包（默认 `packaging/Agendum.zip`；小于 1 MiB 直接报「打包没完成」）。
 2. 在 `%TEMP%\nh-e2e-<guid>` 建根目录，解包到 `install/`（保留 zip 里的目录结构）。
 3. 要一个**空闲端口**（跳过 8765–8768，且 ≥ 18000）与**随机令牌**。
-4. 先写 `.env`（见 §5），再 `QQ-Notice-Hub.exe`：`cwd=install/`、`BROWSER=nonexistent-browser-probe`、
+4. 先写 `.env`（见 §5），再 `Agendum.exe`：`cwd=install/`、`BROWSER=nonexistent-browser-probe`、
    `CREATE_NO_WINDOW`（不弹窗、不弹浏览器）。
 5. 轮询 `GET /api/health`，≤90s 到 200 视为就绪；进程提前退出则立刻失败并给出日志目录。
-6. `teardown()`：先 `QQ-Notice-Hub.exe --quit` 走官方退出，15s 内端口未关则 `taskkill /F /T`；
+6. `teardown()`：先 `Agendum.exe --quit` 走官方退出，15s 内端口未关则 `taskkill /F /T`；
    最后删目录（`--keep`、或用例失败时保留并打印路径）。
 
 ## 5. 环境变量（`.env`，冷装自己写）
@@ -187,7 +187,7 @@ QQ_DIGEST_AUTOSTART=0
 ## 10. 怎么跑、退出码怎么读
 
 ```
-cd <仓库>                                                # F:\qq-notice-hub
+cd <仓库>                                                # F:\agendum
 python -X utf8 tools/e2e/run.py --from-source --only 26_announce_and_bell
 ```
 

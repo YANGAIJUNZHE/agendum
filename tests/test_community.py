@@ -9,7 +9,7 @@ import urllib.error
 from pathlib import Path
 from unittest import mock
 
-from noticehub import community, webapp
+from agendum import community, webapp
 
 
 class _Response(io.BytesIO):
@@ -57,8 +57,8 @@ class PingTests(unittest.TestCase):
             community.ping(1700000001)  # 同一个 5 分钟桶、同一天：仍然是那两个 key
         self.assertEqual(urlopen.call_count, 2)
         urls = [call.args[0] for call in urlopen.call_args_list]
-        self.assertTrue(urls[0].endswith("/hit/notice-hub/online-5666666"), urls[0])
-        self.assertTrue(urls[1].endswith("/hit/notice-hub/today-20231114"), urls[1])
+        self.assertTrue(urls[0].endswith("/hit/agendum/online-5666666"), urls[0])
+        self.assertTrue(urls[1].endswith("/hit/agendum/today-20231114"), urls[1])
 
     def test_ping_next_bucket_sends_again(self) -> None:
         with mock.patch.object(community.urllib.request, "urlopen", return_value=_response("{}")) as urlopen:
@@ -299,7 +299,7 @@ class TelemetryGateTests(unittest.TestCase):
         community._DISABLED_LOGGED = False
         self.addCleanup(setattr, community, "_DISABLED_LOGGED", False)
         with mock.patch.object(community.urllib.request, "urlopen") as urlopen:
-            with self.assertLogs("noticehub.community", level="INFO") as logs:
+            with self.assertLogs("agendum.community", level="INFO") as logs:
                 community.ping(1700000000, enabled=False)
                 community.fetch_counts(enabled=False)
                 community.fetch_counts(enabled=False)

@@ -22,7 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from noticehub.bootstrap import cli as cli_commands  # noqa: E402
+from agendum.bootstrap import cli as cli_commands  # noqa: E402
 
 # 子命令全表：(名字, 一行帮助, 处理函数, ((参数名, 关键字参数), ...))。
 # 位置参数与选项在这里没有区别，谁带前导「-」谁是选项。加命令只往下面添一项，

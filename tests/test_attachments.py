@@ -18,10 +18,10 @@ REPO = Path(__file__).resolve().parent.parent
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from noticehub import attachments as att  # noqa: E402
-from noticehub.config import Settings  # noqa: E402
-from noticehub.receiver import OneBotReceiver  # noqa: E402
-from noticehub.summarizer import filter_recent_duplicates  # noqa: E402
+from agendum import attachments as att  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.receiver import OneBotReceiver  # noqa: E402
+from agendum.summarizer import filter_recent_duplicates  # noqa: E402
 from qq_digest import Message, analyze_message, dedupe_items, similar_text  # noqa: E402
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"

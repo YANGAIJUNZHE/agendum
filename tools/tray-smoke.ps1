@@ -67,7 +67,7 @@ if (-not $NoUi) {
 }
 
 # ---- 2. 解一份到临时目录 ----
-if (-not $Zip) { $Zip = Join-Path $repo 'packaging\QQ-Notice-Hub.zip' }
+if (-not $Zip) { $Zip = Join-Path $repo 'packaging\Agendum.zip' }
 if (-not (Test-Path -LiteralPath $Zip)) { Done 3 ("SKIP: 找不到安装包 {0}（先跑打包）" -f $Zip) }
 
 $script:temp = Join-Path ([System.IO.Path]::GetTempPath()) ('tray-smoke-' + [guid]::NewGuid().ToString('N'))
@@ -84,10 +84,10 @@ try {
     }
 } finally { $archive.Dispose() }
 
-$exe = Join-Path $script:temp 'QQ-Notice-Hub.exe'
+$exe = Join-Path $script:temp 'Agendum.exe'
 if (-not (Test-Path -LiteralPath $exe)) { Done 1 ("FAIL: 解压后找不到 {0}" -f $exe) }
 
-# 随机端口 + 临时 data\：绝不碰 F:\notice-hub 的实例与仓库里的 data\
+# 随机端口 + 临时 data\：绝不碰 F:\agendum 的实例与仓库里的 data\
 $port = Get-Random -Minimum 20000 -Maximum 40000
 $token = [guid]::NewGuid().ToString('N')
 $seed = @(
@@ -203,9 +203,9 @@ function Get-OverflowButtons {
 }
 
 function Find-Icon {
-    # 图标名 = "notice-hub · " + _status_line()（launcher.py:1423），状态会变 → 只做前缀匹配
+    # 图标名 = "agendum · " + _status_line()（launcher.py:1423），状态会变 → 只做前缀匹配
     foreach ($b in @(Get-TrayButtons) + @(Get-OverflowButtons)) {
-        if ($b.Current.Name -like 'notice-hub*') { return $b }
+        if ($b.Current.Name -like 'agendum*') { return $b }
     }
     # 被折叠进溢出区：点一下「显示隐藏的图标」再找一次
     foreach ($b in Get-TrayButtons) {
@@ -215,7 +215,7 @@ function Find-Icon {
         }
     }
     foreach ($b in @(Get-TrayButtons) + @(Get-OverflowButtons)) {
-        if ($b.Current.Name -like 'notice-hub*') { return $b }
+        if ($b.Current.Name -like 'agendum*') { return $b }
     }
     return $null
 }

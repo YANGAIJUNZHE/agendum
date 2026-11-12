@@ -15,10 +15,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from noticehub import pairing, webapp
-from noticehub.config import Settings
-from noticehub.store import Store
-from noticehub.webapp import TaskWebServer
+from agendum import pairing, webapp
+from agendum.config import Settings
+from agendum.store import Store
+from agendum.webapp import TaskWebServer
 
 
 class _ServerCase(unittest.TestCase):

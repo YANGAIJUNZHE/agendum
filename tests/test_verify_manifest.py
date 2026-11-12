@@ -20,10 +20,10 @@ def _item(version, sha=_SHA, size=50757062):
     return {
         "tag": "v" + version,
         "version": version,
-        "name": "群务台 %s" % version,
+        "name": "Agendum %s" % version,
         "size": size,
         "sha256": sha,
-        "download_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v%s/QQ-Notice-Hub.zip" % version,
+        "download_url": "https://gitee.com/ExpertKT/agendum-mirror/releases/download/v%s/Agendum.zip" % version,
     }
 
 
@@ -60,27 +60,27 @@ class VerifyManifestTests(unittest.TestCase):
     def test_github_release_url_exits_zero(self):
         payload = _manifest("1.1.0-beta.11")
         payload["items"][0]["download_url"] = (
-            "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.11/QQ-Notice-Hub.zip"
+            "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.11/Agendum.zip"
         )
         self.assertEqual(0, self._run(payload))
 
     def test_untrusted_host_exits_one(self):
         payload = _manifest("1.1.0-beta.11")
         payload["items"][0]["download_url"] = (
-            "https://github.com.evil.example/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.11/QQ-Notice-Hub.zip"
+            "https://github.com.evil.example/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.11/Agendum.zip"
         )
         self.assertEqual(1, self._run(payload))
 
     def test_http_scheme_exits_one(self):
         payload = _manifest("1.1.0-beta.11")
         payload["items"][0]["download_url"] = (
-            "http://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.11/QQ-Notice-Hub.zip"
+            "http://gitee.com/ExpertKT/agendum-mirror/releases/download/v1.1.0-beta.11/Agendum.zip"
         )
         self.assertEqual(1, self._run(payload))
 
     def test_non_release_path_exits_one(self):
         payload = _manifest("1.1.0-beta.11")
-        payload["items"][0]["download_url"] = "https://github.com/YANGAIJUNZHE/agendum/blob/main/QQ-Notice-Hub.zip"
+        payload["items"][0]["download_url"] = "https://github.com/YANGAIJUNZHE/agendum/blob/main/Agendum.zip"
         self.assertEqual(1, self._run(payload))
 
     def test_repo_manifest_passes(self):

@@ -21,7 +21,7 @@ for package in ("PIL", "pystray", "tkinter"):
     binaries += b
     hiddenimports += h
 
-# launcher 会 import noticehub.hosting / noticehub.config（与网页端共用同一份托管逻辑），
+# launcher 会 import agendum.hosting / agendum.config（与网页端共用同一份托管逻辑），
 # 所以 pathex 必须指向仓库根。
 a = Analysis(
     ["launcher.py"],
@@ -36,5 +36,5 @@ a = Analysis(
     noarchive=False,
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], [], [], name="QQ-Notice-Hub", console=False, icon=_ICON, manifest=_MANIFEST, exclude_binaries=True, contents_directory="_launcher_internal")
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="QQ-Notice-Hub")
+exe = EXE(pyz, a.scripts, [], [], [], name="Agendum", console=False, icon=_ICON, manifest=_MANIFEST, exclude_binaries=True, contents_directory="_launcher_internal")
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="Agendum")

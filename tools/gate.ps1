@@ -1,6 +1,6 @@
 param(
-    [string]$Python = 'F:\qq-notice-hub\.venv\Scripts\python.exe',
-    [string]$InstallZip = 'F:\qq-notice-hub\packaging\QQ-Notice-Hub.zip',
+    [string]$Python = 'F:\agendum\.venv\Scripts\python.exe',
+    [string]$InstallZip = 'F:\agendum\packaging\Agendum.zip',
     [string]$InstallDir = '',
     [int]$Port = 0,
     [switch]$SkipL3,
@@ -27,7 +27,7 @@ function Run-Step([string]$Name, [scriptblock]$Action) {
 # This only asserts; it never rebuilds. Rebuilding is a human decision.
 # NOTE: keep this file pure ASCII (tests/test_acceptance_gate.py reads it as ascii).
 function Test-ArtifactFreshness {
-    $sources = @(Get-ChildItem -Path (Join-Path $root 'noticehub') -Recurse -File -ErrorAction SilentlyContinue |
+    $sources = @(Get-ChildItem -Path (Join-Path $root 'agendum') -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Extension -in @('.py', '.html', '.js', '.css', '.txt') })
     $sources += @(Get-ChildItem -Path $root -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Extension -eq '.py' })
@@ -49,7 +49,7 @@ function Test-ArtifactFreshness {
     $newestSource = $sources | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $newestSource) { Write-Host 'FAIL freshness: no source files found'; return $false }
     $artifacts = @(
-        (Join-Path $root 'packaging\QQ-Notice-Hub.zip'),
+        (Join-Path $root 'packaging\Agendum.zip'),
         (Join-Path $root 'packaging\dist\qq-live-digest\qq-live-digest.exe')
     )
     # ponytail: ceiling - freshness compares mtime only, so refreshing an artifact's mtime
@@ -84,8 +84,8 @@ function Test-ArtifactFreshness {
 # NOTE: keep this file pure ASCII (tests/test_acceptance_gate.py reads it as ascii).
 function Test-ManifestUrls {
     $urls = @(
-        'https://raw.githubusercontent.com/ExpertKT/notice-hub/main/release/update-manifest.json',
-        'https://gitee.com/ExpertKT/notice-hub-mirror/raw/master/release/update-manifest.json'
+        'https://raw.githubusercontent.com/ExpertKT/agendum/main/release/update-manifest.json',
+        'https://gitee.com/ExpertKT/agendum-mirror/raw/master/release/update-manifest.json'
     )
     foreach ($url in $urls) {
         $code = 0

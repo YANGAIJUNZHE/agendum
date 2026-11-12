@@ -7,11 +7,11 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not $PythonPath) { $PythonPath = Join-Path $projectRoot '.venv/Scripts/python.exe' }
 if (-not (Test-Path -LiteralPath $PythonPath)) { throw '找不到项目 Python，请先按 wiki 安装依赖，或传入 -PythonPath。' }
-if (-not (Test-Path -LiteralPath (Join-Path $projectRoot '.env'))) { throw '请先创建 .env，设置电脑管理令牌和 NOTICEHUB_MOBILE_BASE_URL。' }
+if (-not (Test-Path -LiteralPath (Join-Path $projectRoot '.env'))) { throw '请先创建 .env，设置电脑管理令牌和 AGENDUM_MOBILE_BASE_URL。' }
 $envText = Get-Content -LiteralPath (Join-Path $projectRoot '.env') -Raw
-$configuredPort = [regex]::Match($envText, '(?m)^NOTICEHUB_WEB_PORT\s*=\s*(\d+)\s*$').Groups[1].Value
+$configuredPort = [regex]::Match($envText, '(?m)^AGENDUM_WEB_PORT\s*=\s*(\d+)\s*$').Groups[1].Value
 if (-not $configuredPort) { $configuredPort = [regex]::Match($envText, '(?m)^QQ_DIGEST_WEB_PORT\s*=\s*(\d+)\s*$').Groups[1].Value }
-if ($env:NOTICEHUB_WEB_PORT) { $configuredPort = $env:NOTICEHUB_WEB_PORT } elseif ($env:QQ_DIGEST_WEB_PORT) { $configuredPort = $env:QQ_DIGEST_WEB_PORT }
+if ($env:AGENDUM_WEB_PORT) { $configuredPort = $env:AGENDUM_WEB_PORT } elseif ($env:QQ_DIGEST_WEB_PORT) { $configuredPort = $env:QQ_DIGEST_WEB_PORT }
 if (-not $configuredPort) { $configuredPort = '8766' }
 if ($configuredPort -notmatch '^\d{1,5}$' -or [int]$configuredPort -lt 1 -or [int]$configuredPort -gt 65535) { throw '无效的网页端口。' }
 $localInfoUrl = 'http://127.0.0.1:' + $configuredPort + '/api/v1/info'

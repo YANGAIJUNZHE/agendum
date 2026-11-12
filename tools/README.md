@@ -12,7 +12,7 @@
 ## 前置
 
 - Windows + PowerShell 5.1（Desktop）。
-- 已构建好的发布 zip（默认 `packaging\QQ-Notice-Hub.zip`）。
+- 已构建好的发布 zip（默认 `packaging\Agendum.zip`）。
 - `e2e-render.ps1` 额外需要：`node`（用来 `--check` 内联脚本）和 Edge（`msedge.exe`，不传 `-Edge` 时自动找两个默认安装路径）。
 - 不需要任何第三方 PowerShell 模块。
 
@@ -28,7 +28,7 @@
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-install.ps1 `
-  -Zip packaging\QQ-Notice-Hub.zip `
+  -Zip packaging\Agendum.zip `
   -InstallDir D:\nh-tools `
   -Port 8877
 ```
@@ -42,7 +42,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-install.ps1 `
 - `-HealthTimeoutSeconds <int>`，默认 `180`：等 `/api/health` 返回 200 的上限。
 - `-ExpectTasks <int>`：断言 `/api/tasks` 的 `stats.total`（**不是**今天的数量）。省略（`-1`）就不断言条数。全新建的实例传 `0`。
 - `-Overwrite`：**升级**路径，把新包解压覆盖到已存在的安装目录上，并断言 `data\digest.sqlite3` 与 `.env` 原样存活。注意：它要求目标目录里**已经有**这两样东西；在一个空目录上加 `-Overwrite`，C-05/C-06 两条会因「没有东西可保留」而 FAIL——**冷装不要加 `-Overwrite`**。
-- `-VerifyTrayQuit`：最后再用 `QQ-Notice-Hub.exe --quit` 驱动一次「托盘退出」，断言托盘进程、子进程、端口都没了。会把应用停掉，只建议一轮的最后一次跑时加。
+- `-VerifyTrayQuit`：最后再用 `Agendum.exe --quit` 驱动一次「托盘退出」，断言托盘进程、子进程、端口都没了。会把应用停掉，只建议一轮的最后一次跑时加。
 
 退出码：有 FAIL 就是 `1`，否则 `0`。
 
@@ -80,7 +80,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-render.ps1 `
 # 1. 冷装到一次性目录（不要 -Overwrite，目录里本来就没东西可保留）
 New-Item -ItemType Directory D:\nh-tools -Force | Out-Null
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-install.ps1 `
-  -Zip packaging\QQ-Notice-Hub.zip -InstallDir D:\nh-tools -Port 8877
+  -Zip packaging\Agendum.zip -InstallDir D:\nh-tools -Port 8877
 
 # 2. 在空库状态下验渲染
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-render.ps1 `
@@ -92,7 +92,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-render.ps1 `
 `e2e-install.ps1` 会把实例留在运行状态，验完自己关：
 
 ```powershell
-D:\nh-tools\QQ-Notice-Hub.exe --quit
+D:\nh-tools\Agendum.exe --quit
 Start-Sleep -Seconds 3
 if (Test-Path D:\nh-tools) { Remove-Item -LiteralPath D:\nh-tools -Recurse -Force }
 ```

@@ -22,9 +22,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from noticehub.config import Settings  # noqa: E402
-from noticehub.service import DigestService  # noqa: E402
-from noticehub.timeutil import iso, now_local  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.service import DigestService  # noqa: E402
+from agendum.timeutil import iso, now_local  # noqa: E402
 
 GROUP_ID = "123456"
 TOKEN = "smoke-token"

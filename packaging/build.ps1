@@ -11,19 +11,19 @@ if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
 $work = Join-Path $root 'packaging\build'
 $stale = Join-Path $dist 'qq-live-digest.exe'  # 旧包名的残骸，换名后仍要清一次
 if (Test-Path -LiteralPath $stale) { Remove-Item -LiteralPath $stale -Force }
-& cmd /c "`"$python`" -m PyInstaller --noconfirm --clean --distpath `"$dist`" --workpath `"$work`" `"$(Join-Path $PSScriptRoot 'noticehub.spec')`" 2>&1"
+& cmd /c "`"$python`" -m PyInstaller --noconfirm --clean --distpath `"$dist`" --workpath `"$work`" `"$(Join-Path $PSScriptRoot 'agendum.spec')`" 2>&1"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & cmd /c "`"$python`" -m PyInstaller --noconfirm --clean --distpath `"$dist`" --workpath `"$work`" `"$(Join-Path $PSScriptRoot 'launcher.spec')`" 2>&1"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-$appRoot = Join-Path $dist 'noticehub'
+$appRoot = Join-Path $dist 'agendum'
 if (-not (Test-Path -LiteralPath $appRoot -PathType Container)) { throw "Missing service package: $appRoot" }
-$launcherRoot = Join-Path $dist 'QQ-Notice-Hub'
+$launcherRoot = Join-Path $dist 'Agendum'
 if (-not (Test-Path -LiteralPath $launcherRoot -PathType Container)) { throw "Missing launcher package: $launcherRoot" }
-$launcherExe = Join-Path $launcherRoot 'QQ-Notice-Hub.exe'
+$launcherExe = Join-Path $launcherRoot 'Agendum.exe'
 $launcherInternal = Join-Path $launcherRoot '_launcher_internal'
 if (-not (Test-Path -LiteralPath $launcherExe -PathType Leaf)) { throw "Missing launcher executable: $launcherExe" }
 if (-not (Test-Path -LiteralPath $launcherInternal -PathType Container)) { throw "Missing launcher runtime: $launcherInternal" }
-Copy-Item -LiteralPath $launcherExe -Destination (Join-Path $appRoot 'QQ-Notice-Hub.exe') -Force
+Copy-Item -LiteralPath $launcherExe -Destination (Join-Path $appRoot 'Agendum.exe') -Force
 Copy-Item -LiteralPath $launcherInternal -Destination (Join-Path $appRoot '_launcher_internal') -Recurse -Force
 $tutorial = Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter '*.txt' | Select-Object -First 1
 if ($null -eq $tutorial) { throw 'Missing tutorial txt' }
@@ -72,7 +72,7 @@ foreach ($item in @('LICENSE')) {
     }
     Copy-Item -LiteralPath $source -Destination (Join-Path $appRoot $item) -Force
 }
-$zip = Join-Path $PSScriptRoot 'QQ-Notice-Hub.zip'
+$zip = Join-Path $PSScriptRoot 'Agendum.zip'
 # An existing read-only zip would make Compress-Archive fail with WinError 5.
 if (Test-Path -LiteralPath $zip) {
     attrib -R $zip
@@ -89,9 +89,9 @@ Get-ChildItem -LiteralPath $appRoot -Recurse -File | ForEach-Object {
     }
 }
 Write-Host ("Cleared read-only attribute on {0} file(s) under {1}" -f $readOnlyCleared, $appRoot)
-# C-01: -Path $appRoot would wrap everything in a top-level `noticehub\` directory, but
-# install-task.ps1 registers <install root>\QQ-Notice-Hub.exe. That mismatch is how production
-# ended up running the stale root-level noticehub.exe while a newer nested copy sat unused.
+# C-01: -Path $appRoot would wrap everything in a top-level `agendum\` directory, but
+# install-task.ps1 registers <install root>\Agendum.exe. That mismatch is how production
+# ended up running the stale root-level agendum.exe while a newer nested copy sat unused.
 # Archive the directory *contents* so the zip top level IS the install root.
 # C-04: entry names must use `/` (ZIP spec). Windows PowerShell 5.1 runs on .NET Framework, where
 # [System.IO.Compression.ZipFile]::CreateFromDirectory writes `\` separators (measured: 280 of 293

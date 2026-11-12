@@ -12,7 +12,7 @@ param(
     # here first, because a previous install's files may be read-only.
     [switch]$Overwrite,
     # -VerifyTrayQuit = after everything else, drive "tray -> quit" from the command line
-    # (QQ-Notice-Hub.exe --quit) and assert the tray, the service child and the port are all gone.
+    # (Agendum.exe --quit) and assert the tray, the service child and the port are all gone.
     # Leaves the app stopped, so pass it only on the last run of a session.
     [switch]$VerifyTrayQuit
 )
@@ -76,7 +76,7 @@ $entries = @($archive.Entries)
 $names = @($entries | ForEach-Object { $_.FullName })
 $archive.Dispose()
 Check "zip has entries" ($names.Count -gt 0) ("entries={0}" -f $names.Count)
-Check "C-01 top level is the install root" ($names -contains 'QQ-Notice-Hub.exe') ("QQ-Notice-Hub.exe at top level = {0}" -f ($names -contains 'QQ-Notice-Hub.exe'))
+Check "C-01 top level is the install root" ($names -contains 'Agendum.exe') ("Agendum.exe at top level = {0}" -f ($names -contains 'Agendum.exe'))
 Check "C-04 entries use / separators" (-not ($names | Where-Object { $_.Contains('\') })) ("backslash entries = {0}" -f @($names | Where-Object { $_.Contains('\') }).Count)
 Check "no data/ or logs/ or .env inside zip" (-not ($names | Where-Object { $_ -like 'data/*' -or $_ -like 'logs/*' -or $_ -eq '.env' }))
 Check "napcat helper scripts present" (($names -contains 'fix-napcat.ps1') -and (@($names | Where-Object { $_ -like '*.cmd' }).Count -ge 2)) ("cmd entries = {0}" -f @($names | Where-Object { $_ -like '*.cmd' }).Count)
@@ -126,8 +126,8 @@ if ($Overwrite) {
     Check "C-05 overwrite keeps existing data\digest.sqlite3" ([bool]($dataBefore) -and ($dataAfter -eq $dataBefore)) ("before={0} after={1}" -f $dataBefore, $dataAfter)
     Check "C-06 overwrite keeps existing .env" (Test-Path -LiteralPath (Join-Path $InstallDir '.env'))
 }
-$exe = Join-Path $InstallDir 'QQ-Notice-Hub.exe'
-Check "QQ-Notice-Hub.exe extracted" (Test-Path -LiteralPath $exe)
+$exe = Join-Path $InstallDir 'Agendum.exe'
+Check "Agendum.exe extracted" (Test-Path -LiteralPath $exe)
 Check "service exe extracted" (Test-Path -LiteralPath (Join-Path $InstallDir 'qq-live-digest.exe'))
 $ro = @(Get-ChildItem -LiteralPath $InstallDir -Recurse -File | Where-Object { $_.IsReadOnly })
 Check "C-03 extracted files are not read-only" ($ro.Count -eq 0) ("read-only files = {0}" -f $ro.Count)
@@ -182,7 +182,7 @@ if (-not $Token) {
 Write-Host ""
 Write-Host "=== 4. console + data ==="
 $root = Api '/' 'GET' '' 'text/html'
-Check "GET / returns 200 (or 401 + html hint when token mismatched)" ($root.Status -eq 200 -or ($root.Status -eq 401 -and $root.Text -like '*QQ-Notice-Hub.exe*')) ("status={0}" -f $root.Status)
+Check "GET / returns 200 (or 401 + html hint when token mismatched)" ($root.Status -eq 200 -or ($root.Status -eq 401 -and $root.Text -like '*Agendum.exe*')) ("status={0}" -f $root.Status)
 $tasks = Api '/api/tasks'
 Check "GET /api/tasks authorized" ($tasks.Status -eq 200) ("status={0} body_len={1}" -f $tasks.Status, $tasks.Text.Length)
 if ($tasks.Status -eq 200) {
@@ -311,7 +311,7 @@ Write-Host ""
 if ($VerifyTrayQuit) {
     Write-Host "=== 7. tray quit (automated, no human at the icon) ==="
     $trayPid = $proc.Id
-    $launcherExe = Join-Path $InstallDir 'QQ-Notice-Hub.exe'
+    $launcherExe = Join-Path $InstallDir 'Agendum.exe'
     $quit = Start-Process -FilePath $launcherExe -ArgumentList '--quit' -PassThru -Wait -WindowStyle Hidden
     Check "launcher --quit exits 0" ($quit.ExitCode -eq 0) ("exit={0}" -f $quit.ExitCode)
     Start-Sleep -Seconds 3

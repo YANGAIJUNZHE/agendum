@@ -18,7 +18,7 @@ cd ~/agendum
 PYTHON="$(brew --prefix python@3.12)/bin/python3.12" bash packaging/macos/install.sh
 ```
 
-脚本会检查 Python 至少为 3.10，创建 `.venv` 并安装 `requirements.txt`。若 `.env` 不存在，会从 `.env.example` 复制；随后将 `QQ_DIGEST_WEB_HOST` 设为 `127.0.0.1`。已有 `.env` 的其它设置会保留。LaunchAgent plist 根据仓库路径生成到 `~/Library/LaunchAgents/com.qqnoticehub.service.plist` 并加载。
+脚本会检查 Python 至少为 3.10，创建 `.venv` 并安装 `requirements.txt`。若 `.env` 不存在，会从 `.env.example` 复制；随后将 `QQ_DIGEST_WEB_HOST` 设为 `127.0.0.1`。已有 `.env` 的其它设置会保留。LaunchAgent plist 根据仓库路径生成到 `~/Library/LaunchAgents/com.qqagendum.service.plist` 并加载。
 
 打开本机网页：<http://127.0.0.1:8766/>。
 
@@ -27,9 +27,9 @@ PYTHON="$(brew --prefix python@3.12)/bin/python3.12" bash packaging/macos/instal
 安装脚本会加载服务。手动停止或启动：
 
 ```bash
-launchctl unload "$HOME/Library/LaunchAgents/com.qqnoticehub.service.plist"
-launchctl load "$HOME/Library/LaunchAgents/com.qqnoticehub.service.plist"
-launchctl list | grep com.qqnoticehub.service
+launchctl unload "$HOME/Library/LaunchAgents/com.qqagendum.service.plist"
+launchctl load "$HOME/Library/LaunchAgents/com.qqagendum.service.plist"
+launchctl list | grep com.qqagendum.service
 ```
 
 服务退出失败时由 `KeepAlive` 重新启动。标准输出和错误日志分别写到仓库下的 `logs/launchd.out.log`、`logs/launchd.err.log`；应用日志写到 `logs/qq-live-digest.log`。

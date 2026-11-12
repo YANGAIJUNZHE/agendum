@@ -23,9 +23,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from noticehub.store import Store  # noqa: E402
-from noticehub.config import Settings  # noqa: E402
-from noticehub.webapp import TaskWebServer  # noqa: E402
+from agendum.store import Store  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.webapp import TaskWebServer  # noqa: E402
 from tests import (  # noqa: E402
     isolate_browser_temp_env, open_authed_page, restore_browser_temp_env, wait_for_page_settled,
 )
@@ -46,9 +46,9 @@ if REQUIRE_BROWSER and not HAVE_PLAYWRIGHT:  # pragma: no cover
         "状态覆盖不许被 skip 掉。")
 
 TOKEN = "state-coverage-token"
-WEBAPP_SOURCE = (ROOT / "noticehub" / "webapp.py").read_text(encoding="utf-8")
-NAPCAT_SOURCE = (ROOT / "noticehub" / "napcat_admin.py").read_text(encoding="utf-8")
-GUIDE_SOURCE = (ROOT / "noticehub" / "web_static" / "js" / "guide.js").read_text(encoding="utf-8")
+WEBAPP_SOURCE = (ROOT / "agendum" / "webapp.py").read_text(encoding="utf-8")
+NAPCAT_SOURCE = (ROOT / "agendum" / "napcat_admin.py").read_text(encoding="utf-8")
+GUIDE_SOURCE = (ROOT / "agendum" / "web_static" / "js" / "guide.js").read_text(encoding="utf-8")
 
 
 def backend_engine_states() -> set[str]:

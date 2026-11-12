@@ -19,8 +19,8 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from noticehub.config import Settings  # noqa: E402
-from noticehub.push import (  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.push import (  # noqa: E402
     PushError,
     PushManager,
     Pusher,
@@ -30,9 +30,9 @@ from noticehub.push import (  # noqa: E402
     build_pushers,
     chunk_text,
 )
-from noticehub.store import Store  # noqa: E402
-from noticehub.summarizer import Digest, build_digest  # noqa: E402
-from noticehub.timeutil import iso  # noqa: E402
+from agendum.store import Store  # noqa: E402
+from agendum.summarizer import Digest, build_digest  # noqa: E402
+from agendum.timeutil import iso  # noqa: E402
 
 NOW = dt.datetime(2026, 9, 28, 18, 0, 0)
 
@@ -70,7 +70,7 @@ def record(msg_id: str, content: str) -> dict:
 
 def capture_post(response: dict):
     """替换掉 push.post_json，把调用点留出来给断言用。"""
-    return mock.patch("noticehub.push.post_json", return_value=response)
+    return mock.patch("agendum.push.post_json", return_value=response)
 
 
 class ChunkTextTest(unittest.TestCase):
@@ -231,7 +231,7 @@ class WebhookPusherTest(unittest.TestCase):
         payload = self._send("https://example.com/hook", {})
         self.assertEqual(payload["title"], "通知标题")
         self.assertEqual(payload["content"], "通知正文")
-        self.assertEqual(payload["source"], "noticehub")
+        self.assertEqual(payload["source"], "agendum")
 
     def test_dingtalk_signed_url_matches_the_documented_recipe(self) -> None:
         # 待签串是「时间戳 + 换行 + 密钥」，HMAC-SHA256 之后 Base64 再 urlencode。
@@ -438,7 +438,7 @@ class HttpWebhookPusherTest(unittest.TestCase):
         WebhookPusher(f"{base}/hook").send("通知标题", "通知正文")
         payload = received[0]["payload"]
         self.assertEqual(
-            payload, {"title": "通知标题", "content": "通知正文", "source": "noticehub"}
+            payload, {"title": "通知标题", "content": "通知正文", "source": "agendum"}
         )
 
     def test_http_dingtalk_signature_matches_independent_hmac(self) -> None:

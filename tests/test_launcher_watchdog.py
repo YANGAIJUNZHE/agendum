@@ -12,7 +12,7 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
-from noticehub import hosting
+from agendum import hosting
 
 
 def _mkdtemp(case: unittest.TestCase, prefix: str) -> Path:
@@ -30,7 +30,7 @@ _SPEC.loader.exec_module(launcher)
 
 class LauncherImportCompatibilityTests(unittest.TestCase):
     def test_launcher_loads_without_optional_dpi_function(self):
-        name = "noticehub.floatball_host"
+        name = "agendum.floatball_host"
         fake_host = ModuleType(name)
         fake_host.snap_position = lambda *args: None
         fake_host.write_state = lambda *args: None
@@ -108,7 +108,7 @@ class EnvTemplateTest(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform == "win32", "Windows launcher template")
     def test_template_matches_config_default_host(self):
-        from noticehub.config import Settings
+        from agendum.config import Settings
 
         default_host = Settings().web_host
         template_host = launcher.ENV_TEMPLATE.split("QQ_DIGEST_WEB_HOST=", 1)[1].split("\n", 1)[0]
@@ -155,17 +155,17 @@ class DesktopShortcutTests(unittest.TestCase):
 class SingleInstanceMutexTests(unittest.TestCase):
     """B-10: the single-instance mutex must be scoped per install directory.
 
-    The old name was the global "Local\\notice-hub-launcher", so a running production
+    The old name was the global "Local\\agendum-launcher", so a running production
     tray made the beta launcher exit silently (exit 0) without starting beta.
     """
 
     def test_different_install_dirs_get_different_mutex_names(self):
-        prod = launcher._instance_mutex_name(Path(r"F:\notice-hub"))
-        beta = launcher._instance_mutex_name(Path(r"F:\notice-hub-beta"))
+        prod = launcher._instance_mutex_name(Path(r"F:\agendum"))
+        beta = launcher._instance_mutex_name(Path(r"F:\agendum-beta"))
         self.assertNotEqual(prod, beta)
 
     def test_same_install_dir_is_stable(self):
-        root = Path(r"F:\notice-hub")
+        root = Path(r"F:\agendum")
         self.assertEqual(launcher._instance_mutex_name(root), launcher._instance_mutex_name(root))
 
     def test_name_is_case_insensitive_like_windows_paths(self):
@@ -175,13 +175,13 @@ class SingleInstanceMutexTests(unittest.TestCase):
 
     def test_name_has_no_backslashes_or_colons(self):
         # Windows object names cannot contain backslashes; that was the reason to hash.
-        name = launcher._instance_mutex_name(Path(r"F:\notice-hub"))
+        name = launcher._instance_mutex_name(Path(r"F:\agendum"))
         self.assertNotIn("\\", name.split("Local\\", 1)[1])
         self.assertNotIn(":", name)
-        self.assertTrue(name.startswith("Local\\notice-hub-launcher-"))
+        self.assertTrue(name.startswith("Local\\agendum-launcher-"))
 
     def test_relative_and_absolute_spellings_of_same_dir_agree(self):
-        base = _mkdtemp(self, "notice-hub-mutex-")
+        base = _mkdtemp(self, "agendum-mutex-")
         self.assertEqual(launcher._instance_mutex_name(base), launcher._instance_mutex_name(base.resolve()))
 
     @unittest.skipUnless(sys.platform == "win32", "Win32 named mutex")
@@ -201,7 +201,7 @@ class SingleInstanceMutexTests(unittest.TestCase):
             def GetLastError():
                 return 0
 
-        root = Path(r"F:\notice-hub-beta")
+        root = Path(r"F:\agendum-beta")
         with patch.object(ctypes.windll, "kernel32", FakeKernel32()):
             self.assertTrue(launcher._acquire_single_instance(root))
         self.assertEqual(seen.get("name"), launcher._instance_mutex_name(root))
@@ -209,12 +209,12 @@ class SingleInstanceMutexTests(unittest.TestCase):
 
 class LauncherOnedirPathTests(unittest.TestCase):
     def test_service_launch_uses_install_root_executable(self):
-        root = _mkdtemp(self, "notice-hub-onedir-")
+        root = _mkdtemp(self, "agendum-onedir-")
         env_file = root / ".env"
         with patch.object(launcher.subprocess, "Popen") as popen:
             launcher._launch_service(root, env_file, 8766)
         args = popen.call_args.args[0]
-        self.assertEqual(Path(args[0]), root / "noticehub.exe")
+        self.assertEqual(Path(args[0]), root / "agendum.exe")
         self.assertEqual(popen.call_args.kwargs["cwd"], root)
 
 
@@ -236,7 +236,7 @@ class LauncherSilentFailureTests(unittest.TestCase):
     """B-5 (C-08): console=False + no tray means a failed start shows the user nothing."""
 
     def test_log_launcher_writes_readable_line(self):
-        root = _mkdtemp(self, "notice-hub-log-")
+        root = _mkdtemp(self, "agendum-log-")
         launcher._log_launcher(root, "健康检查失败：port=8790 exit=1")
         text = (root / "logs" / "launcher.log").read_text(encoding="utf-8")
         self.assertIn("健康检查失败：port=8790 exit=1", text)
@@ -274,7 +274,7 @@ class LauncherMenuTests(unittest.TestCase):
     """托盘菜单只摆真能用的项：浮球暂停时不出现，重复动作的「设置」已删。"""
 
     def make_host(self):
-        root = _mkdtemp(self, "notice-hub-menu-")
+        root = _mkdtemp(self, "agendum-menu-")
         settings = type("Settings", (), {"data_dir": str(root / "data")})()
         with patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
             return launcher.TrayHost(root, root / ".env", settings, FakeProcess([None]), "http://127.0.0.1:18766")
@@ -457,7 +457,7 @@ class LauncherPortSafetyTests(unittest.TestCase):
 
 class LauncherWatchdogTests(unittest.TestCase):
     def make_host(self, process):
-        root = _mkdtemp(self, "notice-hub-watchdog-")
+        root = _mkdtemp(self, "agendum-watchdog-")
         settings = type("Settings", (), {})()
         with patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
             host = launcher.TrayHost(root, root / ".env", settings, process, "http://127.0.0.1:18766")
@@ -569,7 +569,7 @@ class LauncherWatchdogTests(unittest.TestCase):
         with patch.object(launcher, "_notify_info") as notify, patch.object(
             launcher, "_read_update_state", return_value={}
         ), patch.object(launcher, "_write_update_state"), patch(
-            "noticehub.updater.check", return_value={"ok": True, "has_update": False, "latest": {"tag": "v1.1.0-beta.6"}, "checked_at": "now", "error": "旧版本"}
+            "agendum.updater.check", return_value={"ok": True, "has_update": False, "latest": {"tag": "v1.1.0-beta.6"}, "checked_at": "now", "error": "旧版本"}
         ):
             launcher._update_check_worker(host.root, host.root / "data")
         notify.assert_not_called()
@@ -580,7 +580,7 @@ class LauncherWatchdogTests(unittest.TestCase):
         以前的写法是「读全量 → 改全量 → 写回」，两边交替写必然互相覆盖
         （launcher 写完 last_check 后 webapp 一写，last_check 就没了）。
         """
-        root = _mkdtemp(self, "notice-hub-update-state-")
+        root = _mkdtemp(self, "agendum-update-state-")
         data_dir = root / "data"
         path = launcher._update_state_path(data_dir)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -612,7 +612,7 @@ class LauncherWatchdogTests(unittest.TestCase):
         self.assertEqual(leftovers, [], "临时文件没清干净：%r" % (leftovers,))
 
     def test_launcher_log_rotates_instead_of_growing_forever(self):
-        root = _mkdtemp(self, "notice-hub-log-rotate-")
+        root = _mkdtemp(self, "agendum-log-rotate-")
         log_file = root / "logs" / "launcher.log"
         log_file.parent.mkdir(parents=True, exist_ok=True)
         log_file.write_text("x" * (launcher.LOG_MAX_BYTES + 1), encoding="utf-8")
@@ -745,7 +745,7 @@ class LauncherFirewallTests(unittest.TestCase):
     """
 
     def make_root(self):
-        root = _mkdtemp(self, "notice-hub-firewall-")
+        root = _mkdtemp(self, "agendum-firewall-")
         return root, root / "data"
 
     def probe(self, checked=True, allowed=False, port=8766):
@@ -838,7 +838,7 @@ class LauncherFirewallTests(unittest.TestCase):
                 "LocalPort:                            8081-8112",
                 "Action:                               Allow",
                 "",
-                "Rule Name:                            群务台 8766",
+                "Rule Name:                            Agendum 8766",
                 "----------------------------------------------------------------------",
                 "Enabled:                              Yes",
                 "Direction:                            In",
@@ -863,14 +863,14 @@ class LauncherFirewallTests(unittest.TestCase):
         # netsh 的子进程在 host_actions 里跑（launcher._firewall_allows 只是转发），
         # 所以 patch 的是 host_actions.subprocess；linux/macos job 上没有 netsh，
         # 不 patch 它就会 FileNotFoundError → 规则清单为空 → checked=False。
-        with patch("noticehub.host_actions.is_windows", return_value=True), \
+        with patch("agendum.host_actions.is_windows", return_value=True), \
                 patch.object(launcher.host_actions.subprocess, "run", return_value=completed):
             result = launcher._firewall_allows(8766)
         self.assertTrue(result["checked"])
         self.assertTrue(result["allowed"], "端口列表里的 8766 也算放行")
-        self.assertEqual(result["rule"], "群务台 8766")
+        self.assertEqual(result["rule"], "Agendum 8766")
 
-    def _firewall_host(self, self_name: str = "notice-hub-firewall-request-"):
+    def _firewall_host(self, self_name: str = "agendum-firewall-request-"):
         root = _mkdtemp(self, self_name)
         settings = type("Settings", (), {})()
         with patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
@@ -914,7 +914,7 @@ class LauncherFirewallTests(unittest.TestCase):
 
     def test_watchdog_does_not_report_success_before_rule_is_live(self):
         """UAC 通过 ≠ 规则生效：真探不到就不能写 ok=true（消防墙绿得太早）。"""
-        host, data = self._firewall_host("notice-hub-firewall-unconfirmed-")
+        host, data = self._firewall_host("agendum-firewall-unconfirmed-")
         request = launcher._firewall_request_path(data)
         request.write_text(json.dumps({"port": 18766}), encoding="utf-8")
 
@@ -936,7 +936,7 @@ class LauncherFirewallTests(unittest.TestCase):
 
     def test_watchdog_says_needs_admin_when_probe_cannot_read_rules(self):
         """探测读不到（checked=False）不能说成「规则没生效」，要提示需要管理员才能确认。"""
-        host, data = self._firewall_host("notice-hub-firewall-unreadable-")
+        host, data = self._firewall_host("agendum-firewall-unreadable-")
         request = launcher._firewall_request_path(data)
         request.write_text(json.dumps({"port": 18766}), encoding="utf-8")
 
@@ -958,7 +958,7 @@ class LauncherFirewallTests(unittest.TestCase):
         self.assertNotIn("已授予", result["message"])
 
     def test_watchdog_writes_failure_result_when_elevation_fails(self):
-        host, data = self._firewall_host("notice-hub-firewall-failure-")
+        host, data = self._firewall_host("agendum-firewall-failure-")
         request = launcher._firewall_request_path(data)
         request.write_text(json.dumps({"port": 18766}), encoding="utf-8")
 
@@ -1004,7 +1004,7 @@ class LauncherQuitTests(unittest.TestCase):
             pass
 
     def make_host(self, process):
-        root = _mkdtemp(self, "notice-hub-quit-")
+        root = _mkdtemp(self, "agendum-quit-")
         settings = type("Settings", (), {})()
         with patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
             host = launcher.TrayHost(root, root / ".env", settings, process, "http://127.0.0.1:18766")
@@ -1051,7 +1051,7 @@ class LauncherQuitRequestTests(unittest.TestCase):
     """
 
     def make_host(self, process):
-        root = _mkdtemp(self, "notice-hub-quitreq-")
+        root = _mkdtemp(self, "agendum-quitreq-")
         settings = type("Settings", (), {})()
         with patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
             host = launcher.TrayHost(root, root / ".env", settings, process, "http://127.0.0.1:18766")
@@ -1071,13 +1071,13 @@ class LauncherQuitRequestTests(unittest.TestCase):
         self.assertFalse(request.exists(), "请求文件必须被消费掉，不然下次启动会被立刻顶掉")
 
     def test_request_quit_reports_when_no_instance_is_running(self):
-        root = _mkdtemp(self, "notice-hub-quitreq-")
+        root = _mkdtemp(self, "agendum-quitreq-")
         with patch.object(launcher, "_other_instance_running", return_value=False):
             self.assertEqual(launcher._request_quit(root), 1)
         self.assertFalse(launcher._quit_request_path(root).exists())
 
     def test_request_quit_writes_file_and_waits_for_exit(self):
-        root = _mkdtemp(self, "notice-hub-quitreq-")
+        root = _mkdtemp(self, "agendum-quitreq-")
         seen = []
 
         def other_running(_root):
@@ -1091,7 +1091,7 @@ class LauncherQuitRequestTests(unittest.TestCase):
         self.assertTrue(content.isdigit(), "请求文件里要留下发起方的 pid，方便查日志")
 
     def test_request_quit_gives_up_after_deadline(self):
-        root = _mkdtemp(self, "notice-hub-quitreq-")
+        root = _mkdtemp(self, "agendum-quitreq-")
         with patch.object(launcher, "_other_instance_running", return_value=True):
             with patch.object(launcher.time, "sleep", lambda seconds: None):
                 self.assertEqual(launcher._request_quit(root, wait_seconds=0.0), 1)
@@ -1105,15 +1105,15 @@ class TempDirCleanupTests(unittest.TestCase):
     """W12: 测试临时目录不许留在仓库根目录。"""
 
     def test_mkdtemp_helper_removes_dir_on_cleanup(self):
-        path = _mkdtemp(self, "notice-hub-selftest-")
+        path = _mkdtemp(self, "agendum-selftest-")
         self.assertTrue(path.is_dir())
         self.doCleanups()
         self.assertFalse(path.exists())
 
     def test_mkdtemp_helper_leaves_repo_root_unchanged(self):
         root = Path.cwd()
-        before = sorted(p.name for p in root.iterdir() if p.name.startswith("notice-hub-selftest-"))
-        _mkdtemp(self, "notice-hub-selftest-")
+        before = sorted(p.name for p in root.iterdir() if p.name.startswith("agendum-selftest-"))
+        _mkdtemp(self, "agendum-selftest-")
         self.doCleanups()
-        after = sorted(p.name for p in root.iterdir() if p.name.startswith("notice-hub-selftest-"))
+        after = sorted(p.name for p in root.iterdir() if p.name.startswith("agendum-selftest-"))
         self.assertEqual(before, after)

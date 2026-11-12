@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from noticehub import update_sources
+from agendum import update_sources
 
 
 class UpdateSourcesTests(unittest.TestCase):
@@ -13,7 +13,7 @@ class UpdateSourcesTests(unittest.TestCase):
         self.assertEqual(sources[0]["api_root"], "https://api.github.com")
         self.assertEqual(
             sources[0]["raw_base"],
-            "https://raw.githubusercontent.com/YANGAIJUNZHE/agendum/codex/notice-hub-custom",
+            "https://raw.githubusercontent.com/YANGAIJUNZHE/agendum/main",
         )
 
     def test_empty_environment_and_settings_leave_mirror_disabled(self):
@@ -23,13 +23,13 @@ class UpdateSourcesTests(unittest.TestCase):
         self.assertEqual([source["id"] for source in sources], ["github"])
 
     def test_mirror_is_second_and_urls_use_its_repo(self):
-        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/notice-hub"}, clear=True):
+        with patch.dict("os.environ", {"QQ_DIGEST_UPDATE_MIRROR": "ExpertKT/agendum"}, clear=True):
             sources = update_sources.sources()
         self.assertEqual([source["id"] for source in sources], ["github", "gitee"])
         mirror = sources[1]
-        self.assertEqual(mirror["repo"], "ExpertKT/notice-hub")
+        self.assertEqual(mirror["repo"], "ExpertKT/agendum")
         self.assertEqual(mirror["api_root"], "https://gitee.com/api/v5")
-        self.assertEqual(mirror["raw_base"], "https://gitee.com/ExpertKT/notice-hub/raw/master")
+        self.assertEqual(mirror["raw_base"], "https://gitee.com/ExpertKT/agendum/raw/master")
         self.assertTrue(update_sources.announcements_url(mirror).endswith("/announcements.json"))
         self.assertTrue(update_sources.manifest_url(mirror).endswith("/update-manifest.json"))
 

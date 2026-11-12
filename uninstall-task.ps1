@@ -3,7 +3,7 @@ param()
 $ErrorActionPreference = 'Stop'
 
 # 四个任务按固定顺序逐个注销；查不到就只打一行跳过，不算失败。
-$taskNames = 'NapCat-QQ', 'NoticeHub', 'QQ-Live-Digest', 'NapCat-QQ-Watchdog'
+$taskNames = 'NapCat-QQ', 'Agendum', 'QQ-Live-Digest', 'NapCat-QQ-Watchdog'
 foreach ($taskName in $taskNames) {
     $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     if (-not $task) {

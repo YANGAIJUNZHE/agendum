@@ -104,7 +104,7 @@ task_stats() -> TaskStats
 render_calendar_ics() -> str
 ```
 
-`GET /calendar.ics`。VCALENDAR 文本，含 VTIMEZONE。鉴权仍在 Web（要 token）。正文只有一份，由 `qq_live_digest.ics.render_calendar` 生成。`noticehub` 里没有第二份渲染。
+`GET /calendar.ics`。VCALENDAR 文本，含 VTIMEZONE。鉴权仍在 Web（要 token）。正文只有一份，由 `qq_live_digest.ics.render_calendar` 生成。`agendum` 里没有第二份渲染。
 
 ```text
 describe_calendar_subscription() -> CalendarInfo

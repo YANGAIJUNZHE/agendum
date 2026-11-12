@@ -4,6 +4,8 @@
 
 已经发布的 beta.16 APK 仍使用旧版只读协议。新版需要配套的电脑端代码，并重新进行设备配对；不能只安装旧 Release APK 来使用新功能。
 
+包名自本次改名起为 `com.agendum.app`（旧版是 `com.noticehub.app`）。两者是不同的应用：先把旧版待同步编辑同步回电脑，再卸载旧版、安装新版并重新扫码配对。
+
 源码工程在 `android/`。最低 Android 6.0（API 23），编译 SDK 35，使用 JDK 17 或 21。常用构建命令：
 
 ```powershell

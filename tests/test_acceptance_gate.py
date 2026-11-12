@@ -20,10 +20,10 @@ class AcceptanceGateContractTests(unittest.TestCase):
             self.assertIn(layer, text)
         self.assertIn("tools\\syntaxcheck.py", text)
         self.assertIn("tools\\packcheck.py", text)
-        self.assertIn("packaging\\QQ-Notice-Hub.zip", text)
+        self.assertIn("packaging\\Agendum.zip", text)
         self.assertIn("[guid]::NewGuid()", text)
         self.assertIn("Remove-Item -LiteralPath $InstallDir", text)
-        self.assertNotIn("D:\\QQ-Notice-Hub-beta'", text)
+        self.assertNotIn("D:\\Agendum-beta'", text)
         self.assertIn("TcpListener", text)
         self.assertIn("Get-NetTCPConnection -LocalPort $Port", text)
 

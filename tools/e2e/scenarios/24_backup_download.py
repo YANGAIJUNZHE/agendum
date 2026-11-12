@@ -3,7 +3,7 @@
 harness 没有 download 门面，所以这里直接用 `app.page.cdp` 开
 `Browser.setDownloadBehavior`（只写在本剧本里，不动 harness），
 再把下载目录固定到本次 case 目录下的 `downloads/`，最后验三件事：
-文件真的落盘且字节数 > 0、文件名是 `notice-hub-backup-YYYY-MM-DD.zip`、开头是 ZIP 魔数（不是错误页 HTML）。
+文件真的落盘且字节数 > 0、文件名是 `agendum-backup-YYYY-MM-DD.zip`、开头是 ZIP 魔数（不是错误页 HTML）。
 
 复现：
     python tools/e2e/run.py --only 24_backup_download
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from harness import scenario
 
-NAME_PATTERN = re.compile(r"^notice-hub-backup-\d{4}-\d{2}-\d{2}\.zip$")
+NAME_PATTERN = re.compile(r"^agendum-backup-\d{4}-\d{2}-\d{2}\.zip$")
 
 
 def _dismiss_wizard(app) -> None:
@@ -82,7 +82,7 @@ def run(app) -> None:
     assert len(files) == 1, f"收到多个 zip：{[p.name for p in files]!r}"
 
     target = files[0]
-    assert NAME_PATTERN.match(target.name), f"备份文件名不合规：{target.name!r}（应为 notice-hub-backup-YYYY-MM-DD.zip）"
+    assert NAME_PATTERN.match(target.name), f"备份文件名不合规：{target.name!r}（应为 agendum-backup-YYYY-MM-DD.zip）"
     size = target.stat().st_size
     assert size > 0, f"备份文件是空的：{target}"
     head = target.read_bytes()[:4]

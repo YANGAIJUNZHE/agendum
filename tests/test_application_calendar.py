@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from noticehub.application.calendar import (  # noqa: E402
+from agendum.application.calendar import (  # noqa: E402
     assemble_calendars,
     describe_calendar_subscription,
     host_priority,

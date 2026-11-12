@@ -8,10 +8,10 @@ import uuid
 from types import SimpleNamespace
 from pathlib import Path
 
-from noticehub.config import Settings
-from noticehub.store import Store
-from noticehub.webapp import TaskWebServer
-from noticehub import webapp
+from agendum.config import Settings
+from agendum.store import Store
+from agendum.webapp import TaskWebServer
+from agendum import webapp
 
 
 class SyncApiTest(unittest.TestCase):

@@ -19,7 +19,7 @@ cd ~/agendum
 bash packaging/linux/install.sh
 ```
 
-脚本会在仓库内创建 `.venv`、安装 `requirements.txt`、仅在 `.env` 不存在时复制 `.env.example`，并将按当前仓库路径填好的 systemd user unit 安装到 `~/.config/systemd/user/notice-hub.service`。现有 `.env` 不会被覆盖。
+脚本会在仓库内创建 `.venv`、安装 `requirements.txt`、仅在 `.env` 不存在时复制 `.env.example`，并将按当前仓库路径填好的 systemd user unit 安装到 `~/.config/systemd/user/agendum.service`。现有 `.env` 不会被覆盖。
 
 安装脚本创建新 `.env` 时，会将示例中的 `QQ_DIGEST_WEB_HOST=0.0.0.0` 改为 `127.0.0.1`；已经存在的 `.env` 不改动。未显式配置该变量时，Linux 默认也是 `127.0.0.1`，环境变量仍优先于默认值。然后可在本机浏览器打开 <http://127.0.0.1:8766/>。
 
@@ -31,16 +31,16 @@ bash packaging/linux/install.sh
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now notice-hub.service
-systemctl --user status notice-hub.service
-journalctl --user -u notice-hub.service -f
+systemctl --user enable --now agendum.service
+systemctl --user status agendum.service
+journalctl --user -u agendum.service -f
 ```
 
 停止或禁用：
 
 ```bash
-systemctl --user stop notice-hub.service
-systemctl --user disable notice-hub.service
+systemctl --user stop agendum.service
+systemctl --user disable agendum.service
 ```
 
 服务异常退出后由 systemd 按 `Restart=on-failure` 重启。默认文件日志在仓库目录的 `logs/qq-live-digest.log`；systemd 日志可用 `journalctl` 查看。需要在用户注销后仍运行时，可由管理员为该 Linux 用户启用 linger：`sudo loginctl enable-linger "$USER"`。

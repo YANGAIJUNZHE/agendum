@@ -26,7 +26,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
-DEFAULT_ZIP = Path(__file__).resolve().parents[2] / "packaging" / "QQ-Notice-Hub.zip"
+DEFAULT_ZIP = Path(__file__).resolve().parents[2] / "packaging" / "Agendum.zip"
 PAGE_MIN_BYTES = 100_000  # 冷装主页正常约 351 KB，明显小于此说明页面没打进包
 
 
@@ -78,9 +78,9 @@ def run_smoke(zip_path: Path, port: int, token: str, timeout: float) -> tuple[bo
         for path in tmp_root.rglob("*"):
             if path.is_file():
                 os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
-        exe = tmp_root / "noticehub.exe"
+        exe = tmp_root / "agendum.exe"
         if not exe.is_file():
-            raise StepFailure("extract", f"包里没有 noticehub.exe: {tmp_root}")
+            raise StepFailure("extract", f"包里没有 agendum.exe: {tmp_root}")
 
         env = dict(os.environ)
         for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):

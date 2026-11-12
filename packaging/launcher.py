@@ -1,11 +1,11 @@
-"""notice-hub 启动器：常驻托盘宿主。
+"""agendum 启动器：常驻托盘宿主。
 
 - 首次运行生成 `.env`（随机 token）并创建桌面快捷方式，之后复用。
-- 拉起 `noticehub.exe --env <env> run` 作为子进程（无控制台窗口）。
+- 拉起 `agendum.exe --env <env> run` 作为子进程（无控制台窗口）。
 - 托盘菜单：开始托管 / 结束托管 / 打开控制台 / 退出（浮窗启用时才多一项「显示/隐藏浮窗」）。
 - **从托盘退出 = 结束托管（停 NapCat、按设置恢复电脑版 QQ）+ 关服务子进程 + 关程序**。
 
-托管本身实现在 `noticehub/hosting.py`（与网页设置共用同一份逻辑，避免两套真相源）。
+托管本身实现在 `agendum/hosting.py`（与网页设置共用同一份逻辑，避免两套真相源）。
 """
 
 from __future__ import annotations
@@ -26,14 +26,14 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
-from noticehub import host_actions, hosting
-from noticehub.config import Settings, parse_env_file
+from agendum import host_actions, hosting
+from agendum.config import Settings, parse_env_file
 try:  # 浮球模块不在发布范围内：缺函数时托盘仍要能起来
-    from noticehub.floatball_host import ensure_dpi_aware
+    from agendum.floatball_host import ensure_dpi_aware
 except Exception:  # pragma: no cover - 只影响 DPI 校准，不影响主程序
     ensure_dpi_aware = None  # type: ignore[assignment]
 try:  # 浮球模块暂未随本版发布，缺文件时托盘仍要能起来
-    from noticehub.floatball_window import FloatBallWindow
+    from agendum.floatball_window import FloatBallWindow
 except Exception:  # pragma: no cover - 只影响浮球，不影响主程序
     FloatBallWindow = None  # type: ignore[assignment]
 
@@ -48,9 +48,9 @@ def _open_browser(url: str) -> bool:
 
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-SERVICE_EXE = "noticehub.exe"
-LAUNCHER_EXE = "QQ-Notice-Hub.exe"
-SHORTCUT_NAME = "notice-hub.lnk"
+SERVICE_EXE = "agendum.exe"
+LAUNCHER_EXE = "Agendum.exe"
+SHORTCUT_NAME = "agendum.lnk"
 WATCHDOG_POLL_SECONDS = 2.0
 WATCHDOG_BACKOFF_SECONDS = (5.0, 15.0, 45.0)
 APPLYING_FLAG_MAX_AGE_SECONDS = 600
@@ -68,7 +68,7 @@ QUIT_REQUEST_NAME = "launcher.quit"
 
 ENV_TEMPLATE = (
     "QQ_DIGEST_WEB=1\n"
-    # 必须绑 0.0.0.0（与 noticehub/config.py 的默认值一致），不能写 127.0.0.1：
+    # 必须绑 0.0.0.0（与 agendum/config.py 的默认值一致），不能写 127.0.0.1：
     # ① webapp.py 只在 web_host 不是回环地址时才生成并持久化访问令牌，写死回环 ⇒
     #    首装实例永远没有 token，/api/app/qr.png 永远 400「本机还没有访问令牌」，配对二维码加载不出来；
     # ② 只绑回环时 /api/pair/info 广告的是局域网/tailscale 地址，手机根本连不上。
@@ -104,7 +104,7 @@ ENV_TEMPLATE = (
     "QQ_DIGEST_HOSTING_AUTO_ON_START=0\n"
     "QQ_DIGEST_AUTOSTART=0\n"
     # 订阅的群与群名别名。这两行必须预先存在：向导页「保存订阅」是就地改写它们
-    # （noticehub.config.update_env_file），老版本在这里手写了一份拷贝、缺键就报
+    # （agendum.config.update_env_file），老版本在这里手写了一份拷贝、缺键就报
     # "required .env keys missing"，导致全新安装第一次保存订阅必定失败。
     "QQ_DIGEST_GROUPS=\n"
     "QQ_DIGEST_GROUP_ALIASES=\n"
@@ -114,7 +114,7 @@ ENV_TEMPLATE = (
 
 
 def _read_env_value(env_file: Path, key: str) -> str:
-    # 与主程序共用同一个 .env 解析（noticehub.config.parse_env_file），避免两套规则漂移
+    # 与主程序共用同一个 .env 解析（agendum.config.parse_env_file），避免两套规则漂移
     return parse_env_file(env_file).get(key, "")
 
 
@@ -161,7 +161,7 @@ def _create_desktop_shortcut(root: Path, channel: str | None = None) -> str | No
         "$lnk.TargetPath = $env:NH_TARGET; "
         "$lnk.WorkingDirectory = $env:NH_ROOT; "
         "$lnk.IconLocation = $env:NH_ICON; "
-        "$lnk.Description = 'notice-hub'; "
+        "$lnk.Description = 'agendum'; "
         "$lnk.Save()"
     )
     env = os.environ.copy()
@@ -187,7 +187,7 @@ _INSTANCE_MUTEX = None
 def _instance_mutex_name(root: Path) -> str:
     """Per-install-directory mutex name.
 
-    The old name was the global "Local\\notice-hub-launcher", so **any** copy of the
+    The old name was the global "Local\\agendum-launcher", so **any** copy of the
     launcher blocked **every** other copy: with production's tray already running,
     double-clicking the beta copy silently exited (exit 0) without ever starting the
     beta service, while still opening the browser to production's own console URL —
@@ -205,7 +205,7 @@ def _instance_mutex_name(root: Path) -> str:
     except OSError:
         resolved = str(root)
     digest = hashlib.sha256(resolved.lower().encode("utf-8", "replace")).hexdigest()[:16]
-    return "Local\\notice-hub-launcher-%s" % digest
+    return "Local\\agendum-launcher-%s" % digest
 
 
 def _acquire_single_instance(root: Path | None = None) -> bool:
@@ -249,7 +249,7 @@ def _other_instance_running(root: Path) -> bool:
 
 
 def _request_quit(root: Path, wait_seconds: float = 40.0) -> int:
-    """`QQ-Notice-Hub.exe --quit`：让这份安装里正跑着的托盘退出。
+    """`Agendum.exe --quit`：让这份安装里正跑着的托盘退出。
 
     等价于右键托盘 →「退出」，但可以从命令行/脚本触发 —— 自动化验收托盘退出
     只能靠它（托盘点不动，进程也不能靠 taskkill 证明退出流程是对的）。返回 0
@@ -395,7 +395,7 @@ def _data_dir_for(root: Path, settings: object) -> Path:
 
 def _applying_flag_path(data_dir: Path) -> Path:
     try:
-        from noticehub.updater import APPLYING_FLAG
+        from agendum.updater import APPLYING_FLAG
 
         name = APPLYING_FLAG
     except Exception:
@@ -493,7 +493,7 @@ def _firewall_result_path(data_dir: Path) -> Path:
 def _firewall_allows(port: int, data_dir: Path | None = None) -> dict:
     """只读查本机有没有放行该 TCP 端口入站的规则。查不到时 checked=False，别据此弹 UAC。
 
-    查询与解析统一在 noticehub.host_actions（启动器不能 import webapp，它依赖 Flask）。
+    查询与解析统一在 agendum.host_actions（启动器不能 import webapp，它依赖 Flask）。
     缓存也统一在那里（60 秒，键 host_actions.FIREWALL_CACHE_KEY）：启动器是独立进程，
     启动那一次缓存本来就是空的、照样实跑 netsh；缓存只省掉同一进程内 60 秒里的重复探测
     （每次 netsh 枚举约 0.8 秒）。用户明确要「立刻重查」时由 ensure_firewall_rule(force=True) 清缓存。
@@ -614,7 +614,7 @@ def _update_check_worker(root: Path, data_dir: Path, channel: str | None = None)
     跑在守护线程里，而且自己把异常全吃掉：检查更新失败绝不能影响服务启动。
     """
     try:
-        from noticehub import updater
+        from agendum import updater
 
         info = updater.check(channel=channel)
         latest = info.get("latest") if isinstance(info.get("latest"), dict) else {}
@@ -738,14 +738,14 @@ def _find_available_port(start: int, limit: int = 100) -> int | None:
 
 def _last_service_error_message(root: Path, limit: int = 60) -> str:
     """从服务自己的日志里抠出最后一条 ERROR，让失败框说人话而不是猜原因。"""
-    log = root / "logs" / "noticehub.log"
+    log = root / "logs" / "agendum.log"
     try:
         lines = log.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]
     except OSError:
         return ""
     for line in reversed(lines):
         if " ERROR " in line:
-            # 形如 "2026-10-13 01:23:30,304 ERROR noticehub.service 缺少 AppID…"
+            # 形如 "2026-10-13 01:23:30,304 ERROR agendum.service 缺少 AppID…"
             return line.split(" ERROR ", 1)[1].strip()[:300]
     return ""
 
@@ -797,7 +797,7 @@ def _icon_image(root: Path | None = None, channel: str | None = None) -> object 
 
 
 class TrayHost:
-    """托盘宿主：托管开关都走 `noticehub.hosting`。"""
+    """托盘宿主：托管开关都走 `agendum.hosting`。"""
 
     def __init__(self, root: Path, env_file: Path, settings: Settings, process: subprocess.Popen, url: str, port: int | None = None) -> None:
         self.root = root
@@ -1053,7 +1053,7 @@ class TrayHost:
             except (TypeError, ValueError):
                 requested_port = int(self.port or 0)
             self._log_watchdog("收到放行防火墙请求：TCP %d" % requested_port)
-            threading.Thread(target=self._grant_firewall, args=(requested_port,), name="notice-hub-firewall", daemon=True).start()
+            threading.Thread(target=self._grant_firewall, args=(requested_port,), name="agendum-firewall", daemon=True).start()
         flag = _applying_flag_path(_data_dir_for(self.root, self.settings))
         try:
             flag_stat = flag.stat()
@@ -1115,7 +1115,7 @@ class TrayHost:
 
     def _start_watchdog(self) -> None:
         self._watchdog_stop.clear()
-        self._watchdog_thread = threading.Thread(target=self._watchdog_loop, name="notice-hub-watchdog", daemon=True)
+        self._watchdog_thread = threading.Thread(target=self._watchdog_loop, name="agendum-watchdog", daemon=True)
         self._watchdog_thread.start()
 
     def _stop_watchdog(self) -> None:
@@ -1131,7 +1131,7 @@ class TrayHost:
     def _notify(self, message: str) -> None:
         if self.icon is not None:
             try:
-                self.icon.notify(message, "notice-hub")
+                self.icon.notify(message, "agendum")
             except Exception:
                 pass
 
@@ -1180,7 +1180,7 @@ class TrayHost:
 
     def _pending_update(self) -> dict | None:
         try:
-            from noticehub import updater
+            from agendum import updater
 
             return updater.pending_update(_data_dir_for(self.root, self.settings))
         except Exception:
@@ -1321,7 +1321,7 @@ class TrayHost:
                 if pending:
                     self._notify("正在安装更新并退出…")
                     self._stop_watchdog()
-                    from noticehub import updater
+                    from agendum import updater
 
                     result = updater.apply_async(
                         self.root,
@@ -1481,11 +1481,11 @@ class TrayHost:
         if image is None:
             return False
         try:
-            self.icon = pystray.Icon("notice-hub", image, "notice-hub · " + self._status_line(), self.build_menu(pystray))
+            self.icon = pystray.Icon("agendum", image, "agendum · " + self._status_line(), self.build_menu(pystray))
             self._start_watchdog()
             # 启动时只读查一次防火墙；缺规则就弹一次 UAC（24 小时内不重复）。
             # 放后台线程：UAC 会一直等到用户点按钮，不能挡住托盘和浮球。
-            threading.Thread(target=self._firewall_check, name="notice-hub-firewall", daemon=True).start()
+            threading.Thread(target=self._firewall_check, name="agendum-firewall", daemon=True).start()
             threading.Thread(target=self._start_floatball, daemon=True).start()
             if bool(getattr(self.settings, "hosting_auto_on_start", False)):
                 threading.Thread(target=self._start, daemon=True).start()
@@ -1573,7 +1573,7 @@ def main() -> int:
         reason = (
             "服务没能启动（端口 %d，退出码 %s）。\n\n"
             "%s"
-            "下一步：看安装目录下 logs\\noticehub.log 与 logs\\launcher.log 的最后几行；\n"
+            "下一步：看安装目录下 logs\\agendum.log 与 logs\\launcher.log 的最后几行；\n"
             "两个日志里都没有错误，就再启动一次；仍不行，才把安装包重新解压到一个新目录试。"
         ) % (
             selected_port,
@@ -1590,7 +1590,7 @@ def main() -> int:
         threading.Thread(
             target=_update_check_worker,
             args=(root, _data_dir_for(root, settings), _update_channel(env_file)),
-            name="notice-hub-update-check",
+            name="agendum-update-check",
             daemon=True,
         ).start()
     host = TrayHost(root, env_file, settings, process, url, selected_port)

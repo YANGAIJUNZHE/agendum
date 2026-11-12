@@ -44,7 +44,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--keep", action="store_true", help="保留本次运行目录并打印路径")
     parser.add_argument("--reuse", action="store_true", help="复用同一实例（仅 fakes:none 的剧本）")
     parser.add_argument("--headful", action="store_true", help="有头浏览器（调试用）")
-    parser.add_argument("--zip", default="", help="安装包路径，默认 packaging/QQ-Notice-Hub.zip")
+    parser.add_argument("--zip", default="", help="安装包路径，默认 packaging/Agendum.zip")
     parser.add_argument("--run-dir", default="", help="产物根目录（默认 %%TEMP%%；禁止仓库内）")
     parser.add_argument(
         "--from-source", action="store_true",

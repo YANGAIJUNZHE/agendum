@@ -6,7 +6,7 @@ from pathlib import Path
 
 if os.name != "nt":
     raise unittest.SkipTest("Windows-only floating-ball host")
-from noticehub.floatball_host import (
+from agendum.floatball_host import (
     CLOSED_SIZE,
     OPEN_SIZE,
     clamp_position,

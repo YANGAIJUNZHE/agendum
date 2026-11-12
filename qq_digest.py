@@ -1409,7 +1409,7 @@ def _refine_via_http(
     backoff: float,
     backend: str,
 ) -> list[dict[str, Any]]:
-    from noticehub.retry import LLMError, LLMRequestError, call_with_retries  # 延迟导入避免环
+    from agendum.retry import LLMError, LLMRequestError, call_with_retries  # 延迟导入避免环
 
     target = endpoint or (_OLLAMA_ENDPOINT if backend == "ollama" else _DEFAULT_ENDPOINT)
     payload: dict[str, Any] = {

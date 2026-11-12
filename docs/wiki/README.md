@@ -17,7 +17,7 @@ Agendum 盯着你订阅的几个 QQ 群，把「什么时候交、要做什么�
 
 ## 其它几页
 
-- [配置](config.md)：`.env` 里每个 `NOTICEHUB_*` 是什么意思、默认值多少。
+- [配置](config.md)：`.env` 里每个 `AGENDUM_*` 是什么意思、默认值多少。
 - [架构](architecture.md)：程序分成哪几层、数据落在哪、端口和更新是怎么走的。
 - [更新日志](changelog.md)：每个版本改了什么，用户视角。
 - [发布版本](release.md)：准备版本、触发 CI 和同步 Wiki。

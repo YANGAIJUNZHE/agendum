@@ -41,22 +41,22 @@ packaging/*.zip
 .rollback/
 
 # 测试/运行期临时目录与临时库文件（TEMP 指向仓库根时会落在这里）
-notice-hub-watchdog-*/
-notice-hub-quitreq-*/
-notice-hub-quit-*/
-notice-hub-mutex-*/
-notice-hub-log-*/
-notice-hub-onedir-*/
+agendum-watchdog-*/
+agendum-quitreq-*/
+agendum-quit-*/
+agendum-mutex-*/
+agendum-log-*/
+agendum-onedir-*/
 qq-live-digest-tests-*/
-noticehub-tests-*/
+agendum-tests-*/
 nh-inline-js-*/
 nh-theme-audit-*/
 qq-digest-dt-*.db-wal
 qq-digest-dt-*.db-shm
 
 # TEMP 指向仓库根时，更新脚本和测试夹具也会落在这里
-notice-hub-update-*.ps1
-qq-notice-hub-test-*
+agendum-update-*.ps1
+agendum-test-*
 
 # 本地验证工具与临时产物
 _qa/

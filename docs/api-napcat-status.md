@@ -63,7 +63,7 @@ NapCat / QQ 接入状态查询接口。前端「连接」卡片、手机接入�
 
 ```json
 {"ok": false, "online": false, "good": false, "user_id": "", "nickname": "",
- "napcat_installed": true, "napcat_root": "F:\\notice-hub\\data\\napcat",
+ "napcat_installed": true, "napcat_root": "F:\\agendum\\data\\napcat",
  "qr_stamp": "1761331200123456789-41235", "napcat_running": true,
  "stage": "waiting_qr", "waiting_seconds": 37.5,
  "error": "已经收到二维码，正在等手机确认；确认后 OneBot 会自己起来，不用刷新页面"}
@@ -73,7 +73,7 @@ NapCat / QQ 接入状态查询接口。前端「连接」卡片、手机接入�
 
 ```json
 {"ok": true, "online": true, "good": true, "user_id": "10001", "nickname": "某某",
- "napcat_installed": true, "napcat_root": "F:\\notice-hub\\data\\napcat",
+ "napcat_installed": true, "napcat_root": "F:\\agendum\\data\\napcat",
  "qr_stamp": "1761331200123456789-41235", "napcat_running": true,
  "stage": "online", "waiting_seconds": 0.0, "error": ""}
 ```

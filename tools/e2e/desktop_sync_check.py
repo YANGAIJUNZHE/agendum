@@ -6,9 +6,9 @@ from pathlib import Path
 
 import tests  # noqa: F401
 from playwright.sync_api import sync_playwright
-from noticehub.config import Settings
-from noticehub.store import Store
-from noticehub.webapp import TaskWebServer
+from agendum.config import Settings
+from agendum.store import Store
+from agendum.webapp import TaskWebServer
 
 
 class DesktopSyncTest(unittest.TestCase):

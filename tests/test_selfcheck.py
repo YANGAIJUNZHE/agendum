@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from noticehub.selfcheck import check, feature_items
+from agendum.selfcheck import check, feature_items
 
 
 class SelfcheckTests(unittest.TestCase):

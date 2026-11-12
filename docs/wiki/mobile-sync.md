@@ -45,10 +45,10 @@ App 前台每十秒检查增量，本地操作后立即尝试同步。后台使�
 在电脑 `.env` 中设置：
 
 ```dotenv
-NOTICEHUB_MOBILE_BASE_URL=https://sync.example.com
-NOTICEHUB_WEB_TOKEN=自行生成的电脑管理令牌
-NOTICEHUB_WEB_HOST=127.0.0.1
-NOTICEHUB_WEB_PORT=8766
+AGENDUM_MOBILE_BASE_URL=https://sync.example.com
+AGENDUM_WEB_TOKEN=自行生成的电脑管理令牌
+AGENDUM_WEB_HOST=127.0.0.1
+AGENDUM_WEB_PORT=8766
 ```
 
 改配置后重启服务。`MOBILE_BASE_URL` 仅用于手机配对，不替代整站的 `WEB_BASE_URL`。不要把 Cloudflare 隧道令牌填入上述两项。
@@ -92,9 +92,9 @@ Cloudflare 管理的隧道在控制台配置同等的 hostname/path/service 规�
 
 ### 真机验收副本
 
-已有正式版与本地调试包签名不同时，不要直接卸载旧版。可运行 `./gradlew.bat :app:assembleDebug -PnoticehubValidation` 构建独立的 `com.noticehub.app.validation`，与旧版并存。它使用独立的本地数据库和凭据；默认构建仍保留原包名。正式覆盖升级必须使用原发行签名。
+已有正式版与本地调试包签名不同时，不要直接卸载旧版。可运行 `./gradlew.bat :app:assembleDebug -PagendumValidation` 构建独立的 `com.agendum.app.validation`，与旧版并存。它使用独立的本地数据库和凭据；默认构建仍保留原包名。正式覆盖升级必须使用原发行签名。
 
-安卓两个构建的显示名称现为「Agendum」（beta.17 起曾名「群务台」），没有括号；内部包名继续保持各自不变，覆盖安装保留日程与配对。手机只需留新版时，应先确认新版数据与连接正常，再按用户选择卸载旧版及其本地数据。不要删除新版的数据库、WorkManager 数据或 WebView 正常运行文件。
+安卓两个构建的显示名称现为「Agendum」（beta.17 至本次改名前曾名「群务台」），没有括号。**包名已改为 `com.agendum.app`（验收副本 `com.agendum.app.validation`）**：与旧包名 `com.noticehub.app` 是两个不同的应用，不能覆盖安装。升级时先把旧版里的待同步编辑同步回电脑，确认电脑端数据完整后卸载旧版，再安装新版并重新扫码配对。不要删除新版的数据库、WorkManager 数据或 WebView 正常运行文件。
 
 公网入口只提供日程同步。电脑设置、软件安装、NapCat 控制和设备批准继续在电脑网页操作。每台手机有独立设备令牌，电脑可以单独撤销；令牌由 Android Keystore 保护，不交给 WebView。
 

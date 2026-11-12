@@ -6,7 +6,7 @@ import unittest
 import uuid
 from pathlib import Path
 
-from noticehub.store import Store
+from agendum.store import Store
 
 
 class SyncStoreTest(unittest.TestCase):

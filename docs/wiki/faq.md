@@ -29,7 +29,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'QQ.exe' } |
 
 典型故障是启动器已经退出，但带本安装专用资料目录参数的 QQ 子进程仍在运行。清理后应同时复查进程树和监听端口，不能仅凭启动器消失判断停止成功。
 
-代码原因已确认：旧版 `noticehub/napcat_admin.py` 的 `stop()` 和 `_matching_pids()` 只匹配 NapCat 启动器，快速退出路径在找不到启动器时直接报告已停止；启动器先退出后，独立存活的 QQ 无法被清理。相同的判断也用于启动去重，可能在等待登录时重复启动。这一缺口能解释上述残留，但当时没有日志记录启动器退出的完整时序。
+代码原因已确认：旧版 `agendum/napcat_admin.py` 的 `stop()` 和 `_matching_pids()` 只匹配 NapCat 启动器，快速退出路径在找不到启动器时直接报告已停止；启动器先退出后，独立存活的 QQ 无法被清理。相同的判断也用于启动去重，可能在等待登录时重复启动。这一缺口能解释上述残留，但当时没有日志记录启动器退出的完整时序。
 
 未发布版本已修复：启动、状态查询和停止按本安装完整的 `--user-data-dir` 参数识别启动器与 QQ，支持目录中的空格、大小写和路径分隔符差异。停止不再依赖引擎文件仍然存在，也不会只凭共用的引擎安装路径结束其他实例。清理后用新进程快照复查；仍有残留、查询失败或超时就返回失败并保留托管状态，避免一边占着账号一边恢复普通 QQ。程序退出时也会记录失败，五秒预算到期后继续退出，之后可重新打开程序重试结束托管。源码修复需要重新打包安装后才会用于现有安装版。
 
@@ -57,8 +57,8 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'QQ.exe' } |
 
 服务默认用 8766（网页）、8765（NapCat 上报）、3001（反查 NapCat）。启动报端口占用时：
 
-1. 先确认不是自己开着的另一个Agendum：任务管理器里看有没有多出来的 `QQ-Notice-Hub.exe` / `qq-live-digest.exe`。
-2. 改了端口就得跟着改 `.env` 里的 `NOTICEHUB_WEB_PORT` / `NOTICEHUB_ONEBOT_PORT`，并重启服务。
+1. 先确认不是自己开着的另一个Agendum：任务管理器里看有没有多出来的 `Agendum.exe` / `qq-live-digest.exe`。
+2. 改了端口就得跟着改 `.env` 里的 `AGENDUM_WEB_PORT` / `AGENDUM_ONEBOT_PORT`，并重启服务。
 3. 改完端口，手机端和日历订阅的地址也要跟着换。
 
 ## 手机连不上
@@ -67,7 +67,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'QQ.exe' } |
 
 1. **防火墙**（最常见）。在跑Agendum的那台电脑上用管理员 PowerShell 执行：
    ```powershell
-   netsh advfirewall firewall add rule name="notice-hub 8766" dir=in action=allow protocol=TCP localport=8766
+   netsh advfirewall firewall add rule name="agendum 8766" dir=in action=allow protocol=TCP localport=8766
    ```
    新版也可以直接点页面上的「一键修复」，它会弹一次管理员权限自动加规则。
 2. **同一个 Wi-Fi、地址没选错**。`ipconfig` 看「无线局域网适配器 WLAN」的 IPv4 地址；如果页面给的是 10.x / 172.x 这类 Tailscale、VMware、WSL 的虚拟网卡地址，手机永远连不上。升级到 1.1.0-beta.8 或更新版本会自动避开。
@@ -96,7 +96,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'QQ.exe' } |
 
 ## 网页打不开 / 托盘不见了
 
-- 网页打不开：程序没在跑，重新双击 `QQ-Notice-Hub.exe`。
+- 网页打不开：程序没在跑，重新双击 `Agendum.exe`。
 - 托盘图标不见了：软件被退出或没启动。重新双击，或从桌面快捷方式进。
 - 关掉网页但软件还在跑是正常的，它常驻在托盘里。
 

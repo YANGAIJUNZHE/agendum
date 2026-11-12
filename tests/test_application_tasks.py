@@ -15,7 +15,7 @@ import datetime as dt
 
 import re
 
-from noticehub.application.tasks import (  # noqa: E402
+from agendum.application.tasks import (  # noqa: E402
     apply_task_action,
     correct_task,
     create_task,
@@ -25,9 +25,9 @@ from noticehub.application.tasks import (  # noqa: E402
     task_id_text,
     task_stats,
 )
-from noticehub.config import Settings  # noqa: E402
-from noticehub.timeutil import iso  # noqa: E402
-from noticehub.store import Store  # noqa: E402
+from agendum.config import Settings  # noqa: E402
+from agendum.timeutil import iso  # noqa: E402
+from agendum.store import Store  # noqa: E402
 
 
 class TaskIdTextTest(unittest.TestCase):

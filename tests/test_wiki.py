@@ -9,7 +9,7 @@ import re
 import unittest
 from pathlib import Path
 
-from noticehub.version import APP_VERSION
+from agendum.version import APP_VERSION
 
 WIKI = Path(__file__).resolve().parent.parent / "docs" / "wiki"
 

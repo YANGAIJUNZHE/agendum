@@ -10,7 +10,7 @@
 **跑完自己删**（失败也删，除非 `--keep`）。沙箱里 python 写不了 %TEMP% 时，显式指一个仓库外目录：
     set NH_E2E_RUN_DIR=%TEMP%\\nh-e2e-manual
     python tools\\e2e\\fakes\\selftest.py
-注意：默认落点会经 `_rundir.ensure_outside_repo()` 校验，指到仓库内（如 `F:\\qq-notice-hub\\.tmp-*`）
+注意：默认落点会经 `_rundir.ensure_outside_repo()` 校验，指到仓库内（如 `F:\\agendum\\.tmp-*`）
 会直接报错退出；`--root` 不走这项校验，但也别拿它往仓库里写，产物一样要在同一轮删掉。
 跑完确认 `git status --porcelain --untracked-files=all` 里没有残留。
 """
@@ -95,8 +95,8 @@ def selftest_onebot(root: Path) -> None:
         check("onebot: get_login_info 形状", status == 200 and payload.get("data", {}).get("nickname"),
               json.dumps(payload.get("data"), ensure_ascii=False))
         # 真接收端：起 DigestService 的 OneBot 接收器，经 /__inject 打进真实库
-        from noticehub.config import Settings
-        from noticehub.service import DigestService
+        from agendum.config import Settings
+        from agendum.service import DigestService
 
         data_dir = root / "onebot_service"
         settings = Settings(
@@ -139,7 +139,7 @@ def selftest_onebot(root: Path) -> None:
 def selftest_wechat(root: Path) -> None:
     import os
 
-    from noticehub import wechat_receiver as wr
+    from agendum import wechat_receiver as wr
 
     group = "1234@chatroom"
     ok = start("wechat", mode="ok", root=str(root / "wechat_ok"))
@@ -193,8 +193,8 @@ def selftest_wechat(root: Path) -> None:
 def selftest_dingtalk(root: Path) -> None:
     import os
 
-    from noticehub.config import Settings
-    from noticehub.dingtalk_receiver import DingTalkLocalReader
+    from agendum.config import Settings
+    from agendum.dingtalk_receiver import DingTalkLocalReader
 
     ok = start("dingtalk", root=str(root / "dingtalk_ok"))
     try:
@@ -235,7 +235,7 @@ def selftest_dingtalk(root: Path) -> None:
 def selftest_push(root: Path) -> None:
     sink = start("push", root=str(root / "push_ok"))
     try:
-        status, body = http_json(sink.base_url + "/hook", {"content": "【学院通知】请提交材料", "title": "群务台"})
+        status, body = http_json(sink.base_url + "/hook", {"content": "【学院通知】请提交材料", "title": "Agendum"})
         check("push: 收包回 200", status == 200 and body == {}, "status=%s" % status)
         http_json(sink.base_url + "/other", {"x": 1})
         status, state = http_json(sink.base_url + "/__state")
@@ -273,7 +273,7 @@ def selftest_chaoxing(root: Path) -> None:
     """真链路：注入 QQ_DIGEST_CHAOXING_BASE 后，产品的 ChaoxingClient 直接指向替身。"""
     import os
 
-    from noticehub.chaoxing_receiver import (
+    from agendum.chaoxing_receiver import (
         CHAOXING_BASE_ENV,
         ChaoxingAuthError,
         ChaoxingClient,
@@ -309,8 +309,8 @@ def selftest_chaoxing(root: Path) -> None:
         hits = ok.impl.hit_count() if ok.impl is not None else -1
         check("chaoxing: 替身真的收到请求", hits >= 4, "hits=%s" % hits)
         # 「逐门课抓作业详情」真链路：course_page（带签名）→ work_list → 相对 detail → 解出作业
-        from noticehub.chaoxing_receiver import ChaoxingReader
-        from noticehub.config import Settings
+        from agendum.chaoxing_receiver import ChaoxingReader
+        from agendum.config import Settings
 
         reader = ChaoxingReader(
             Settings(chaoxing_enabled=True, chaoxing_cookie="e2e=cookie"),

@@ -2,17 +2,17 @@
 
 ## 安卓日程管理版升级
 
-先升级电脑，再安装配套 APK；包名仍为 `com.noticehub.app`，覆盖安装必须使用同一签名。开发 APK 使用调试签名，不能承诺可覆盖正式版；不要为测试直接卸载用户应用。新版首次在电脑「手机日程同步」卡片重新配对。
+先升级电脑，再安装配套 APK；包名仍为 `com.agendum.app`，覆盖安装必须使用同一签名。开发 APK 使用调试签名，不能承诺可覆盖正式版；不要为测试直接卸载用户应用。新版首次在电脑「手机日程同步」卡片重新配对。
 
 旧库升级到结构版本 2 前保存 `.pre-sync-v1.bak`。回退应停止服务，保留新版库和手机未同步编辑后恢复备份；旧程序不能直接打开新版库。配置与操作见 [手机日程同步](mobile-sync.md)。
 
-装完之后长这样：一个 `QQ-Notice-Hub.exe`，双击它启动服务、打开网页、在右下角放一个托盘图标。之后所有操作都在网页里做。
+装完之后长这样：一个 `Agendum.exe`，双击它启动服务、打开网页、在右下角放一个托盘图标。之后所有操作都在网页里做。
 
 ## Windows：解压包
 
-1. 从 [本仓库的 Releases](https://github.com/YANGAIJUNZHE/agendum/releases) 下载 `QQ-Notice-Hub.zip`。可在 PowerShell 用 `Get-FileHash .\QQ-Notice-Hub.zip -Algorithm SHA256` 计算哈希，与同页的 `.sha256` 附件核对。
+1. 从 [本仓库的 Releases](https://github.com/YANGAIJUNZHE/agendum/releases) 下载 `Agendum.zip`。可在 PowerShell 用 `Get-FileHash .\Agendum.zip -Algorithm SHA256` 计算哈希，与同页的 `.sha256` 附件核对。
 2. 解压到你想放的位置，例如 `D:\agendum`。别在压缩包里直接双击 exe，也别把 exe 单独拖出去——`_internal`、`_launcher_internal` 这些运行时目录要跟它在一起。
-3. 双击 `QQ-Notice-Hub.exe`。第一次会生成 `.env`、启动服务、打开浏览器，并在桌面建一个快捷方式。
+3. 双击 `Agendum.exe`。第一次会生成 `.env`、启动服务、打开浏览器，并在桌面建一个快捷方式。
 4. 防火墙弹窗选「允许访问」，勾上「专用网络」。手机扫码和日历订阅都要靠它，点「取消」手机就连不上。
 5. 页面里按向导走：扫码登录 QQ → 勾选要盯的群 → 保存。
 
@@ -82,9 +82,9 @@ App 是电脑端服务的壳，消息和待办还在电脑上。
 ### 手动覆盖
 
 1. 下载新的 zip。
-2. 先托盘 →「退出」，把 `QQ-Notice-Hub.exe` 关掉。不关会报「拒绝访问」，因为文件被占着。
+2. 先托盘 →「退出」，把 `Agendum.exe` 关掉。不关会报「拒绝访问」，因为文件被占着。
 3. 解压覆盖到原目录，保留 `.env`、`data\`、`logs\`。
-4. 重新双击 `QQ-Notice-Hub.exe`。
+4. 重新双击 `Agendum.exe`。
 
 覆盖时如果提示「拒绝访问」，多半是旧目录里某个文件被设成只读：右键 → 属性 → 取消「只读」→ 再覆盖一次。
 
@@ -97,7 +97,7 @@ App 是电脑端服务的壳，消息和待办还在电脑上。
 | `安装目录\logs\qq-live-digest.log` | 服务本身的运行日志 |
 | `安装目录\logs\launcher.log` | 启动器与看门狗：服务退出了、重启了 |
 
-托盘没了但进程还在（少见）：任务管理器结束 `QQ-Notice-Hub.exe`，再双击启动。
+托盘没了但进程还在（少见）：任务管理器结束 `Agendum.exe`，再双击启动。
 
 ## 平台差异
 

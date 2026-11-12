@@ -35,9 +35,9 @@ class DoctorBundleCliTest(unittest.TestCase):
         out = self.root / "out"
         # 不碰真实进程/端口：托管探测在测试里打桩。
         patches = (
-            mock.patch("noticehub.hosting.user_qq_pids", return_value=[]),
-            mock.patch("noticehub.hosting.user_qq_path", return_value=None),
-            mock.patch("noticehub.hosting._port_open", return_value=False),
+            mock.patch("agendum.hosting.user_qq_pids", return_value=[]),
+            mock.patch("agendum.hosting.user_qq_path", return_value=None),
+            mock.patch("agendum.hosting._port_open", return_value=False),
         )
         for patch in patches:
             patch.start()

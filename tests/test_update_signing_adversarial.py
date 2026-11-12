@@ -26,7 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from noticehub import update_signing, updater  # noqa: E402
+from agendum import update_signing, updater  # noqa: E402
 
 TEST_KEY_ID = "adv-2026"
 TEST_N = int(
@@ -67,13 +67,13 @@ def base_document() -> dict:
             {
                 "tag": "v1.2.0",
                 "version": "1.2.0",
-                "name": "群务台 1.2.0",
+                "name": "Agendum 1.2.0",
                 "notes": "中文说明也要参与签名",
                 "published_at": "2026-10-28T00:00:00Z",
-                "asset_name": "QQ-Notice-Hub.zip",
+                "asset_name": "Agendum.zip",
                 "size": 50883826,
                 "sha256": "b" * 64,
-                "download_url": "https://github.com/ExpertKT/notice-hub/releases/download/v1.2.0/QQ-Notice-Hub.zip",
+                "download_url": "https://github.com/ExpertKT/agendum/releases/download/v1.2.0/Agendum.zip",
             }
         ],
     }
@@ -418,12 +418,12 @@ class FailClosedWiringTest(_PatchedKey):
 
     def test_signature_failure_is_not_downgraded_to_a_network_error(self) -> None:
         source_list = [
-            {"id": "github", "repo": "ExpertKT/notice-hub", "api_root": "https://api.github.com", "raw_base": "https://raw.githubusercontent.com/ExpertKT/notice-hub/main"},
-            {"id": "gitee", "repo": "ExpertKT/notice-hub-mirror", "api_root": "https://gitee.com/api/v5", "raw_base": "https://gitee.com/ExpertKT/notice-hub-mirror/raw/master"},
+            {"id": "github", "repo": "ExpertKT/agendum", "api_root": "https://api.github.com", "raw_base": "https://raw.githubusercontent.com/ExpertKT/agendum/main"},
+            {"id": "gitee", "repo": "ExpertKT/agendum-mirror", "api_root": "https://gitee.com/api/v5", "raw_base": "https://gitee.com/ExpertKT/agendum-mirror/raw/master"},
         ]
         release = {
             "tag_name": "v9.9.9",
-            "name": "群务台 9.9.9",
+            "name": "Agendum 9.9.9",
             "body": "notes",
             "published_at": "2026-10-28T00:00:00Z",
             "assets": [
@@ -431,7 +431,7 @@ class FailClosedWiringTest(_PatchedKey):
                     "name": updater.ASSET_NAME,
                     "size": 123,
                     "digest": "sha256:" + "d" * 64,
-                    "browser_download_url": "https://github.com/ExpertKT/notice-hub/releases/download/v9.9.9/QQ-Notice-Hub.zip",
+                    "browser_download_url": "https://github.com/ExpertKT/agendum/releases/download/v9.9.9/Agendum.zip",
                 }
             ],
         }

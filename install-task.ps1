@@ -19,15 +19,15 @@ try {
 if (-not $NapCatExecutable) {
     $NapCatExecutable = Join-Path $root 'NapCat.Shell.exe'
 }
-$launcher = Join-Path $root 'QQ-Notice-Hub.exe'
+$launcher = Join-Path $root 'Agendum.exe'
 $runScript = Join-Path $root 'run.ps1'
 $watchdogScript = Join-Path $root 'tools\watchdog-task.ps1'
 
 # C-01: report leftover service binaries instead of silently registering a task that supervises
-# the wrong one. The launcher always starts <root>\noticehub.exe, so the root copy is authoritative;
+# the wrong one. The launcher always starts <root>\agendum.exe, so the root copy is authoritative;
 # a leftover legacy directory from the old zip layout may still hold an old exe. We do NOT delete
 # anything here (the install dir may be the live production one) -- we print what we found.
-$rootService = Join-Path $root 'noticehub.exe'
+$rootService = Join-Path $root 'agendum.exe'
 $legacyDir = Join-Path $root 'qq-live-digest'
 if ((Test-Path -LiteralPath $legacyDir -PathType Container) -and (Test-Path -LiteralPath $rootService -PathType Leaf)) {
     Write-Warning ("发现旧布局残留目录：{0}" -f $legacyDir)
@@ -47,8 +47,8 @@ if (Test-Path -LiteralPath $launcher) {
 } else {
     # C-01: fail with readable Chinese and a clean exit code instead of a PowerShell red stack
     # trace, so a user (or the automated check) running this gets an actionable message.
-    Write-Host ("没有在 {0} 里找到 QQ-Notice-Hub.exe，也没有 run.ps1，无法注册开机自启。" -f $root)
-    Write-Host '请确认解压完整（顶层应该直接有 QQ-Notice-Hub.exe），或用 -InstallDir 指定正确的安装目录。'
+    Write-Host ("没有在 {0} 里找到 Agendum.exe，也没有 run.ps1，无法注册开机自启。" -f $root)
+    Write-Host '请确认解压完整（顶层应该直接有 Agendum.exe），或用 -InstallDir 指定正确的安装目录。'
     exit 0
 }
 
@@ -70,9 +70,9 @@ $tasks = @()
 if (Test-Path -LiteralPath $NapCatExecutable -PathType Leaf) {
     $tasks += @{ Name = 'NapCat-QQ'; Action = (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $napcatArgs -WorkingDirectory $root); Trigger = $logon }
 } else {
-    Write-Host ("Skipping NapCat-QQ: executable not found at '{0}'. If needed, pass -NapCatExecutable '<full path to NapCatWinBootMain.exe>'. The QQ-Notice-Hub launcher starts NapCat itself." -f $NapCatExecutable)
+    Write-Host ("Skipping NapCat-QQ: executable not found at '{0}'. If needed, pass -NapCatExecutable '<full path to NapCatWinBootMain.exe>'. The Agendum launcher starts NapCat itself." -f $NapCatExecutable)
 }
-$tasks += @{ Name = 'NoticeHub'; Action = $serviceAction; Trigger = $logon }
+$tasks += @{ Name = 'Agendum'; Action = $serviceAction; Trigger = $logon }
 if (Test-Path -LiteralPath $watchdogScript) {
     $tasks += @{ Name = 'NapCat-QQ-Watchdog'; Action = (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $watchdogArgs -WorkingDirectory $root); Trigger = $startup }
 } else {
@@ -99,8 +99,8 @@ foreach ($task in $tasks) {
             Write-Host 'NapCat-QQ-Watchdog skipped: 看门狗需要以管理员身份运行 install-task.ps1。'
             continue
         }
-        if ($task.Name -eq 'NoticeHub' -and ($message -match 'Access is denied|access denied|拒绝访问|权限')) {
-            Write-Host 'NoticeHub 注册需要以管理员身份运行 install-task.ps1。'
+        if ($task.Name -eq 'Agendum' -and ($message -match 'Access is denied|access denied|拒绝访问|权限')) {
+            Write-Host 'Agendum 注册需要以管理员身份运行 install-task.ps1。'
             continue
         }
         throw
@@ -111,13 +111,13 @@ if ($registered.Count -gt 0) {
 }
 
 # 品牌切换：旧任务名跑的是同一个服务，留着会让开机起两条（两个实例抢同一个端口）。
-if ($registered -contains 'NoticeHub') {
+if ($registered -contains 'Agendum') {
     if (Get-ScheduledTask -TaskName 'QQ-Live-Digest' -ErrorAction SilentlyContinue) {
         try {
             schtasks /Delete /TN "QQ-Live-Digest" /F | Out-Null
             Write-Host 'Removed legacy scheduled task: QQ-Live-Digest'
         } catch {
-            Write-Warning ("旧任务 QQ-Live-Digest 删除失败，请手动删除，否则可能与 NoticeHub 同时启动：{0}" -f $_.Exception.Message)
+            Write-Warning ("旧任务 QQ-Live-Digest 删除失败，请手动删除，否则可能与 Agendum 同时启动：{0}" -f $_.Exception.Message)
         }
     }
 }
@@ -134,7 +134,7 @@ if ($registered.Count -gt 0) {
             }
         }
     }
-    $firewallRuleName = "群务台 $webPort"
+    $firewallRuleName = "Agendum $webPort"
     $firewallRuleExists = $false
     try {
         $firewallRuleExists = @(Get-NetFirewallRule -DisplayName $firewallRuleName -ErrorAction SilentlyContinue).Count -gt 0

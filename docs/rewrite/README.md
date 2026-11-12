@@ -2,7 +2,7 @@
 
 状态：主线已签「够接 Web」。签收对象是他们本地的 `rewrite/g1-fix` `b42d688`，不在 `origin`。本分支已吸收到 `cb29a35`（代码段 `1efa41e`，`1.1.0-beta.15`）。`docs/rewrite/baseline/` 不在 `origin`，这边没有可 `--update` 的脚本。
 
-行为基线：`1efa41e`。新包名：`noticehub`。重命名留到最后一个提交，在此之前运行代码仍在 `qq_live_digest`。
+行为基线：`1efa41e`。新包名：`agendum`。重命名留到最后一个提交，在此之前运行代码仍在 `qq_live_digest`。
 
 主线请先看 [给主线.md](给主线.md)。
 
@@ -18,4 +18,4 @@
 | [06-migration.md](06-migration.md) | 并存、切换、最后一次重命名 |
 | [07-risks.md](07-risks.md) | 会打断什么，以及发现清单 |
 
-接缝：`noticehub.application` 的用例签名与 `noticehub.ports`。这条线以下归重写方，以上归主线。主线并行改 Web 时只依赖这两处，不读重写方进行中的实现。
+接缝：`agendum.application` 的用例签名与 `agendum.ports`。这条线以下归重写方，以上归主线。主线并行改 Web 时只依赖这两处，不读重写方进行中的实现。

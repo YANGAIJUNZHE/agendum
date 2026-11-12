@@ -1,6 +1,6 @@
 """运行产物放哪儿：一律 `%TEMP%`，而且绝不允许落进仓库。
 
-这台机器上 `tempfile.gettempdir()` 会解析到 `F:\\qq-notice-hub`（工作区把 TEMP 指过去了），
+这台机器上 `tempfile.gettempdir()` 会解析到 `F:\\agendum`（工作区把 TEMP 指过去了），
 所以不能直接用它——否则 Edge 的 profile、冷装目录、报告、截图全都会写进仓库根。
 这里逐个候选目录验证：必须是真实存在、可写、且不在仓库内的目录。
 """

@@ -114,7 +114,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-windows
-          path: packaging/QQ-Notice-Hub.zip
+          path: packaging/Agendum.zip
           if-no-files-found: error
 
   # 浏览器级行为测试（Playwright + runner 预装 Edge）。
@@ -224,14 +224,14 @@ jobs:
             echo "::error::No release APK found in android/app/build/outputs/apk/release/"
             exit 1
           fi
-          cp "$apk_file" apk-dist/notice-hub-android.apk
+          cp "$apk_file" apk-dist/agendum-android.apk
 
       - name: Save tested APK
         if: inputs.release_sha != ''
         uses: actions/upload-artifact@v4
         with:
           name: release-android
-          path: apk-dist/notice-hub-android.apk
+          path: apk-dist/agendum-android.apk
           if-no-files-found: error
 
   # CI 全绿是推 main 的硬标准（用户 2026-10-27 拍板）：

@@ -1,4 +1,4 @@
-"""noticehub/wechat_receiver.py 测试。
+"""agendum/wechat_receiver.py 测试。
 
 全部合成数据：用明文 SQLite 直接构造「解密后」的库字节，用 mock 打桩内存扫描与密钥
 发现（**绝不真扫 767MB 内存 / 不碰真机微信目录**）。
@@ -19,8 +19,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from noticehub import ttl_cache
-from noticehub import wechat_receiver as wr
+from agendum import ttl_cache
+from agendum import wechat_receiver as wr
 
 GROUP = "1234@chatroom"
 GROUP_OTHER = "9999@chatroom"
@@ -1031,7 +1031,7 @@ class ManualKeyTests(unittest.TestCase):
     def test_parse_rejects_wrong_length_with_actionable_message(self):
         with self.assertRaises(ValueError) as ctx:
             wr.parse_manual_key("abcd1234")
-        self.assertIn("NOTICEHUB_WECHAT_KEY", str(ctx.exception))
+        self.assertIn("AGENDUM_WECHAT_KEY", str(ctx.exception))
         self.assertIn("64 位十六进制", str(ctx.exception))
         self.assertNotIn("abcd1234", str(ctx.exception))  # 报错里别回显密钥
 
@@ -1054,7 +1054,7 @@ class ManualKeyTests(unittest.TestCase):
                     mock.patch.dict(os.environ, {wr.WECHAT_KEY_ENV: bytes(range(32)).hex()}):
                 with self.assertRaises(ValueError) as ctx:
                     wr.resolve_key(storage)
-        self.assertIn("NOTICEHUB_WECHAT_KEY", str(ctx.exception))
+        self.assertIn("AGENDUM_WECHAT_KEY", str(ctx.exception))
         self.assertEqual(wr.last_key_failure().get("category"), "bad_manual_key")
         find.assert_not_called()
 
@@ -1258,7 +1258,7 @@ class StorageBusyTests(unittest.TestCase):
         self.assertEqual(wr.classify_scan_error(OSError(5, "I/O error")), "storage_busy")
         # 真正的密钥报错仍然归到 bad_manual_key，别把两类混在一起
         self.assertEqual(
-            wr.classify_scan_error(ValueError("NOTICEHUB_WECHAT_KEY 填的密钥解不开当前微信数据库")),
+            wr.classify_scan_error(ValueError("AGENDUM_WECHAT_KEY 填的密钥解不开当前微信数据库")),
             "bad_manual_key",
         )
 

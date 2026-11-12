@@ -6,8 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from noticehub.config import Settings
-from noticehub.replies import (
+from agendum.config import Settings
+from agendum.replies import (
     RULE_AT,
     RULE_CONFIRM,
     RULE_DEADLINE,
@@ -17,7 +17,7 @@ from noticehub.replies import (
     list_pending,
     scan,
 )
-from noticehub.store import Store
+from agendum.store import Store
 
 
 class RepliesTest(unittest.TestCase):

@@ -10,7 +10,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="noticehub" android:host="connect" />
+                <data android:scheme="agendum" android:host="connect" />
             </intent-filter>
         </activity>
         <!-- 扫码页跟着手机转：库自带的清单把它钉成 sensorLandscape，横屏抓着手机很难对准二维码。

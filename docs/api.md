@@ -1,8 +1,8 @@
 # Agendum HTTP 接口与命令行参考
 
-适用版本：`1.1.0-beta.16`（`noticehub/version.py` 的 `APP_VERSION`）。
+适用版本：`1.1.0-beta.16`（`agendum/version.py` 的 `APP_VERSION`）。
 
-这份文档只写代码里真实存在的东西：每条接口对应 `noticehub/routes.py` 路由表里的一项，参数字段和返回键来自 `noticehub/webapp.py` / `noticehub/settings_api.py` 的处理方法。命令、路径、字段名都按原样抄，不做「美化」。
+这份文档只写代码里真实存在的东西：每条接口对应 `agendum/routes.py` 路由表里的一项，参数字段和返回键来自 `agendum/webapp.py` / `agendum/settings_api.py` 的处理方法。命令、路径、字段名都按原样抄，不做「美化」。
 
 ## 0. 规模与数法
 
@@ -11,17 +11,17 @@
 数法（在仓库根目录执行，输出的四个数字相加即 105）：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 -c "import noticehub.routes as r; print(len(r.GET_ROUTES), len(r.POST_ROUTES), len(r.GET_PATTERN_ROUTES), len(r.POST_PATTERN_ROUTES))"
+.\.venv\Scripts\python.exe -X utf8 -c "import agendum.routes as r; print(len(r.GET_ROUTES), len(r.POST_ROUTES), len(r.GET_PATTERN_ROUTES), len(r.POST_PATTERN_ROUTES))"
 # 62 41 1 1
 ```
 
-路由表本身在 `noticehub/routes.py:13`（GET）与 `noticehub/routes.py:78`（POST），每条是 `路径 → (处理方法名, 是否免鉴权)`。`do_GET` / `do_POST`（`noticehub/webapp.py:3465` / `:4391`）查表后调 `getattr(self, 方法名)(path)`。
+路由表本身在 `agendum/routes.py:13`（GET）与 `agendum/routes.py:78`（POST），每条是 `路径 → (处理方法名, 是否免鉴权)`。`do_GET` / `do_POST`（`agendum/webapp.py:3465` / `:4391`）查表后调 `getattr(self, 方法名)(path)`。
 
 ## 1. 通用约定
 
 ### 1.1 鉴权
 
-令牌来自 `.env` 的 `NOTICEHUB_WEB_TOKEN`（旧名 `QQ_DIGEST_WEB_TOKEN`）。三种带法，按判定顺序（`noticehub/webapp.py:1691`）：
+令牌来自 `.env` 的 `AGENDUM_WEB_TOKEN`（旧名 `QQ_DIGEST_WEB_TOKEN`）。三种带法，按判定顺序（`agendum/webapp.py:1691`）：
 
 1. `Cookie: nh_session=<值>` —— 会话 Cookie，值是 `HMAC(token, b"nh-session-v1")` 的十六进制（`webapp.py:87`）。确定性 HMAC，重启后旧 Cookie 仍有效。
 2. `X-Token: <token>` —— 请求头。
@@ -43,7 +43,7 @@
 
 - 未匹配到路由：`404 {"ok": false, "error": "not found"}`。
 - 爆破防护：同一来源 60 秒内失败 30 次（`AUTH_FAILURE_LIMIT`，`webapp.py:75`）后直接 `429 {"ok": false, "error": "尝试过于频繁，请稍后再试"}`，连比对都不做（`webapp.py:1684`）。
-- POST 请求体上限 `MAX_BODY_BYTES = 64 * 1024`（`noticehub/settings_api.py:39`）；超限先排空再回 `400 {"ok": false, "error": "bad body"}`。
+- POST 请求体上限 `MAX_BODY_BYTES = 64 * 1024`（`agendum/settings_api.py:39`）；超限先排空再回 `400 {"ok": false, "error": "bad body"}`。
 - 多数接口失败时**仍然回 200**，用 `ok: false` 表示业务失败（页面按 `ok` 分支）。带明确状态码的是：参数错 400、鉴权 401、限流/配对频繁 429、任务不存在 404、模块不可用 503、上游失败 502。
 - 所有 JSON 响应带 `Cache-Control: no-store`。
 
@@ -74,7 +74,7 @@
 - **`/api/overview` 是通道判定的唯一来源**。设置页、服务自检、合并向导都读它，所以三处不会互相矛盾。它不自己探测：自检已经算过的通道状态会挂在 `self._precomputed_status` 上被复用（`webapp.py:2047`），避免一次请求里把同一批外部探测跑两遍。
 - **`/api/health` 会真查库**（`SELECT 1`），进程活着但库读不了时回 503（`webapp.py:2468`）。它只回粗粒度状态，不暴露路径、令牌、群 ID——这是公网可达的接口。`receivers` 里 `idle`（一次都没跑过）算 `unknown`，不给绿点。
 - **`/api/selfcheck` 是单飞的**：同一时刻只算一遍，并发来的第二次等第一次算完复用结果（`webapp.py:2837`），最多等 `SELFCHECK_WAIT_SECONDS = 30` 秒。复用命中时 `cached: true`。
-- `/api/community/counts` 在开关打开时**顺手起一个后台线程**上报「今日打开」，页面不等它（`webapp.py:2575`）。开关是 `NOTICEHUB_COMMUNITY_TELEMETRY`（默认 `0`）。
+- `/api/community/counts` 在开关打开时**顺手起一个后台线程**上报「今日打开」，页面不等它（`webapp.py:2575`）。开关是 `AGENDUM_COMMUNITY_TELEMETRY`（默认 `0`）。
 
 ```powershell
 curl.exe -s "http://127.0.0.1:8766/api/overview?token=<token>"
@@ -103,7 +103,7 @@ curl.exe -s "http://127.0.0.1:8766/api/insights?days=7&token=<token>"
 
 行为要点：
 
-- `/api/tasks/<id>` 的 `action` 只有六个合法值（`noticehub/application/tasks.py:65`）：`confirm`、`dismiss`、`done`、`reopen`、`snooze`、`delete`。别的值回 `400 unsupported action`。
+- `/api/tasks/<id>` 的 `action` 只有六个合法值（`agendum/application/tasks.py:65`）：`confirm`、`dismiss`、`done`、`reopen`、`snooze`、`delete`。别的值回 `400 unsupported action`。
 - 只给 `done` 不给 `action` 时，`true` 当 `done`、`false` 当 `reopen`（`tasks.py:93`）。
 - `action: "correct"` 走纠错分支（`webapp.py:4357`），需要 `correction`；`value` 可选。
 - **`snooze` 不接受自定义时间**：路由只透传 `done`，`until` 拿不到，一律用默认值=次日早晨的截止提醒时刻（`tasks.py:68`）。
@@ -159,7 +159,7 @@ curl.exe -s -X POST "http://127.0.0.1:8766/api/inbox/delete?token=<token>" -H "C
 
 行为要点：
 
-- 日期必须严格是 `YYYY-MM-DD`（`noticehub/application/jobs.py:23`），`since > until` 回 400。
+- 日期必须严格是 `YYYY-MM-DD`（`agendum/application/jobs.py:23`），`since > until` 回 400。
 - `/api/history/floor` 是「NapCat 缓存最老能追到哪天」的探测，最多翻 2 页、单页超时 15 秒（`webapp.py:3137`）——最坏约 30 秒，不是无限等。
 - 取消接口在任务已结束时回 409（与收件箱那边的取消不同，后者总是 200）。
 
@@ -184,7 +184,7 @@ curl.exe -s "http://127.0.0.1:8766/api/history/floor?group_id=123456&token=<toke
 
 - `/api/sync/test` 只允许测**本服务公布过的**地址（局域网、Tailscale）以及 `127.0.0.1` / `localhost` 的同端口 `/calendar.ics`（`webapp.py:3039`）。它是个 SSRF 防护：拒绝任意外部 URL。
 - `/api/sync/qr.png` 只接受 `webcal:` / `http:` / `https:`，且不含凭据、不含空白字符。
-- `calendar.ics` 的 token 用的是同一个 `NOTICEHUB_WEB_TOKEN`，订阅地址里带着它——分享给别人等于分享令牌。
+- `calendar.ics` 的 token 用的是同一个 `AGENDUM_WEB_TOKEN`，订阅地址里带着它——分享给别人等于分享令牌。
 
 ```powershell
 curl.exe -s "http://127.0.0.1:8766/api/sync/info?token=<token>"
@@ -209,7 +209,7 @@ curl.exe -s -o NUL -w "%{http_code}`n" "http://127.0.0.1:8766/calendar?token=<to
 
 行为要点：
 
-- 实验室四个开关默认全关（`NOTICEHUB_LAB_SEARCH` / `_REPLIES` / `_EVENTS` / `_RULES`）。没开时**回 403**「未开启…」，不是 404 也不是 200（`webapp.py:1624`）。
+- 实验室四个开关默认全关（`AGENDUM_LAB_SEARCH` / `_REPLIES` / `_EVENTS` / `_RULES`）。没开时**回 403**「未开启…」，不是 404 也不是 200（`webapp.py:1624`）。
 - 参数非法回 400，模块内部失败回 503。这一层会把底层返回的 `{ok: false, error}` 摊平，避免把「第 2 条规则非法」当成保存成功。
 - `POST /api/lab/events` 与 `POST /api/lab/replies/ack` **共用同一个处理方法**（`routes.py:91-92`），按路径分流。
 
@@ -245,7 +245,7 @@ curl.exe -s -X POST "http://127.0.0.1:8766/api/lab/events?token=<token>" -H "Con
 
 - `stage` 是这套接口的核心状态机：`online` / `waiting_qr` / `waiting_login` / `stopped` / `not_installed` / `error`。`waiting_qr` 时 `qr_age_seconds` 说明码有多旧，`qr_stale` 表示该换码了。
 - **`/api/napcat/install` 是同步的**：请求会一直等到装完（可能几分钟）才返回最终结果，期间进度写进任务快照，前端并行轮询 `/api/napcat/install/status` 显示百分比（`webapp.py:4158`）。超时/断连会让页面看着像卡住——这是已知设计，不是新接口。
-- `POST /api/napcat/connect` 只读 NapCat 自己的配置、**绝不改**，写回的是我们自己的 `NOTICEHUB_NAPCAT_API_URL`（`webapp.py:4252`）。写不进 `.env` 时仍返回 `ok: true`，但 `persisted: false` 并带 `persist_error`——重启会回到旧地址。
+- `POST /api/napcat/connect` 只读 NapCat 自己的配置、**绝不改**，写回的是我们自己的 `AGENDUM_NAPCAT_API_URL`（`webapp.py:4252`）。写不进 `.env` 时仍返回 `ok: true`，但 `persisted: false` 并带 `persist_error`——重启会回到旧地址。
 - 四个「改本机状态」的接口（install/launch/restart/autosetup）**不做确认校验**，靠页面按钮；它们会真的装软件、起进程。
 - `POST /api/napcat/connect` 成功后会清 NapCat 状态缓存，下一轮 `/api/napcat/status` 立刻反映新地址。
 
@@ -352,7 +352,7 @@ curl.exe -s -X POST "http://127.0.0.1:8766/api/chaoxing/auto_cookie?token=<token
 - **`/api/tunnel/start` 必须带 `{"confirm": true}`**，否则 400 + `needs_confirm: true`（`webapp.py:3826`）。老接口 `/api/pair/public` 为兼容旧页面**不要求** confirm，但两者走同一套执行路径，审计一样记。
 - **没有令牌时不许开公网**：`/api/tunnel/start` 与 `/api/pair/public` 在令牌为空时回 400（`webapp.py:3818`）。原因是 Funnel 反代后来源变成 `127.0.0.1`，正好命中「空 token 放行环回」，等于把整站无鉴权公开。
 - 开通是**异步**的：接口只把后台任务起起来就返回，页面轮询 `/api/tunnel/status`（状态机含 `installed`、`auth_url`、`retryable`）。不会再像旧版那样把请求挂到超时。
-- 审计：`/api/tunnel/start`、`/api/firewall/allow`、`/api/onboarding/run` 都会写 `data/host-actions.log`（`noticehub/host_actions.py:28`）。
+- 审计：`/api/tunnel/start`、`/api/firewall/allow`、`/api/onboarding/run` 都会写 `data/host-actions.log`（`agendum/host_actions.py:28`）。
 
 ```powershell
 curl.exe -s "http://127.0.0.1:8766/api/pair/info?token=<token>"
@@ -381,7 +381,7 @@ curl.exe -s "http://127.0.0.1:8766/api/app/qr.png?base=http%3A%2F%2F192.168.1.5%
 | `GET` | `/api/firewall/status` | 需要 | — | `{ok, port, state, message, at, checked}` |
 | `POST` | `/api/firewall/allow` | 需要 | `confirm: true`（必须） | `{ok, state: "pending", request_id, port}` |
 
-`POST /api/settings` 的「按组单独保存」——一次只能带一组，混带会被拒（`noticehub/settings_api.py:278-308`）：
+`POST /api/settings` 的「按组单独保存」——一次只能带一组，混带会被拒（`agendum/settings_api.py:278-308`）：
 
 | 组 | 字段 |
 |---|---|
@@ -431,7 +431,7 @@ curl.exe -s -X POST "http://127.0.0.1:8766/api/firewall/allow?token=<token>" -H 
 行为要点：
 
 - `/api/hosting/start` 与 `/api/hosting/stop` **共用同一个处理方法**（`routes.py:85-86`），按路径结尾是否 `/start` 分流（`webapp.py:4101`）。空请求体按 `{}` 处理（`Content-Length: 0` 也收），但发坏 JSON 回 `400 bad json`。
-- `hosting_status` 里 `napcat_running`（端口开着）与 `napcat_online`（真的登录了）是两件事——6099 端口用户开日常 QQ 也会监听，不能据此判 NapCat 在跑（`noticehub/hosting.py:396`）。
+- `hosting_status` 里 `napcat_running`（端口开着）与 `napcat_online`（真的登录了）是两件事——6099 端口用户开日常 QQ 也会监听，不能据此判 NapCat 在跑（`agendum/hosting.py:396`）。
 - `/api/onboarding/accept` 是幂等的：已接受过就直接回原来的时间戳，不覆盖（`webapp.py:3533`）。
 - `/api/onboarding/run` 会写审计（`onboarding.<action>`）。
 
@@ -521,18 +521,18 @@ curl.exe -s "http://127.0.0.1:8766/api/donate/qr.png" -o donate.jpg
 | `attach-test` | `[path]`、`--group`、`--file-id`、`--busid`、`--name` | 解析群文件/图片，只打印摘要不推送 |
 
 ```powershell
-F:\notice-hub\qq-live-digest.exe --env F:\notice-hub\.env run
+F:\agendum\qq-live-digest.exe --env F:\agendum\.env run
 ```
 
 **`--env` 的位置是硬要求**：它是顶层参数，写在子命令后面会报 `unrecognized arguments: --env ...`（`packaging/launcher.py:673` 有原文注释）。
 
-打包版另有 `QQ-Notice-Hub.exe --quit`：让这份安装里正跑着的托盘退出，等价于右键托盘→「退出」，返回 0 表示确认已退出（`packaging/launcher.py:248`）。它不属于 `main.py` 的子命令。
+打包版另有 `Agendum.exe --quit`：让这份安装里正跑着的托盘退出，等价于右键托盘→「退出」，返回 0 表示确认已退出（`packaging/launcher.py:248`）。它不属于 `main.py` 的子命令。
 
 ## 18. 配置项
 
-**共 108 个环境变量**：103 个 `NOTICEHUB_*` + 5 个不带前缀的推送通道键（第三方名字，见 18.1）。
+**共 108 个环境变量**：103 个 `AGENDUM_*` + 5 个不带前缀的推送通道键（第三方名字，见 18.1）。
 
-103 个 `NOTICEHUB_*` 里，98 个在 `noticehub/bootstrap/settings.py` 的 `env_value(...)` 里读，5 个在别处按需读（`NOTICEHUB_NAPCAT_DIR`、`NOTICEHUB_QQ_EXE`、`NOTICEHUB_HOST_ACTIONS`、`NOTICEHUB_UPDATE_MIRROR`、`NOTICEHUB_CHAOXING_BASE`）。
+103 个 `AGENDUM_*` 里，98 个在 `agendum/bootstrap/settings.py` 的 `env_value(...)` 里读，5 个在别处按需读（`AGENDUM_NAPCAT_DIR`、`AGENDUM_QQ_EXE`、`AGENDUM_HOST_ACTIONS`、`AGENDUM_UPDATE_MIRROR`、`AGENDUM_CHAOXING_BASE`）。
 
 「改完要不要重启」这一列：
 
@@ -542,111 +542,111 @@ F:\notice-hub\qq-live-digest.exe --env F:\notice-hub\.env run
 
 | 变量 | 类型 | 默认值 | 作用 | 改了要不要重启 |
 |---|---|---|---|---|
-| `NOTICEHUB_ENV` | 字符串 | `<运行目录>\.env` | `.env` 文件路径 | 要重启 |
-| `NOTICEHUB_DATA_DIR` | 字符串 | `<运行目录>\data` | 数据目录（库、附件、二维码） | 要重启 |
-| `NOTICEHUB_LOG_DIR` | 字符串 | `<运行目录>\logs` | 日志目录 | 要重启 |
-| `NOTICEHUB_GROUPS` | 列表 | 空 | **必填**：要监控的群号；空=不处理任何群（fail-closed） | 保存即生效 |
-| `NOTICEHUB_GROUP_ALIASES` | 映射 | 空 | 群号→中文名 | 保存即生效 |
-| `NOTICEHUB_QUIET_GROUPS` | 列表 | 空 | 低优先级群：不触发紧急立即推，不入摘要/待办 | 保存即生效 |
-| `NOTICEHUB_IMMEDIATE_GROUPS` | 列表 | 空 | 即时处理群：不等合并窗口 | 保存即生效 |
-| `NOTICEHUB_OFFICIAL_BOT_ENABLED` | bool | `1` | 官方 QQ 机器人开关（与 NapCat 链路二选一） | 要重启 |
-| `NOTICEHUB_PUSH_OPENIDS` | 列表 | 空 | 官方机器人私聊推送目标 openid | 保存即生效 |
-| `NOTICEHUB_WEBHOOKS` | 列表 | 空 | 通用 Webhook（POST JSON: title/content/source） | 保存即生效 |
-| `NOTICEHUB_ONEBOT_ENABLED` | bool | `0` | 启用 OneBot HTTP 上报接收 | 要重启 |
-| `NOTICEHUB_ONEBOT_HOST` | 字符串 | `127.0.0.1` | 接收端绑定地址 | 要重启 |
-| `NOTICEHUB_ONEBOT_PORT` | int | `8765` | 接收端端口 | 要重启 |
-| `NOTICEHUB_ONEBOT_TOKEN` | 字符串 | 空 | 接收端令牌；空时非环回来源的消息会被拒收 | 要重启 |
-| `NOTICEHUB_NAPCAT_API_URL` | 字符串 | `http://127.0.0.1:3001` | NapCat HTTP API 地址 | 保存即生效 |
-| `NOTICEHUB_NAPCAT_API_TOKEN` | 字符串 | 空（回退 `ONEBOT_TOKEN`） | NapCat API 令牌 | 保存即生效 |
-| `NOTICEHUB_NAPCAT_QR_PATH` | 字符串 | `<data>\qrcode.png` | 当前登录二维码文件路径 | 保存即生效 |
-| `NOTICEHUB_NAPCAT_DIR` | 字符串 | 空 | NapCat 安装目录（自动发现失败时手填） | 保存即生效 |
-| `NOTICEHUB_QQ_EXE` | 字符串 | 空 | QQ 可执行文件路径（自动发现失败时手填） | 保存即生效 |
-| `NOTICEHUB_HTTP_TIMEOUT` | int | `15` | 调 NapCat/学习通等外部接口超时（秒） | 保存即生效 |
-| `NOTICEHUB_QQ_GROUP_REFRESH_INTERVAL_SECONDS` | int | `300` | 群列表刷新间隔（秒） | 保存即生效 |
-| `NOTICEHUB_CATCHUP_ENABLED` | bool | `0` | 自动历史补采 | 保存即生效 |
-| `NOTICEHUB_CATCHUP_HOURS` | int | `24` | 补采回溯多少小时 | 保存即生效 |
-| `NOTICEHUB_CATCHUP_COUNT` | int | `50` | 每轮补采条数上限 | 保存即生效 |
-| `NOTICEHUB_CATCHUP_INTERVAL_MINUTES` | int | `30` | 补采间隔（分钟） | 保存即生效 |
-| `NOTICEHUB_DINGTALK_ENABLED` | bool | `0` | 启用钉钉接入 | 保存即生效 |
-| `NOTICEHUB_DINGTALK_GROUP_WHITELIST` | 列表 | 空 | 要监听的钉钉群 | 保存即生效 |
-| `NOTICEHUB_DINGTALK_SCAN_INTERVAL_SECONDS` | int | `30` | 钉钉扫描间隔（最小 5） | 保存即生效 |
-| `NOTICEHUB_WECHAT_ENABLED` | bool | `0` | 启用微信接入 | 保存即生效 |
-| `NOTICEHUB_WECHAT_GROUP_WHITELIST` | 列表 | 空 | 要读的微信群 | 保存即生效 |
-| `NOTICEHUB_WECHAT_GROUP_ALIASES` | 映射 | 空 | 微信群 id→中文名 | 保存即生效 |
-| `NOTICEHUB_WECHAT_SCAN_INTERVAL_SECONDS` | int | `300` | 微信扫描间隔（最小 30） | 保存即生效 |
-| `NOTICEHUB_WECHAT_KEY` | 字符串 | 空 | 手填的微信数据库 raw key（64 位十六进制） | 保存即生效 |
-| `NOTICEHUB_WECHAT_DIR` | 字符串 | 空 | 微信文件目录（改过存储位置时手填） | 保存即生效 |
-| `NOTICEHUB_CHAOXING_ENABLED` | bool | `0` | 启用学习通同步 | 保存即生效 |
-| `NOTICEHUB_CHAOXING_COOKIE` | 字符串 | 空（回退 `data/chaoxing.cookie`） | 学习通登录信息 | 保存即生效 |
-| `NOTICEHUB_CHAOXING_GROUP_WHITELIST` | 列表 | 空 | 学习通课程/群白名单 | 保存即生效 |
-| `NOTICEHUB_CHAOXING_SCAN_INTERVAL_SECONDS` | int | `1800` | 学习通同步间隔（最小 1800） | 保存即生效 |
-| `NOTICEHUB_CHAOXING_BASE` | 字符串 | 不设（用内置主机名） | 覆盖学习通接口基地址；设成 `off`/空串之外的值必须带 `http(s)://` 且非空，否则启动时报错 | 要重启 |
-| `NOTICEHUB_LLM` | bool | `1` | 启用 AI 精炼 | 保存即生效 |
-| `NOTICEHUB_LLM_BACKEND` | 字符串 | `auto` | 提取后端：`auto` / `ollama` / `openai` / `codebuddy` | 保存即生效 |
-| `NOTICEHUB_LLM_API_KEY` | 字符串 | 空（兼容 `DASHSCOPE_API_KEY`） | OpenAI 兼容厂商的 key | 保存即生效 |
-| `NOTICEHUB_LLM_ENDPOINT` | 字符串 | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | 精炼接口地址 | 保存即生效 |
-| `NOTICEHUB_LLM_MODEL` | 字符串 | `qwen-plus` | 精炼模型 | 保存即生效 |
-| `NOTICEHUB_CODEBUDDY_CLI` | 字符串 | 空 | CodeBuddy/WorkBuddy CLI 路径 | 保存即生效 |
-| `NOTICEHUB_LLM_TIMEOUT` | int | `60` | 单次精炼超时（最小 10） | 保存即生效 |
-| `NOTICEHUB_LLM_MAX_RETRIES` | int | `2` | 失败原地重试次数 | 保存即生效 |
-| `NOTICEHUB_LLM_RETRY_BACKOFF` | float | `1.5` | 重试退避倍数 | 保存即生效 |
-| `NOTICEHUB_LLM_DEFER_MAX_ATTEMPTS` | int | `3` | 可恢复失败最多推迟几次 | 保存即生效 |
-| `NOTICEHUB_LLM_DEFER_WINDOW_MINUTES` | int | `15` | 推迟窗口（分钟，最小 1） | 保存即生效 |
-| `NOTICEHUB_VISION` | bool | `1` | 是否读图 | 保存即生效 |
-| `NOTICEHUB_VL_MODEL` | 字符串 | `qwen3-vl-plus` | 视觉模型名（换端点后必须改成该端点自己的模型） | 保存即生效 |
-| `NOTICEHUB_INCLUDE_RAW` | bool | `0` | 推送里是否附原文 | 保存即生效 |
-| `NOTICEHUB_ATTACHMENTS` | bool | `1` | 是否解析群文件/群图片 | 保存即生效 |
-| `NOTICEHUB_ATTACHMENT_MAX_MB` | int | `10` | 单个附件大小上限（MB） | 保存即生效 |
-| `NOTICEHUB_ATTACHMENT_MAX_PER_HOUR` | int | `30` | 每小时最多处理几个附件 | 保存即生效 |
-| `NOTICEHUB_ATTACHMENT_RETENTION_DAYS` | int | `7` | 附件保留天数 | 保存即生效 |
-| `NOTICEHUB_DOCUMENT_MAX_CHARS` | int | `30000` | 文档提取字符上限（最小 1000） | 保存即生效 |
-| `NOTICEHUB_PDF_OCR_MAX_PAGES` | int | `20` | PDF OCR 最多页数 | 保存即生效 |
-| `NOTICEHUB_DEDUPE_HOURS` | int | `6` | 同一条通知多少小时内不重复推，0=关闭 | 保存即生效 |
-| `NOTICEHUB_PUSH_HTML` | bool | `1` | 推送卡片用 HTML 排版 | 保存即生效 |
-| `NOTICEHUB_PUSH_DAILY_BUDGET` | int | `12` | 每日非紧急推送预算，0=不限 | 保存即生效 |
-| `NOTICEHUB_QUIET_HOURS` | 时段 | `23:00-07:00` | 夜间静默（紧急事项仍放行），留空=关闭 | 保存即生效 |
-| `NOTICEHUB_DEADLINE_REMINDERS` | bool | `1` | 截止提醒开关 | 保存即生效 |
-| `NOTICEHUB_DEADLINE_MORNING` | 时间 | `07:30` | 早上提醒时刻 | 保存即生效 |
-| `NOTICEHUB_DEADLINE_EVENING` | 时间 | `21:00` | 晚上提前看明天到期的时刻 | 保存即生效 |
-| `NOTICEHUB_CANDIDATE_PUSH` | bool | `1` | 候选确认卡开关 | 保存即生效 |
-| `NOTICEHUB_CANDIDATE_MIN_CONFIDENCE` | float | `0.55` | 候选最低置信度 | 保存即生效 |
-| `NOTICEHUB_CANDIDATE_REMINDER_HOURS` | int | `24` | 候选提醒间隔（最小 6） | 保存即生效 |
-| `NOTICEHUB_CANDIDATE_MAX_PER_TICK` | int | `2` | 每轮最多推几个候选 | 保存即生效 |
-| `NOTICEHUB_CANDIDATE_MAX_PER_DAY` | int | `4` | 每天最多推几个候选 | 保存即生效 |
-| `NOTICEHUB_WEEKLY_REVIEW` | bool | `1` | 每周复盘开关 | 保存即生效 |
-| `NOTICEHUB_WEEKLY_REVIEW_WEEKDAY` | int | `6` | 复盘日（0=周一，6=周日） | 保存即生效 |
-| `NOTICEHUB_WEEKLY_REVIEW_TIME` | 时间 | `20:30` | 复盘时刻 | 保存即生效 |
-| `NOTICEHUB_WINDOW_MINUTES` | int | `10` | 普通通知合并窗口（分钟） | 保存即生效 |
-| `NOTICEHUB_POLL_SECONDS` | int | `20` | 轮询间隔（秒，最小 5） | 保存即生效 |
-| `NOTICEHUB_URGENT_IMMEDIATE` | bool | `1` | 紧急通知立即推送 | 保存即生效 |
-| `NOTICEHUB_MIN_SCORE` | int | `3` | 分数阈值，越高越只推重要通知 | 保存即生效 |
-| `NOTICEHUB_MAX_ITEMS` | int | `30` | 单条摘要最多几件事 | 保存即生效 |
-| `NOTICEHUB_MAX_BATCH` | int | `400` | 单批最多处理多少条消息（最小 50） | 保存即生效 |
-| `NOTICEHUB_MAX_ATTEMPTS` | int | `4` | 投递失败重试次数 | 保存即生效 |
-| `NOTICEHUB_RETRY_SECONDS` | int | `90` | 投递重试间隔（秒，最小 10） | 保存即生效 |
-| `NOTICEHUB_RETENTION_DAYS` | int | `30` | 消息保留天数 | 保存即生效 |
-| `NOTICEHUB_WEB` | bool | `1` | 启用网页/待办台 | 要重启 |
-| `NOTICEHUB_WEB_HOST` | 字符串 | `0.0.0.0`（Windows）/ `127.0.0.1` | 网页绑定地址 | 要重启 |
-| `NOTICEHUB_WEB_PORT` | int | `8766` | 网页端口 | 要重启 |
-| `NOTICEHUB_WEB_TOKEN` | 字符串 | 空（非环回绑定时自动生成） | 网页访问令牌 | 要重启 |
-| `NOTICEHUB_WEB_BASE_URL` | 字符串 | 空 | 固定外部访问地址（如 Tailscale Serve 的 HTTPS 地址） | 保存即生效 |
-| `NOTICEHUB_HOSTING_QUIT_QQ` | bool | `1` | 开始托管时先关电脑版 QQ | 保存即生效 |
-| `NOTICEHUB_HOSTING_RESTORE_QQ` | bool | `1` | 结束托管时把 QQ 开回来 | 保存即生效 |
-| `NOTICEHUB_QUIT_RESTORE_QQ` | bool | `0` | 退出程序时是否把 QQ 开回来 | 保存即生效 |
-| `NOTICEHUB_HOSTING_AUTO_ON_START` | bool | `0` | 程序一启动就自动开始托管 | 要重启 |
-| `NOTICEHUB_AUTOSTART` | bool | `0` | 开机自动启动（只写当前用户启动项） | 保存即生效 |
-| `NOTICEHUB_HOST_ACTIONS` | 字符串 | 空（=允许） | 设成 `off`/`0`/`false`/`no` 时禁用所有「会改本机网络/系统」的写操作（403）；另有 `NH_TEST_MODE` 同效 | 要重启 |
-| `NOTICEHUB_LAB_SEARCH` | bool | `0` | 实验室：历史搜索 | 保存即生效 |
-| `NOTICEHUB_LAB_REPLIES` | bool | `0` | 实验室：回复建议 | 保存即生效 |
-| `NOTICEHUB_LAB_EVENTS` | bool | `0` | 实验室：事件抽取 | 保存即生效 |
-| `NOTICEHUB_LAB_RULES` | bool | `0` | 实验室：自定义规则 | 保存即生效 |
-| `NOTICEHUB_COMMUNITY_TELEMETRY` | bool | `0` | 社区在线数上报 | 保存即生效 |
-| `NOTICEHUB_UPDATE_CHANNEL` | 字符串 | 空（按 `APP_CHANNEL`） | 更新通道：`stable` / `beta`；其它值当未设置 | 保存即生效 |
-| `NOTICEHUB_UPDATE_MIRROR` | 字符串 | 空 | 更新镜像仓库，格式 `owner/repo`（另有旧名 `QQ_DIGEST_UPDATE_MIRROR`） | 保存即生效 |
-| `NOTICEHUB_SELF_QQ` | 字符串 | 空 | 自己的 QQ 号（判断是否 @ 到自己） | 保存即生效 |
-| `NOTICEHUB_SELF_NICKNAME` | 字符串 | 空 | 自己的昵称（同上） | 保存即生效 |
+| `AGENDUM_ENV` | 字符串 | `<运行目录>\.env` | `.env` 文件路径 | 要重启 |
+| `AGENDUM_DATA_DIR` | 字符串 | `<运行目录>\data` | 数据目录（库、附件、二维码） | 要重启 |
+| `AGENDUM_LOG_DIR` | 字符串 | `<运行目录>\logs` | 日志目录 | 要重启 |
+| `AGENDUM_GROUPS` | 列表 | 空 | **必填**：要监控的群号；空=不处理任何群（fail-closed） | 保存即生效 |
+| `AGENDUM_GROUP_ALIASES` | 映射 | 空 | 群号→中文名 | 保存即生效 |
+| `AGENDUM_QUIET_GROUPS` | 列表 | 空 | 低优先级群：不触发紧急立即推，不入摘要/待办 | 保存即生效 |
+| `AGENDUM_IMMEDIATE_GROUPS` | 列表 | 空 | 即时处理群：不等合并窗口 | 保存即生效 |
+| `AGENDUM_OFFICIAL_BOT_ENABLED` | bool | `1` | 官方 QQ 机器人开关（与 NapCat 链路二选一） | 要重启 |
+| `AGENDUM_PUSH_OPENIDS` | 列表 | 空 | 官方机器人私聊推送目标 openid | 保存即生效 |
+| `AGENDUM_WEBHOOKS` | 列表 | 空 | 通用 Webhook（POST JSON: title/content/source） | 保存即生效 |
+| `AGENDUM_ONEBOT_ENABLED` | bool | `0` | 启用 OneBot HTTP 上报接收 | 要重启 |
+| `AGENDUM_ONEBOT_HOST` | 字符串 | `127.0.0.1` | 接收端绑定地址 | 要重启 |
+| `AGENDUM_ONEBOT_PORT` | int | `8765` | 接收端端口 | 要重启 |
+| `AGENDUM_ONEBOT_TOKEN` | 字符串 | 空 | 接收端令牌；空时非环回来源的消息会被拒收 | 要重启 |
+| `AGENDUM_NAPCAT_API_URL` | 字符串 | `http://127.0.0.1:3001` | NapCat HTTP API 地址 | 保存即生效 |
+| `AGENDUM_NAPCAT_API_TOKEN` | 字符串 | 空（回退 `ONEBOT_TOKEN`） | NapCat API 令牌 | 保存即生效 |
+| `AGENDUM_NAPCAT_QR_PATH` | 字符串 | `<data>\qrcode.png` | 当前登录二维码文件路径 | 保存即生效 |
+| `AGENDUM_NAPCAT_DIR` | 字符串 | 空 | NapCat 安装目录（自动发现失败时手填） | 保存即生效 |
+| `AGENDUM_QQ_EXE` | 字符串 | 空 | QQ 可执行文件路径（自动发现失败时手填） | 保存即生效 |
+| `AGENDUM_HTTP_TIMEOUT` | int | `15` | 调 NapCat/学习通等外部接口超时（秒） | 保存即生效 |
+| `AGENDUM_QQ_GROUP_REFRESH_INTERVAL_SECONDS` | int | `300` | 群列表刷新间隔（秒） | 保存即生效 |
+| `AGENDUM_CATCHUP_ENABLED` | bool | `0` | 自动历史补采 | 保存即生效 |
+| `AGENDUM_CATCHUP_HOURS` | int | `24` | 补采回溯多少小时 | 保存即生效 |
+| `AGENDUM_CATCHUP_COUNT` | int | `50` | 每轮补采条数上限 | 保存即生效 |
+| `AGENDUM_CATCHUP_INTERVAL_MINUTES` | int | `30` | 补采间隔（分钟） | 保存即生效 |
+| `AGENDUM_DINGTALK_ENABLED` | bool | `0` | 启用钉钉接入 | 保存即生效 |
+| `AGENDUM_DINGTALK_GROUP_WHITELIST` | 列表 | 空 | 要监听的钉钉群 | 保存即生效 |
+| `AGENDUM_DINGTALK_SCAN_INTERVAL_SECONDS` | int | `30` | 钉钉扫描间隔（最小 5） | 保存即生效 |
+| `AGENDUM_WECHAT_ENABLED` | bool | `0` | 启用微信接入 | 保存即生效 |
+| `AGENDUM_WECHAT_GROUP_WHITELIST` | 列表 | 空 | 要读的微信群 | 保存即生效 |
+| `AGENDUM_WECHAT_GROUP_ALIASES` | 映射 | 空 | 微信群 id→中文名 | 保存即生效 |
+| `AGENDUM_WECHAT_SCAN_INTERVAL_SECONDS` | int | `300` | 微信扫描间隔（最小 30） | 保存即生效 |
+| `AGENDUM_WECHAT_KEY` | 字符串 | 空 | 手填的微信数据库 raw key（64 位十六进制） | 保存即生效 |
+| `AGENDUM_WECHAT_DIR` | 字符串 | 空 | 微信文件目录（改过存储位置时手填） | 保存即生效 |
+| `AGENDUM_CHAOXING_ENABLED` | bool | `0` | 启用学习通同步 | 保存即生效 |
+| `AGENDUM_CHAOXING_COOKIE` | 字符串 | 空（回退 `data/chaoxing.cookie`） | 学习通登录信息 | 保存即生效 |
+| `AGENDUM_CHAOXING_GROUP_WHITELIST` | 列表 | 空 | 学习通课程/群白名单 | 保存即生效 |
+| `AGENDUM_CHAOXING_SCAN_INTERVAL_SECONDS` | int | `1800` | 学习通同步间隔（最小 1800） | 保存即生效 |
+| `AGENDUM_CHAOXING_BASE` | 字符串 | 不设（用内置主机名） | 覆盖学习通接口基地址；设成 `off`/空串之外的值必须带 `http(s)://` 且非空，否则启动时报错 | 要重启 |
+| `AGENDUM_LLM` | bool | `1` | 启用 AI 精炼 | 保存即生效 |
+| `AGENDUM_LLM_BACKEND` | 字符串 | `auto` | 提取后端：`auto` / `ollama` / `openai` / `codebuddy` | 保存即生效 |
+| `AGENDUM_LLM_API_KEY` | 字符串 | 空（兼容 `DASHSCOPE_API_KEY`） | OpenAI 兼容厂商的 key | 保存即生效 |
+| `AGENDUM_LLM_ENDPOINT` | 字符串 | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | 精炼接口地址 | 保存即生效 |
+| `AGENDUM_LLM_MODEL` | 字符串 | `qwen-plus` | 精炼模型 | 保存即生效 |
+| `AGENDUM_CODEBUDDY_CLI` | 字符串 | 空 | CodeBuddy/WorkBuddy CLI 路径 | 保存即生效 |
+| `AGENDUM_LLM_TIMEOUT` | int | `60` | 单次精炼超时（最小 10） | 保存即生效 |
+| `AGENDUM_LLM_MAX_RETRIES` | int | `2` | 失败原地重试次数 | 保存即生效 |
+| `AGENDUM_LLM_RETRY_BACKOFF` | float | `1.5` | 重试退避倍数 | 保存即生效 |
+| `AGENDUM_LLM_DEFER_MAX_ATTEMPTS` | int | `3` | 可恢复失败最多推迟几次 | 保存即生效 |
+| `AGENDUM_LLM_DEFER_WINDOW_MINUTES` | int | `15` | 推迟窗口（分钟，最小 1） | 保存即生效 |
+| `AGENDUM_VISION` | bool | `1` | 是否读图 | 保存即生效 |
+| `AGENDUM_VL_MODEL` | 字符串 | `qwen3-vl-plus` | 视觉模型名（换端点后必须改成该端点自己的模型） | 保存即生效 |
+| `AGENDUM_INCLUDE_RAW` | bool | `0` | 推送里是否附原文 | 保存即生效 |
+| `AGENDUM_ATTACHMENTS` | bool | `1` | 是否解析群文件/群图片 | 保存即生效 |
+| `AGENDUM_ATTACHMENT_MAX_MB` | int | `10` | 单个附件大小上限（MB） | 保存即生效 |
+| `AGENDUM_ATTACHMENT_MAX_PER_HOUR` | int | `30` | 每小时最多处理几个附件 | 保存即生效 |
+| `AGENDUM_ATTACHMENT_RETENTION_DAYS` | int | `7` | 附件保留天数 | 保存即生效 |
+| `AGENDUM_DOCUMENT_MAX_CHARS` | int | `30000` | 文档提取字符上限（最小 1000） | 保存即生效 |
+| `AGENDUM_PDF_OCR_MAX_PAGES` | int | `20` | PDF OCR 最多页数 | 保存即生效 |
+| `AGENDUM_DEDUPE_HOURS` | int | `6` | 同一条通知多少小时内不重复推，0=关闭 | 保存即生效 |
+| `AGENDUM_PUSH_HTML` | bool | `1` | 推送卡片用 HTML 排版 | 保存即生效 |
+| `AGENDUM_PUSH_DAILY_BUDGET` | int | `12` | 每日非紧急推送预算，0=不限 | 保存即生效 |
+| `AGENDUM_QUIET_HOURS` | 时段 | `23:00-07:00` | 夜间静默（紧急事项仍放行），留空=关闭 | 保存即生效 |
+| `AGENDUM_DEADLINE_REMINDERS` | bool | `1` | 截止提醒开关 | 保存即生效 |
+| `AGENDUM_DEADLINE_MORNING` | 时间 | `07:30` | 早上提醒时刻 | 保存即生效 |
+| `AGENDUM_DEADLINE_EVENING` | 时间 | `21:00` | 晚上提前看明天到期的时刻 | 保存即生效 |
+| `AGENDUM_CANDIDATE_PUSH` | bool | `1` | 候选确认卡开关 | 保存即生效 |
+| `AGENDUM_CANDIDATE_MIN_CONFIDENCE` | float | `0.55` | 候选最低置信度 | 保存即生效 |
+| `AGENDUM_CANDIDATE_REMINDER_HOURS` | int | `24` | 候选提醒间隔（最小 6） | 保存即生效 |
+| `AGENDUM_CANDIDATE_MAX_PER_TICK` | int | `2` | 每轮最多推几个候选 | 保存即生效 |
+| `AGENDUM_CANDIDATE_MAX_PER_DAY` | int | `4` | 每天最多推几个候选 | 保存即生效 |
+| `AGENDUM_WEEKLY_REVIEW` | bool | `1` | 每周复盘开关 | 保存即生效 |
+| `AGENDUM_WEEKLY_REVIEW_WEEKDAY` | int | `6` | 复盘日（0=周一，6=周日） | 保存即生效 |
+| `AGENDUM_WEEKLY_REVIEW_TIME` | 时间 | `20:30` | 复盘时刻 | 保存即生效 |
+| `AGENDUM_WINDOW_MINUTES` | int | `10` | 普通通知合并窗口（分钟） | 保存即生效 |
+| `AGENDUM_POLL_SECONDS` | int | `20` | 轮询间隔（秒，最小 5） | 保存即生效 |
+| `AGENDUM_URGENT_IMMEDIATE` | bool | `1` | 紧急通知立即推送 | 保存即生效 |
+| `AGENDUM_MIN_SCORE` | int | `3` | 分数阈值，越高越只推重要通知 | 保存即生效 |
+| `AGENDUM_MAX_ITEMS` | int | `30` | 单条摘要最多几件事 | 保存即生效 |
+| `AGENDUM_MAX_BATCH` | int | `400` | 单批最多处理多少条消息（最小 50） | 保存即生效 |
+| `AGENDUM_MAX_ATTEMPTS` | int | `4` | 投递失败重试次数 | 保存即生效 |
+| `AGENDUM_RETRY_SECONDS` | int | `90` | 投递重试间隔（秒，最小 10） | 保存即生效 |
+| `AGENDUM_RETENTION_DAYS` | int | `30` | 消息保留天数 | 保存即生效 |
+| `AGENDUM_WEB` | bool | `1` | 启用网页/待办台 | 要重启 |
+| `AGENDUM_WEB_HOST` | 字符串 | `0.0.0.0`（Windows）/ `127.0.0.1` | 网页绑定地址 | 要重启 |
+| `AGENDUM_WEB_PORT` | int | `8766` | 网页端口 | 要重启 |
+| `AGENDUM_WEB_TOKEN` | 字符串 | 空（非环回绑定时自动生成） | 网页访问令牌 | 要重启 |
+| `AGENDUM_WEB_BASE_URL` | 字符串 | 空 | 固定外部访问地址（如 Tailscale Serve 的 HTTPS 地址） | 保存即生效 |
+| `AGENDUM_HOSTING_QUIT_QQ` | bool | `1` | 开始托管时先关电脑版 QQ | 保存即生效 |
+| `AGENDUM_HOSTING_RESTORE_QQ` | bool | `1` | 结束托管时把 QQ 开回来 | 保存即生效 |
+| `AGENDUM_QUIT_RESTORE_QQ` | bool | `0` | 退出程序时是否把 QQ 开回来 | 保存即生效 |
+| `AGENDUM_HOSTING_AUTO_ON_START` | bool | `0` | 程序一启动就自动开始托管 | 要重启 |
+| `AGENDUM_AUTOSTART` | bool | `0` | 开机自动启动（只写当前用户启动项） | 保存即生效 |
+| `AGENDUM_HOST_ACTIONS` | 字符串 | 空（=允许） | 设成 `off`/`0`/`false`/`no` 时禁用所有「会改本机网络/系统」的写操作（403）；另有 `NH_TEST_MODE` 同效 | 要重启 |
+| `AGENDUM_LAB_SEARCH` | bool | `0` | 实验室：历史搜索 | 保存即生效 |
+| `AGENDUM_LAB_REPLIES` | bool | `0` | 实验室：回复建议 | 保存即生效 |
+| `AGENDUM_LAB_EVENTS` | bool | `0` | 实验室：事件抽取 | 保存即生效 |
+| `AGENDUM_LAB_RULES` | bool | `0` | 实验室：自定义规则 | 保存即生效 |
+| `AGENDUM_COMMUNITY_TELEMETRY` | bool | `0` | 社区在线数上报 | 保存即生效 |
+| `AGENDUM_UPDATE_CHANNEL` | 字符串 | 空（按 `APP_CHANNEL`） | 更新通道：`stable` / `beta`；其它值当未设置 | 保存即生效 |
+| `AGENDUM_UPDATE_MIRROR` | 字符串 | 空 | 更新镜像仓库，格式 `owner/repo`（另有旧名 `QQ_DIGEST_UPDATE_MIRROR`） | 保存即生效 |
+| `AGENDUM_SELF_QQ` | 字符串 | 空 | 自己的 QQ 号（判断是否 @ 到自己） | 保存即生效 |
+| `AGENDUM_SELF_NICKNAME` | 字符串 | 空 | 自己的昵称（同上） | 保存即生效 |
 
-### 18.1 不带 `NOTICEHUB_` 前缀的变量
+### 18.1 不带 `AGENDUM_` 前缀的变量
 
 这些是第三方通道自己的名字，**故意不加前缀**（加了就没人认得了）：
 
@@ -656,11 +656,11 @@ F:\notice-hub\qq-live-digest.exe --env F:\notice-hub\.env run
 | `WXPUSHER_APP_TOKEN` / `WXPUSHER_UIDS` / `WXPUSHER_TOPIC_IDS` | WxPusher 推送（逐个见 18.2） |
 | `SERVERCHAN_KEYS` | Server酱推送（见 18.2） |
 | `PUSHPLUS_TOKENS` | PushPlus 推送（见 18.2） |
-| `DASHSCOPE_API_KEY` | 旧版 LLM key（`NOTICEHUB_LLM_API_KEY` 为空时回退） |
+| `DASHSCOPE_API_KEY` | 旧版 LLM key（`AGENDUM_LLM_API_KEY` 为空时回退） |
 
 ### 18.2 推送通道的六个键（设置页可改）
 
-设置页「提醒怎么送到手机」保存的就是这一组。代码里的常量叫 `_PUSH_SETTING_ENV_KEYS`（`noticehub/settings_api.py:61`），六项一一对应：
+设置页「提醒怎么送到手机」保存的就是这一组。代码里的常量叫 `_PUSH_SETTING_ENV_KEYS`（`agendum/settings_api.py:61`），六项一一对应：
 
 | 环境变量 | 请求体字段 | 类型 | 默认值 | 含义 | 网页可改 |
 |---|---|---|---|---|---|
@@ -669,7 +669,7 @@ F:\notice-hub\qq-live-digest.exe --env F:\notice-hub\.env run
 | `WXPUSHER_TOPIC_IDS` | `wxpusher_topic_ids` | 整数列表 | 空 | WxPusher 主题 ID，**只能是正整数** | ✅ 同上 |
 | `SERVERCHAN_KEYS` | `serverchan_keys` | 列表 | 空 | Server酱 SendKey，微信接收 | ✅ 同上 |
 | `PUSHPLUS_TOKENS` | `pushplus_tokens` | 列表 | 空 | PushPlus token | ✅ 同上 |
-| `NOTICEHUB_WEBHOOKS` | `webhook_urls` | 列表 | 空 | 通用回调地址，POST JSON（`title` / `content` / `source`） | ✅ 同上 |
+| `AGENDUM_WEBHOOKS` | `webhook_urls` | 列表 | 空 | 通用回调地址，POST JSON（`title` / `content` / `source`） | ✅ 同上 |
 
 规则（`settings_api.py:94`）：
 
@@ -677,15 +677,15 @@ F:\notice-hub\qq-live-digest.exe --env F:\notice-hub\.env run
 - **任何一项非法整体拒绝，不做部分写入**。校验规则：App Token 不能填多个（逗号/空格分隔会被当成两个）；Topic ID 只能是正整数；Webhook 必须以 `http://` 或 `https://` 开头。
 - 保存后写 `.env` 并热更新内存里的 `Settings`，不用重启。
 - 页面回显是脱敏的：只给「配了几个」和每项尾 4 位（`_mask_push_secret`），不回明文。
-- 五个第三方键不带 `NOTICEHUB_` 前缀，只有 `NOTICEHUB_WEBHOOKS` 带 —— 这不是笔误，第三方名改了就对不上它们的文档。
+- 五个第三方键不带 `AGENDUM_` 前缀，只有 `AGENDUM_WEBHOOKS` 带 —— 这不是笔误，第三方名改了就对不上它们的文档。
 
 ### 18.3 旧名兼容（`QQ_DIGEST_*`）
 
-规则只有一条：**`NOTICEHUB_<X>` 优先，没有才回退 `QQ_DIGEST_<X>`**。两个都写时按新名走，哪怕新名是空串也算用户显式选择（`noticehub/bootstrap/settings.py:26`）。
+规则只有一条：**`AGENDUM_<X>` 优先，没有才回退 `QQ_DIGEST_<X>`**。两个都写时按新名走，哪怕新名是空串也算用户显式选择（`agendum/bootstrap/settings.py:26`）。
 
-首次读到旧名会记一条 warning：`检测到旧环境变量名 QQ_DIGEST_*，已按兼容读取；建议改成 NOTICEHUB_*`（只警告一次）。
+首次读到旧名会记一条 warning：`检测到旧环境变量名 QQ_DIGEST_*，已按兼容读取；建议改成 AGENDUM_*`（只警告一次）。
 
-所以 `QQ_DIGEST_WEB_PORT`、`QQ_DIGEST_GROUPS`、`QQ_DIGEST_WEB_TOKEN`… 这些旧名全部仍然可用，名字与上表一一对应（去掉前缀换成 `QQ_DIGEST_`）。**改配置时别两套都写**：`.env` 里同时留着 `QQ_DIGEST_X` 和 `NOTICEHUB_X` 时，用户改旧行不会生效——这是最容易踩的坑。
+所以 `QQ_DIGEST_WEB_PORT`、`QQ_DIGEST_GROUPS`、`QQ_DIGEST_WEB_TOKEN`… 这些旧名全部仍然可用，名字与上表一一对应（去掉前缀换成 `QQ_DIGEST_`）。**改配置时别两套都写**：`.env` 里同时留着 `QQ_DIGEST_X` 和 `AGENDUM_X` 时，用户改旧行不会生效——这是最容易踩的坑。
 
 ## 19. 自检命令
 
@@ -693,24 +693,24 @@ F:\notice-hub\qq-live-digest.exe --env F:\notice-hub\.env run
 
 ```powershell
 # 路由条数：期望 62 41 1 1
-.\.venv\Scripts\python.exe -X utf8 -c "import noticehub.routes as r; print(len(r.GET_ROUTES), len(r.POST_ROUTES), len(r.GET_PATTERN_ROUTES), len(r.POST_PATTERN_ROUTES))"
+.\.venv\Scripts\python.exe -X utf8 -c "import agendum.routes as r; print(len(r.GET_ROUTES), len(r.POST_ROUTES), len(r.GET_PATTERN_ROUTES), len(r.POST_PATTERN_ROUTES))"
 
-# NOTICEHUB_ 变量数：期望 98
-.\.venv\Scripts\python.exe -X utf8 -c "import ast,io;t=ast.parse(io.open('noticehub/bootstrap/settings.py',encoding='utf-8').read());print(len({n.args[1].value for n in ast.walk(t) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='env_value' and len(n.args)>1 and isinstance(n.args[1],ast.Constant)}))"
+# AGENDUM_ 变量数：期望 98
+.\.venv\Scripts\python.exe -X utf8 -c "import ast,io;t=ast.parse(io.open('agendum/bootstrap/settings.py',encoding='utf-8').read());print(len({n.args[1].value for n in ast.walk(t) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='env_value' and len(n.args)>1 and isinstance(n.args[1],ast.Constant)}))"
 ```
 
-第二个命令数出来是 98——剩下 5 个（`NAPCAT_DIR`、`QQ_EXE`、`HOST_ACTIONS`、`UPDATE_MIRROR`、`CHAOXING_BASE`）不在 `settings.py` 里，按需在各自模块读（98 + 5 = 103 个 `NOTICEHUB_*`）：
+第二个命令数出来是 98——剩下 5 个（`NAPCAT_DIR`、`QQ_EXE`、`HOST_ACTIONS`、`UPDATE_MIRROR`、`CHAOXING_BASE`）不在 `settings.py` 里，按需在各自模块读（98 + 5 = 103 个 `AGENDUM_*`）：
 
 ```powershell
-Select-String -Path noticehub\*.py -Pattern 'NOTICEHUB_(NAPCAT_DIR|QQ_EXE|HOST_ACTIONS|UPDATE_MIRROR|CHAOXING_BASE)' -Encoding UTF8 |
+Select-String -Path agendum\*.py -Pattern 'AGENDUM_(NAPCAT_DIR|QQ_EXE|HOST_ACTIONS|UPDATE_MIRROR|CHAOXING_BASE)' -Encoding UTF8 |
   ForEach-Object { $_.Line.Trim() } | Sort-Object -Unique
 ```
 
 再数不带前缀的推送键（期望 5 个）：103 + 5 = **108**：
 
 ```powershell
-# 打印推送通道的 6 个键（其中 5 个不带 NOTICEHUB_ 前缀）
-.\.venv\Scripts\python.exe -X utf8 -c "from noticehub.settings_api import _PUSH_SETTING_ENV_KEYS as k; [print(v) for v in k.values()]"
+# 打印推送通道的 6 个键（其中 5 个不带 AGENDUM_ 前缀）
+.\.venv\Scripts\python.exe -X utf8 -c "from agendum.settings_api import _PUSH_SETTING_ENV_KEYS as k; [print(v) for v in k.values()]"
 ```
 
 ```
@@ -719,6 +719,6 @@ WXPUSHER_UIDS
 WXPUSHER_TOPIC_IDS
 SERVERCHAN_KEYS
 PUSHPLUS_TOKENS
-NOTICEHUB_WEBHOOKS
+AGENDUM_WEBHOOKS
 ```
 

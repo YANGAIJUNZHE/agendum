@@ -1,8 +1,8 @@
-"""noticehub 测试包。
+"""agendum 测试包。
 
-Keep test discovery hermetic: config.py reads NOTICEHUB_ENV / QQ_DIGEST_ENV at import time,
+Keep test discovery hermetic: config.py reads AGENDUM_ENV / QQ_DIGEST_ENV at import time,
 so point it at an isolated file and disable provider settings before any test
-module imports noticehub.config. This does not clear unrelated process
+module imports agendum.config. This does not clear unrelated process
 variables such as PATH, TEMP, or USERPROFILE.
 """
 
@@ -13,7 +13,7 @@ import tempfile
 import time
 from pathlib import Path
 
-_TEST_ENV_DIR = Path(tempfile.mkdtemp(prefix="noticehub-tests-"))
+_TEST_ENV_DIR = Path(tempfile.mkdtemp(prefix="agendum-tests-"))
 # 测试结束删掉隔离用的 .env 目录，别留在 TEMP（或仓库根）里。
 atexit.register(shutil.rmtree, _TEST_ENV_DIR, ignore_errors=True)
 # 系统 TEMP 不可写时 tempfile 会回退到当前目录（即仓库根），把全部测试临时目录
@@ -31,11 +31,11 @@ for _key in (
     "LLM_TIMEOUT",
     "CODEBUDDY_CLI",
 ):
-    # 新旧两套名字都要清：NOTICEHUB_* 优先，QQ_DIGEST_* 兜底。
-    os.environ.pop("NOTICEHUB_" + _key, None)
+    # 新旧两套名字都要清：AGENDUM_* 优先，QQ_DIGEST_* 兜底。
+    os.environ.pop("AGENDUM_" + _key, None)
     os.environ.pop("QQ_DIGEST_" + _key, None)
 
-_ENV_PREFIXES = ("NOTICEHUB_", "QQ_DIGEST_")
+_ENV_PREFIXES = ("AGENDUM_", "QQ_DIGEST_")
 
 
 def _restore_env(key: str, previous: "str | None") -> None:
@@ -46,7 +46,7 @@ def _restore_env(key: str, previous: "str | None") -> None:
 
 
 def clear_env_prefixes(case, *suffixes: str) -> None:
-    """把 NOTICEHUB_<s> 与 QQ_DIGEST_<s> 两套名字都摘干净，用例结束后还原。
+    """把 AGENDUM_<s> 与 QQ_DIGEST_<s> 两套名字都摘干净，用例结束后还原。
 
     环境变量改名后新名优先：只清旧名的话，前面用例灌进进程的新名会把本用例的
     mock.patch.dict 压掉（表现为「读到了别人的 key」）。跨用例读环境变量的夹具都该调它。
@@ -60,7 +60,7 @@ def clear_env_prefixes(case, *suffixes: str) -> None:
 
 
 def snapshot_env_prefixes(case) -> None:
-    """快照进程里所有 NOTICEHUB_* / QQ_DIGEST_*，用例结束时精确还原。
+    """快照进程里所有 AGENDUM_* / QQ_DIGEST_*，用例结束时精确还原。
 
     会热写设置的用例（POST /api/settings 之类）用它兜底：它们往里写的
     ``os.environ[...]`` 不会自己退，会串到后面读环境变量的用例里。
@@ -78,7 +78,7 @@ def snapshot_env_prefixes(case) -> None:
 # Settings() is intentionally convenient for application code, but its
 # dataclass defaults leave LLM enabled. Make implicit test fixtures offline;
 # tests that exercise LLM behavior pass an explicit backend/key/flag.
-from noticehub.config import Settings as _Settings  # noqa: E402
+from agendum.config import Settings as _Settings  # noqa: E402
 _original_settings_init = _Settings.__init__
 
 
@@ -138,7 +138,7 @@ def open_authed_page(context, page, base: str, token: str, timeout_ms: int = 300
     「带 token 换 Cookie 再重载」那条路单独由 `test_url_token_exchanges_for_cookie_and_reloads`
     覆盖——只有它需要等换页。
     """
-    from noticehub.webapp import SESSION_COOKIE_NAME, _session_cookie_value
+    from agendum.webapp import SESSION_COOKIE_NAME, _session_cookie_value
 
     context.add_cookies([{
         "name": SESSION_COOKIE_NAME,

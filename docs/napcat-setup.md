@@ -30,7 +30,7 @@ NapCat 是基于 NTQQ 的协议端。官方安装说明的顺序是“安装对�
 ## 3. 自动安装
 
 > **最省事的装法：把本文链接直接丢给你的 AI Agent。**
-> 把 `https://github.com/YANGAIJUNZHE/agendum/blob/codex/notice-hub-custom/docs/napcat-setup.md` 发给 Claude Code、DSH、Codex 之类的编码 Agent，说一句「按这篇装 NapCat」。它会从官方 Release 下载 `NapCat.Shell.zip`（程序钉死在 v4.18.33，不查「最新版本」）、解压到Agendum的数据目录、并把引擎路径填好。你只需要在它提示扫码那一步拿出手机。
+> 把 `https://github.com/YANGAIJUNZHE/agendum/blob/main/docs/napcat-setup.md` 发给 Claude Code、DSH、Codex 之类的编码 Agent，说一句「按这篇装 NapCat」。它会从官方 Release 下载 `NapCat.Shell.zip`（程序钉死在 v4.18.33，不查「最新版本」）、解压到Agendum的数据目录、并把引擎路径填好。你只需要在它提示扫码那一步拿出手机。
 
 如果页面检测不到 NapCat，点击接入区的「自动下载并安装 NapCat」。程序从官方 GitHub Release 下载官方 `NapCat.Shell.zip`（完整 Shell 包，不是约 1 MB 的 OneKey 安装桩），解压到项目数据目录下的 `<数据目录>\napcat`，不会修改电脑上自己的 QQ。安装完成后即可回到页面点击「启动 NapCat 并登录」。不想继续使用时删除该 `napcat` 文件夹即可卸载；也可以继续按下文手工安装，二者互为替代方案。
 
@@ -50,7 +50,7 @@ NapCat 是基于 NTQQ 的协议端。官方安装说明的顺序是“安装对�
 
 ### 必须使用独立 QQ 资料目录
 
-NapCat 必须使用独立的 QQ 资料目录启动，否则可能抢用你日常 QQ 的登录态。启动 NapCat 时给启动参数加上 `--user-data-dir=<一个空目录>`，例如 `--user-data-dir=F:\NapCatData\qq-notice-hub`；该目录应专门给 NapCat 使用，不要指向日常 QQ 的资料目录。
+NapCat 必须使用独立的 QQ 资料目录启动，否则可能抢用你日常 QQ 的登录态。启动 NapCat 时给启动参数加上 `--user-data-dir=<一个空目录>`，例如 `--user-data-dir=F:\NapCatData\agendum`；该目录应专门给 NapCat 使用，不要指向日常 QQ 的资料目录。
 
 登录凭据是否以何种文件、何种有效期持久化，以及每次重启是否必然免扫码，官方当前文档未明确，标记为**未核实**。实际应以 QQ/NapCat 重启后的行为为准；不要把 QQ 登录文件复制或提交到仓库。
 
@@ -79,7 +79,7 @@ Agendum的「**托管**」就是替你做这个切换：托盘图标或网页设
 
 在 NapCat WebUI：**网络配置 → 新建 → HTTP 客户端**，填写：
 
-- 名称：`qq-notice-hub`（名称需唯一）
+- 名称：`agendum`（名称需唯一）
 - 启用：开启；保存时启用
 - 上报地址：`http://127.0.0.1:8765`
 - 消息上报格式：`array`
@@ -120,7 +120,7 @@ HTTP 客户端最小结构（JSON5，按官方字段）：
     "httpServers": [],
     "httpClients": [
       {
-        "name": "qq-notice-hub",
+        "name": "agendum",
         "enable": true,
         "url": "http://127.0.0.1:8765",
         "messagePostFormat": "array",
@@ -174,7 +174,7 @@ NapCat 官方页面未提供 Windows 计划任务字段或推荐的静默启动�
 
 1. 在 Windows 11 安装对应 NTQQ，并从官方 Release 下载 Shell 包。
 2. 手动启动 NapCat，扫码登录主号，修改 WebUI 密码。
-3. 启动 `qq-notice-hub`，确认 `.env` 中 host/port/token。
+3. 启动 `agendum`，确认 `.env` 中 host/port/token。
 4. WebUI 创建并启用 HTTP 客户端：URL `http://127.0.0.1:8765`，token 与项目一致，`reportSelfMessage=false`。
 5. 用测试群消息验证事件，再获取群列表并配置白名单。
 6. 确认重启后的登录态和断线恢复后，再参考 `install-task.ps1` 配置隐藏计划任务。

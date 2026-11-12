@@ -1,7 +1,7 @@
 """更新清单签名的验签契约（RS256 / PKCS#1 v1.5，纯标准库）。
 
 测试用一把独立的 1024 位测试私钥（只在这份测试文件里，生产公钥见
-``noticehub/update_signing.py`` 的 ``KNOWN_KEYS``），通过 patch 公钥表接入。
+``agendum/update_signing.py`` 的 ``KNOWN_KEYS``），通过 patch 公钥表接入。
 真实私钥永不入库、不进测试。
 """
 
@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from noticehub import update_signing
+from agendum import update_signing
 
 TEST_KEY_ID = "test-2026"
 TEST_N = int(
@@ -56,13 +56,13 @@ def base_document() -> dict:
             {
                 "tag": "v1.2.0",
                 "version": "1.2.0",
-                "name": "群务台 1.2.0",
+                "name": "Agendum 1.2.0",
                 "notes": "中文说明也要参与签名",
                 "published_at": "2026-10-28T00:00:00Z",
-                "asset_name": "QQ-Notice-Hub.zip",
+                "asset_name": "Agendum.zip",
                 "size": 50883826,
                 "sha256": "b" * 64,
-                "download_url": "https://github.com/ExpertKT/notice-hub/releases/download/v1.2.0/QQ-Notice-Hub.zip",
+                "download_url": "https://github.com/ExpertKT/agendum/releases/download/v1.2.0/Agendum.zip",
             }
         ],
     }
