@@ -29,12 +29,21 @@ def version_key(text):
     return (int(major), int(minor), int(patch), beta is None, int(beta or 0))
 
 
-def is_gitee_url(url):
+TRUSTED_RELEASE_HOSTS = ("github.com", "gitee.com")
+RELEASE_PATH_RE = re.compile(r"^/[^/]+/[^/]+/releases/download/[^/]+/[^/]+$")
+
+
+def is_trusted_release_url(url):
+    """https + GitHub/Gitee 域名（含子域）+ Release 资产路径，三者缺一不可。"""
     if not isinstance(url, str):
         return False
     parsed = urlparse(url)
     host = (parsed.hostname or "").lower()
-    return parsed.scheme == "https" and (host == "gitee.com" or host.endswith(".gitee.com"))
+    if parsed.scheme != "https":
+        return False
+    if not any(host == domain or host.endswith("." + domain) for domain in TRUSTED_RELEASE_HOSTS):
+        return False
+    return RELEASE_PATH_RE.match(parsed.path) is not None
 
 
 def check(data):
@@ -84,7 +93,7 @@ def check(data):
             "%s size 不是正整数：%r" % (where, size),
         )
         url = item.get("download_url")
-        expect(is_gitee_url(url), "%s download_url 不是 https 的 Gitee 地址：%r" % (where, url))
+        expect(is_trusted_release_url(url), "%s download_url 不是 GitHub/Gitee 的 https Release 资产地址：%r" % (where, url))
 
     if len(keys) == len(items):
         for (previous, _), (current, name) in zip(keys, keys[1:]):

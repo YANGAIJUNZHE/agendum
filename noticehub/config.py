@@ -369,7 +369,7 @@ class Settings:
     hosting_quit_qq: bool = True
     hosting_restore_qq: bool = True
     # 托盘「退出」是否顺手把电脑版 QQ 开回来。默认关：用户 2026-10-12 反馈
-    # 「托盘右键退出会自动开 QQ」，而 QQ 自己开着并不影响群务台任何功能，
+    # 「托盘右键退出会自动开 QQ」，而 QQ 自己开着并不影响Agendum任何功能，
     # 退出时多开一个进程属于越权。需要的人去设置页勾上即可。
     quit_restore_qq: bool = False
     hosting_auto_on_start: bool = False

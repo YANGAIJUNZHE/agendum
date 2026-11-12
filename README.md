@@ -1,6 +1,6 @@
 <div align="center">
 
-# 群务台 · notice-hub
+# Agendum
 
 **把 QQ 群里的通知，自动变成待办和日历。**
 
@@ -9,12 +9,12 @@
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial-12695b.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-12695b.svg)](https://www.python.org/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%2F%20Linux%20%2F%20macOS-12695b.svg)
-[![Tests](https://github.com/ExpertKT/notice-hub/actions/workflows/tests.yml/badge.svg)](https://github.com/ExpertKT/notice-hub/actions/workflows/tests.yml)
-[![Release](https://img.shields.io/github/v/release/ExpertKT/notice-hub?color=12695b&label=release&include_prereleases)](https://github.com/ExpertKT/notice-hub/releases)
+[![Tests](https://github.com/YANGAIJUNZHE/agendum/actions/workflows/tests.yml/badge.svg)](https://github.com/YANGAIJUNZHE/agendum/actions/workflows/tests.yml)
+[![Release](https://img.shields.io/github/v/release/YANGAIJUNZHE/agendum?color=12695b&label=release&include_prereleases)](https://github.com/YANGAIJUNZHE/agendum/releases)
 
-[下载正式版 v1.0.0](https://github.com/ExpertKT/notice-hub/releases/tag/v1.0.0) · [下载测试版 v1.1.0-beta.18](https://github.com/ExpertKT/notice-hub/releases/tag/v1.1.0-beta.18) · [使用说明](docs/使用说明.md) · [API 接入](docs/接API.md) · [安卓 App](docs/安卓App.md) · [NapCat 安装](docs/napcat-setup.md)
+[下载测试版 v1.1.0-beta.18](https://github.com/YANGAIJUNZHE/agendum/releases/tag/v1.1.0-beta.18) · [使用说明](docs/使用说明.md) · [API 接入](docs/接API.md) · [安卓 App](docs/安卓App.md) · [NapCat 安装](docs/napcat-setup.md)
 
-**🧪 v1.1.0 测试版（beta.18）已发布 — [查看说明并下载 →](https://github.com/ExpertKT/notice-hub/releases/tag/v1.1.0-beta.18)**
+**🧪 v1.1.0 测试版（beta.18）已发布 — [查看说明并下载 →](https://github.com/YANGAIJUNZHE/agendum/releases/tag/v1.1.0-beta.18)**
 
 ### v1.1.0-beta.18 · 完全自主的代码与文档
 
@@ -90,9 +90,9 @@
 
 更新仍校验 SHA-256，Linux / macOS 下载后需手动安装。
 
-这是**预发布版**，稳定版仍是 [v1.0.0](https://github.com/ExpertKT/notice-hub/releases/tag/v1.0.0)；稳定版通道仍按版本筛选，不会自动升级到测试版。
+这是**预发布版**；稳定版通道按版本筛选，不会自动升级到测试版。
 
-<a href="https://github.com/ExpertKT/notice-hub/releases/tag/v1.1.0-beta.18">
+<a href="https://github.com/YANGAIJUNZHE/agendum/releases/tag/v1.1.0-beta.18">
   <p>界面截图已移除，避免公开真实群消息。</p>
 </a>
 
@@ -104,7 +104,7 @@
 
 ## 适合谁
 
-如果作业、实验、报名和考试时间散在多个 QQ 群里，群务台会把需要你行动的内容集中到一个页面。消息、摘要和待办默认只存在你这台电脑上；只有你自己配的 AI 或推送通道会看到内容。
+如果作业、实验、报名和考试时间散在多个 QQ 群里，Agendum 会把需要你行动的内容集中到一个页面。消息、摘要和待办默认只存在你这台电脑上；只有你自己配的 AI 或推送通道会看到内容。
 
 ## 核心能力
 
@@ -123,8 +123,8 @@
 
 ### Windows
 
-1. 打开 [Releases](https://github.com/ExpertKT/notice-hub/releases)，下载最新版本的 `QQ-Notice-Hub.zip`。
-2. 将 ZIP 解压到安装目录，例如 `D:\notice-hub`。目录里有启动器、服务程序以及 `_internal`、`_launcher_internal` 运行时目录；保持目录结构完整，不要在压缩包内运行 exe，也不要单独移动 exe。
+1. 打开 [Releases](https://github.com/YANGAIJUNZHE/agendum/releases)，下载最新版本的 `QQ-Notice-Hub.zip`。
+2. 将 ZIP 解压到安装目录，例如 `D:\agendum`。目录里有启动器、服务程序以及 `_internal`、`_launcher_internal` 运行时目录；保持目录结构完整，不要在压缩包内运行 exe，也不要单独移动 exe。
 3. 在解压后的目录运行 `QQ-Notice-Hub.exe`。如有 Windows 安全提示，选择「仍要运行」；防火墙提示时允许专用网络。随后按网页向导配置接入。
 
 ### Linux（Ubuntu / Debian）
@@ -132,8 +132,8 @@
 源码运行并安装用户级 systemd 服务：
 
 ```bash
-git clone https://github.com/ExpertKT/notice-hub.git ~/notice-hub
-cd ~/notice-hub
+git clone https://github.com/YANGAIJUNZHE/agendum.git ~/agendum
+cd ~/agendum
 bash packaging/linux/install.sh
 ```
 
@@ -144,18 +144,18 @@ bash packaging/linux/install.sh
 源码运行并安装用户级 LaunchAgent：
 
 ```bash
-git clone https://github.com/ExpertKT/notice-hub.git ~/notice-hub
-cd ~/notice-hub
+git clone https://github.com/YANGAIJUNZHE/agendum.git ~/agendum
+cd ~/agendum
 bash packaging/macos/install.sh
 ```
 
-启动后在浏览器打开 <http://127.0.0.1:8766/>。NapCat 使用官方 Mac-Installer 或其他外部方式运行；群务台只连接 OneBot，不提供托盘。详见 [macOS 部署说明](docs/macos.md)。
+启动后在浏览器打开 <http://127.0.0.1:8766/>。NapCat 使用官方 Mac-Installer 或其他外部方式运行；Agendum 只连接 OneBot，不提供托盘。详见 [macOS 部署说明](docs/macos.md)。
 
 ### Android App
 
 当前源码新增完整日程管理和离线同步，需要电脑端与 App 一起升级并重新配对。安装与使用见 [手机日程同步](docs/wiki/mobile-sync.md)，实测范围见 [验收记录](docs/wiki/mobile-sync-validation.md)。下面的 Release 说明适用于已经发布的旧版 APK。
 
-1. 在同一个 [Releases](https://github.com/ExpertKT/notice-hub/releases) 页面，下载 `notice-hub-android-*.apk`，传到手机上安装（安卓端本轮没有改动，与 beta.1 是同一份）。
+1. 本仓库的 Release 目前只带 Windows 安装包；安卓包按 [docs/安卓App.md](docs/安卓App.md) 自行编译，传到手机上安装。
 2. 电脑端页面打开「设置」，找到「手机 App」那一块，屏幕上会出现一个二维码。
 3. 用手机 App 扫这个二维码，地址和配对信息会自动填好。
 4. 二维码扫不动时，改用那一块里的 **6 位数字配对码**，手输进 App 即可。
@@ -168,8 +168,8 @@ bash packaging/macos/install.sh
 Windows PowerShell：
 
 ```powershell
-git clone https://github.com/ExpertKT/notice-hub.git
-cd notice-hub
+git clone https://github.com/YANGAIJUNZHE/agendum.git
+cd agendum
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 Copy-Item .env.example .env
@@ -287,4 +287,4 @@ NapCat 或目标端口尚未运行。点「一键接入」或「启动并登录�
 
 ## License
 
-个人与非商业使用免费；商业使用请联系 https://github.com/ExpertKT/notice-hub/issues 获取授权。详见 [LICENSE](LICENSE)。
+个人与非商业使用免费；商业使用请联系 https://github.com/YANGAIJUNZHE/agendum/issues 获取授权。详见 [LICENSE](LICENSE)。

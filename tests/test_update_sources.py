@@ -9,11 +9,11 @@ class UpdateSourcesTests(unittest.TestCase):
         with patch.dict("os.environ", {}, clear=True):
             sources = update_sources.sources()
         self.assertEqual([source["id"] for source in sources], ["github"])
-        self.assertEqual(sources[0]["repo"], "YANGAIJUNZHE/notice-hub")
+        self.assertEqual(sources[0]["repo"], "YANGAIJUNZHE/agendum")
         self.assertEqual(sources[0]["api_root"], "https://api.github.com")
         self.assertEqual(
             sources[0]["raw_base"],
-            "https://raw.githubusercontent.com/YANGAIJUNZHE/notice-hub/codex/notice-hub-custom",
+            "https://raw.githubusercontent.com/YANGAIJUNZHE/agendum/codex/notice-hub-custom",
         )
 
     def test_empty_environment_and_settings_leave_mirror_disabled(self):

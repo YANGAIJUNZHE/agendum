@@ -6,6 +6,10 @@
 
 ## 未发布
 
+**项目独立，改名 Agendum。** 与上游 notice-hub 切割，仓库改名为 `YANGAIJUNZHE/agendum`。网页标题与品牌、托盘提示、日历订阅名、安卓 App 名统一改为 Agendum；README 与 wiki 的安装、克隆地址全部指向本仓库。exe 文件名（`QQ-Notice-Hub.exe`）、Python 包名、防火墙规则名与开机任务名这一步不动，留待下一步统一。
+
+**更新链收到自己手里。** 默认更新源指向本仓库，更新清单只保留本仓库发布的版本，并启用本项目自己的签名密钥（`agendum-2026-1`）重签，不再依赖上游的 Gitee 镜像。注意：已装实例内置的是上游旧公钥，检查更新会报「签名校验失败」——从发布页手动下载新包覆盖安装一次即可；一键自动更新要到下一个内置新公钥的发布版本才恢复。
+
 **CI 与 Release 自动化包含 Android APK。** GitHub Actions 增加 Android 单元测试与构建任务；打 tag 发版时通过仓库 Secrets 自动签名并构建 `notice-hub-android.apk`，随 Windows ZIP 及各自的 SHA-256 校验文件一并上传至 GitHub Releases。
 
 **CodeBuddy 的 CI 测试使用实际调用的启动时限。** Windows runner 启动 Node 较慢时，测试仍会等待子进程返回，并检查原有的退出码和 JSON 解析错误。

@@ -1,5 +1,5 @@
 ---
-name: 群务台电脑端工作区
+name: Agendum 电脑端工作区
 description: 以日程和待办为主，辅助面板可整理，设置按任务分类。
 colors:
   paper: "#fff"

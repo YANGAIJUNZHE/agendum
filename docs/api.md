@@ -1,4 +1,4 @@
-# 群务台 HTTP 接口与命令行参考
+# Agendum HTTP 接口与命令行参考
 
 适用版本：`1.1.0-beta.16`（`noticehub/version.py` 的 `APP_VERSION`）。
 

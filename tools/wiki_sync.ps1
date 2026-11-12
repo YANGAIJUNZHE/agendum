@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $root 'docs\wiki'
 $work = Join-Path $root 'nh-tmp\gh-wiki-fork'
-$remote = 'https://github.com/YANGAIJUNZHE/notice-hub.wiki.git'
+$remote = 'https://github.com/YANGAIJUNZHE/agendum.wiki.git'
 
 # 这台机器上 ~/.gitconfig 给 github.com 单独配了代理，那条线路不通；直连可用，所以这里显式绕开。
 $gitArgs = @('-c', 'http.https://github.com.proxy=')
@@ -85,7 +85,7 @@ if ($staged.Code -ne 0) { throw "暂存 wiki 失败：$($staged.Out -join ' ')" 
 $diff = Invoke-Git @('-C', $work, 'diff', '--cached', '--quiet')
 if ($diff.Code -gt 1) { throw "检查 wiki 变更失败：$($diff.Out -join ' ')" }
 if ($diff.Code -eq 1) {
-    $committed = Invoke-Git @('-C', $work, '-c', 'user.name=notice-hub', '-c', 'user.email=bot@local', 'commit', '-q', '-m', $Message)
+    $committed = Invoke-Git @('-C', $work, '-c', 'user.name=agendum', '-c', 'user.email=bot@local', 'commit', '-q', '-m', $Message)
     if ($committed.Code -ne 0) { throw "提交 wiki 失败：$($committed.Out -join ' ')" }
 }
 

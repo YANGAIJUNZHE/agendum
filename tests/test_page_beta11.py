@@ -160,9 +160,9 @@ class SetupGuidanceTests(unittest.TestCase):
         # 异步装载只在用户没手改过目录输入时才回填（keep 标志由 harvestSettingsInputs 维护）。
         self.assertIn("if(dirInput&&!keep['wx-dir-input'])dirInput.value=typeof v.wechat_dir==='string'?v.wechat_dir:''", PAGE_SOURCE)
         self.assertIn("已保存，立即生效。", PAGE_SOURCE)
-        self.assertIn("保存后立即生效，不用重启群务台", PAGE_SOURCE)
+        self.assertIn("保存后立即生效，不用重启Agendum", PAGE_SOURCE)
         # 密钥改成保存即生效（settings_api 会重建 reader），不能再说「重启后生效」。
-        self.assertNotIn("重启群务台后生效", PAGE_SOURCE)
+        self.assertNotIn("重启Agendum后生效", PAGE_SOURCE)
         self.assertIn("已保存并生效（不回显内容）。", PAGE_SOURCE)
 
     def test_wechat_scan_and_empty_groups_explain_why(self) -> None:

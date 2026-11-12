@@ -53,7 +53,7 @@ def _next_step(category: str, source: str) -> str:
     """Return the concrete user action for one browser failure category."""
     browser = _BROWSER_LABELS.get(source, source or "浏览器")
     if category == "browser_locked":
-        return f"无法读取 {browser} 的 Cookie 库（可能仍被占用）。请先完全退出它（含托盘和后台进程），再用另一个浏览器或手机重新打开群务台设置页并重试；原页面会随浏览器关闭。"
+        return f"无法读取 {browser} 的 Cookie 库（可能仍被占用）。请先完全退出它（含托盘和后台进程），再用另一个浏览器或手机重新打开Agendum设置页并重试；原页面会随浏览器关闭。"
     if category == "no_chaoxing_cookie":
         return f"请用 {browser} 打开 https://i.chaoxing.com/ 并登录 chaoxing.com；登录成功后完全退出浏览器，再回来重试。"
     if category == "decrypt_failed":

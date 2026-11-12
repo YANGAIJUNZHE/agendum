@@ -1,4 +1,4 @@
-"""notice-hub 品牌图标生成器（纯 Python + Pillow，确定性、可重跑）。
+"""Agendum 品牌图标生成器（纯 Python + Pillow，确定性、可重跑）。
 
 用法：
     .venv\\Scripts\\python.exe assets\\make_icon.py

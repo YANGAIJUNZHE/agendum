@@ -1,4 +1,4 @@
-"""notice-hub E2E 入口。
+"""Agendum E2E 入口。
 
     python tools/e2e/run.py                 # 全部剧本 × 各自声明的视口，每个用例一份全新冷装
     python tools/e2e/run.py --only demo     # 按名字/tag 过滤（可重复、可逗号分隔）
@@ -38,7 +38,7 @@ from harness.cdp import free_port  # noqa: E402
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="run.py", description="notice-hub 冷装 E2E")
+    parser = argparse.ArgumentParser(prog="run.py", description="Agendum 冷装 E2E")
     parser.add_argument("--only", action="append", default=[], help="按名字或 tag 过滤；可重复")
     parser.add_argument("--list", action="store_true", help="只列剧本，不执行")
     parser.add_argument("--keep", action="store_true", help="保留本次运行目录并打印路径")

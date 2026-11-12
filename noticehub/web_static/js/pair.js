@@ -191,7 +191,7 @@ function pairCard() {
   var card = el('section', 'surface hosting-settings');
   card.setAttribute('aria-labelledby', 'pair-title');
   card.innerHTML = '<div class="section-head"><h2 id="pair-title" class="section-title">手机 App</h2><span id="pair-state" class="count-pill">读取中…</span></div>'
-    + '<p class="setting-note">最省事：用手机相机扫下面的二维码，手机会直接打开「群务台」App 并自动连好，地址和令牌都不用输。</p>'
+    + '<p class="setting-note">最省事：用手机相机扫下面的二维码，手机会直接打开「Agendum」App 并自动连好，地址和令牌都不用输。</p>'
     + '<img id="pair-qr" class="sync-qr" alt="手机配对二维码" hidden>'
     + '<p id="pair-qr-msg" class="sync-status" role="status" aria-live="polite"></p>'
     + '<p class="setting-note">扫不动就手动配对：手机上打开 App，屏幕上会出现 6 位数字，在下面点「允许」也一样。以后想换一台电脑：手机上长按返回键，或点手机页面上的「重新配对」。</p>'

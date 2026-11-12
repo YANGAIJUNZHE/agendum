@@ -1,6 +1,6 @@
 {
-  "name": "群务台",
-  "short_name": "群务台",
+  "name": "Agendum",
+  "short_name": "Agendum",
   "description": "QQ 群通知摘要与个人待办台",
   "start_url": "/",
   "scope": "/",

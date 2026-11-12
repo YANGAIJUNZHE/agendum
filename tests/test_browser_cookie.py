@@ -259,7 +259,7 @@ class TestChromeReader(unittest.TestCase):
         self.assertIn("完全退出", result["next_step"])
         self.assertIn("托盘", result["next_step"])
         self.assertIn("后台进程", result["next_step"])
-        self.assertIn("另一个浏览器或手机重新打开群务台设置页", result["next_step"])
+        self.assertIn("另一个浏览器或手机重新打开Agendum设置页", result["next_step"])
         self.assertNotIn("未找到学习通 Cookie", result["error"])
 
     def test_read_chaoxing_cookie_reports_the_real_reason(self):

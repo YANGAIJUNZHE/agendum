@@ -18,7 +18,7 @@
 
 ## 结束托管后普通 QQ 提示账号已登录
 
-先检查是否有使用群务台专用资料目录的 QQ 残留。在 PowerShell 中运行：
+先检查是否有使用Agendum专用资料目录的 QQ 残留。在 PowerShell 中运行：
 
 ```powershell
 Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'QQ.exe' } |
@@ -57,7 +57,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'QQ.exe' } |
 
 服务默认用 8766（网页）、8765（NapCat 上报）、3001（反查 NapCat）。启动报端口占用时：
 
-1. 先确认不是自己开着的另一个群务台：任务管理器里看有没有多出来的 `QQ-Notice-Hub.exe` / `qq-live-digest.exe`。
+1. 先确认不是自己开着的另一个Agendum：任务管理器里看有没有多出来的 `QQ-Notice-Hub.exe` / `qq-live-digest.exe`。
 2. 改了端口就得跟着改 `.env` 里的 `NOTICEHUB_WEB_PORT` / `NOTICEHUB_ONEBOT_PORT`，并重启服务。
 3. 改完端口，手机端和日历订阅的地址也要跟着换。
 
@@ -65,7 +65,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'QQ.exe' } |
 
 先按顺序排：
 
-1. **防火墙**（最常见）。在跑群务台的那台电脑上用管理员 PowerShell 执行：
+1. **防火墙**（最常见）。在跑Agendum的那台电脑上用管理员 PowerShell 执行：
    ```powershell
    netsh advfirewall firewall add rule name="notice-hub 8766" dir=in action=allow protocol=TCP localport=8766
    ```

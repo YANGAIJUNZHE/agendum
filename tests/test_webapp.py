@@ -4043,7 +4043,7 @@ class TaskApiTest(unittest.TestCase):
         self.assertEqual(self._post("/api/onboarding/accept", {}, token="")["accepted_at"], first["accepted_at"])
 
     def test_page_contains_onboarding_and_donation_copy(self) -> None:
-        for text in ("支持开发者", "/api/donate/qr.png", "欢迎使用群务台", "我知道了，开始使用", "/api/onboarding", 'id="onboarding-close"', 'aria-label="关闭"', 'id="onboarding-error"'):
+        for text in ("支持开发者", "/api/donate/qr.png", "欢迎使用Agendum", "我知道了，开始使用", "/api/onboarding", 'id="onboarding-close"', 'aria-label="关闭"', 'id="onboarding-error"'):
             self.assertIn(text, PAGE_SOURCE)
         # 这是风险提示而不是要用户签的协议：不许再出现「我已阅读并理解 / 稍后再说」这种
         # 假装要同意、不同意也能用的假门。
@@ -4059,7 +4059,7 @@ class TaskApiTest(unittest.TestCase):
         self.assertIn("window.setTimeout(function(){send(attempt+1);},2000);", onboarding_script)
         self.assertNotIn("确认失败，请重试", onboarding_script)
         self.assertIn("本软件按 PolyForm Noncommercial 1.0.0 许可「按原样」提供", PAGE_SOURCE)
-        self.assertIn("商用需授权，请联系 https://github.com/ExpertKT/notice-hub/issues", PAGE_SOURCE)
+        self.assertIn("商用需授权，请联系 https://github.com/YANGAIJUNZHE/agendum/issues", PAGE_SOURCE)
         self.assertNotIn("上游 wc985732-lang/qq-live-digest 的部分仍适用 MIT，详情见 NOTICE", PAGE_SOURCE)
         self.assertNotIn("本软件按 MIT 许可", PAGE_SOURCE)
 
@@ -4553,7 +4553,7 @@ class TaskApiTest(unittest.TestCase):
         with urllib.request.urlopen(request, timeout=5) as response:
             body = response.read().decode("utf-8")
         # 页签写的是产品名：锁标签本身，别用页面里到处都有的品牌字样冒充。
-        self.assertIn("<title>群务台</title>", body)
+        self.assertIn("<title>Agendum</title>", body)
         self.assertNotIn("群消息待办", body)
         self.assertIn("/api/tasks", body)
 
@@ -7601,7 +7601,7 @@ function scenarioWechatKeySaveValidatesAndPosts() {
         && body.wechat_key === '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
       const cleared = env.elements['wx-key'].value === '';
       const statusText = env.elements['wx-key-status'].textContent;
-      // 手动密钥保存会 reload reader，立刻生效；本轮删掉了「重启群务台后生效」这句误导文案，
+      // 手动密钥保存会 reload reader，立刻生效；本轮删掉了「重启Agendum后生效」这句误导文案，
       // 所以既要认新文案，也要守住「不许再让用户去重启」。
       const okText = statusText.indexOf('已保存并生效') >= 0 && statusText.indexOf('重启') < 0;
       resolve({

@@ -277,7 +277,7 @@ public final class MainActivity extends Activity {
             try {
                 pendingExport = repository.exportPending();
                 runOnUiThread(() -> {
-                    try { startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json").putExtra(Intent.EXTRA_TITLE, "群务台-未同步编辑.json"), 701); }
+                    try { startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json").putExtra(Intent.EXTRA_TITLE, "Agendum-未同步编辑.json"), 701); }
                     catch (RuntimeException error) { toast("无法打开文件选择器，请先保留本地数据"); }
                 });
             } catch (Exception error) { toast(message(error)); }
@@ -315,7 +315,7 @@ public final class MainActivity extends Activity {
         scanInProgress = false;
         IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
         if (result == null || result.getContents() == null) { setStatus("扫码未完成，可重试或手动填写地址"); return; }
-        try { if (!handleLink(Uri.parse(result.getContents()))) setStatus("这不是群务台的配对二维码"); }
+        try { if (!handleLink(Uri.parse(result.getContents()))) setStatus("这不是Agendum的配对二维码"); }
         catch (RuntimeException error) { setStatus("二维码无法读取，请重新生成"); }
     }
     private static String message(Exception error) { Throwable cause = error; while (cause.getCause() != null) cause = cause.getCause(); return cause.getMessage() == null ? "操作未完成，请重试" : cause.getMessage(); }

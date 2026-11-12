@@ -2,77 +2,20 @@
   "version": 1,
   "items": [
     {
-      "tag": "v1.1.0-beta.16",
-      "version": "1.1.0-beta.16",
-      "name": "群务台 1.1.0-beta.16（测试版）",
-      "notes": "代码、测试、文档全部由本项目自己写：全仓 165 个源文件与上游同名文件比对，最长连续相同行都不超过 6 行，77 个测试文件的用例名与条数经机器核对一条没少。功能、配置项、界面、数据结构与 beta.15 一致，升级不需要重新配置。删除 NOTICE 与 LICENSE-UPSTREAM，只保留一份 PolyForm Noncommercial 1.0.0 许可。安装包改成收整个 web_static 目录，修掉上一版漏打页面图标与 PWA 清单导致服务起不来的问题。新增 docs/api.md（105 条接口、108 个配置项）与 docs/项目说明.md。",
-      "published_at": "2026-11-01T12:40:00+08:00",
+      "tag": "v1.1.0-beta.18",
+      "version": "1.1.0-beta.18",
+      "name": "Agendum 1.1.0-beta.18（测试版）",
+      "notes": "这一版只修一处提示：设置页把早就装上的旧包当成「更新包已就绪」。待装记录只在「包比当前版本新」时才算数：启动时按版本号比一次，不比当前版本新的记录直接清掉；比当前新的照样留着。最近推送的卡片标题改用正文第一句，分类名留在上面那行小字，正文里不再重复。手机宽度下的大标题不再剩一两个字单独占一行。",
+      "published_at": "2026-11-08T23:50:03+08:00",
       "asset_name": "QQ-Notice-Hub.zip",
-      "size": 52263802,
-      "sha256": "52ba620e25e118bbb1df1714dc4786e7260b5160ce7585820489ac25a001d87e",
-      "download_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.16/QQ-Notice-Hub.zip"
-    },
-    {
-      "tag": "v1.1.0-beta.15",
-      "version": "1.1.0-beta.15",
-      "name": "群务台 1.1.0-beta.15（测试版）",
-      "notes": "收件箱能看到真图片：普通消息和历史回溯消息的图片也会留存原图，列表直接显示缩略图，点开看大图。自动整理规则的关键词改成一条条加的标签，回车或逗号生成、点 × 单独删。设置页自检从 76–84 秒降到几秒，点退出不再等 40 秒。日历订阅时间不再偏 8 小时；NapCat 安装有进度；手机端与网页端各修了一批交互问题。",
-      "published_at": "2026-10-31T08:07:21+08:00",
-      "asset_name": "QQ-Notice-Hub.zip",
-      "size": 51039911,
-      "sha256": "90d6b2b1612ea0eed13855f06a80c752b081dcb60376452f3de76d971a11703a",
-      "download_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.15/QQ-Notice-Hub.zip"
-    },
-    {
-      "tag": "v1.1.0-beta.14",
-      "version": "1.1.0-beta.14",
-      "name": "群务台 1.1.0-beta.14（测试版）",
-      "notes": "这一版全是安全加固，没有新功能。访问令牌不再长期挂在地址栏：链接里的令牌只换一次 HttpOnly 会话 Cookie，换完立刻从地址栏抹掉，也不再写 localStorage；老链接照样能用，第一次会换 Cookie 并自动重载一次。NapCat 安装包解压前校验指纹（首次安装要确认一次实算 sha256，之后自动比对），解压有 800MB / 5000 项双上限。更新包下载只认 GitHub / Gitee 域名，清单 sha256 必须存在，装机脚本里先复算哈希再解压。数据库带版本号、启动做完整性检查、真损坏才隔离成 .corrupt-<时间戳> 并重建，每天自动快照保留 7 份。待办写入改成原子 UPSERT，并发不再撞唯一键，用户改过的状态不被覆盖。防火墙规则收窄到专用/域网络和本机网段（公用网络下手机连不上是刻意限制）。健康检查真探数据库，坏了返回故障状态。另：配对来源 10 分钟最多 3 次并可一键清空待配对；连续输错令牌会被限速；HTTP 30 秒超时、并发上限 64。已知残留：目前没有代码签名，能改仓库或镜像的人仍可同时替换安装包与清单哈希。",
-      "published_at": "2026-10-28T14:05:00+08:00",
-      "asset_name": "QQ-Notice-Hub.zip",
-      "size": 50915105,
-      "sha256": "a43b316bbac42975bd8eca9318b3846ffe42b66faab5d848ca425e15b862ba5f",
-      "download_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.14/QQ-Notice-Hub.zip"
-    },
-    {
-      "tag": "v1.1.0-beta.13",
-      "version": "1.1.0-beta.13",
-      "name": "群务台 1.1.0-beta.13（测试版）",
-      "notes": "新增「自动整理规则」（实验室，默认关闭）：自己写关键词/正则/@我/发送人规则，命中的群消息直接进待办；写错会指出第几条错在哪、整批拒绝；保存前可「试跑一条消息」预览命中。新增公网日历订阅地址（Tailscale Funnel），不连同一个 WiFi 也能订阅，链接带令牌、无令牌 401。截止时间不再漏：大模型没给时间时从正文补出「明天下午三点」这类时间，历史回填同步生效，纯闲聊仍不进待办。服务自检从 32.7 秒降到约 10 秒（通道状态不再算两遍、Tailscale 查询加 5 秒缓存），超过 8 秒会提示在等。修复社区在线数一直显示「暂不可用」（取数没带令牌、上报挂在不调的接口上、脚本比工具函数先跑三层原因）。代码结构：webapp.py 拆出路由表/设置接口/更新接口三个模块，4403 行降到 3697 行，行为不变。",
-      "published_at": "2026-10-28T02:18:01+08:00",
-      "asset_name": "QQ-Notice-Hub.zip",
-      "size": 50883826,
-      "sha256": "345bafbe6233f81a89622e61e8fc30dcf595f8d5c0451ded9b1ca90442dd97ab",
-      "download_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.13/QQ-Notice-Hub.zip"
-    },
-    {
-      "tag": "v1.1.0-beta.12",
-      "version": "1.1.0-beta.12",
-      "name": "群务台 1.1.0-beta.12（测试版）",
-      "notes": "社区在线数（匿名计数，关于与支持面板）；钉钉状态三态引导与重连监听按钮；微信扫描失败按原因给指引并加重试扫描；公网日历优先公网地址并给开通入口；二维码超过 2 分钟未换新提示过期；断言清理与托盘 CI。",
-      "published_at": "2026-10-26T10:00:00+08:00",
-      "asset_name": "QQ-Notice-Hub.zip",
-      "size": 50816470,
-      "sha256": "e1b7a3402d4c2995a557479b19c79cf99755855cb58603ca964e076f9c87cfc7",
-      "download_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.12/QQ-Notice-Hub.zip",
-      "notes_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/tag/v1.1.0-beta.12"
-    },
-    {
-      "tag": "v1.1.0-beta.11",
-      "version": "1.1.0-beta.11",
-      "name": "群务台 1.1.0-beta.11（测试版）",
-      "notes": "修装机与扫码卡住：QQ 检测补注册表 Install 值/运行中进程路径/盘根候选，报错换成三步自助；扫码状态机增加 stage 与已等待秒数；学习通向导补 setCxStep；开公网与放行防火墙需显式 confirm 并写审计；onboarding 改单按钮。",
-      "published_at": "2026-10-24T23:40:00+08:00",
-      "asset_name": "QQ-Notice-Hub.zip",
-      "size": 50757062,
-      "sha256": "2ade3385c928a7e18f179751e7173b834ed4a31ef405598275dd535394d583d8",
-      "download_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.11/QQ-Notice-Hub.zip",
-      "notes_url": "https://gitee.com/ExpertKT/notice-hub-mirror/releases/tag/v1.1.0-beta.11"
+      "size": 48368980,
+      "sha256": "e932c4edc188433d80178c8777438753de40ad4a06839a5111c98c5d36624d38",
+      "download_url": "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.18/QQ-Notice-Hub.zip"
     }
   ],
   "signature": {
     "alg": "RS256",
-    "key_id": "nh-2026-1",
-    "value": "cPheMo8HfXBPFrNtN9XynZV_ycmrgDXGka_FZHdcvXkTilK1ESC0RxIeYKyudGgcmzG6TCnwhV6LDSaWeDT3qkT0K7cJwqN7ZwIVqvOPt2IwHoZ_Yevrp7jl4qFrc1mGHSknnuUr9G1xG60DTt48LJg8IyMoLnyV_zChSIl7lAGiJ8I1DgtCJR0E4fgkHSdxGuDgxBczk5lzpU_sDzARVU3eGfm0hm52tAjBIuctphqdEQJfdHpQJv14opcXKtgu1VYL5Q77vJHX5ZYrSfko6P3fMuNosk7D7BRHyFaqQYyJog_gQ__mn_UuFMqmgyVzbFGcV9FAoWbpkBZb28TqTnvZuTgmygTh43PSrXDhRpeHEPFpwaNOVmMIzsUSoXByRJXP7QdRLq3d91gIDz0unv76W-eUAgjwWhZyusw7AoT3Fjv6qqHOfUFg1glvy1oE-sl6ML-Uw7nPQ12uss75e0TR973a5G-uGbbrHAPQDTs6fXlD9LY2nsHXzT58vt8o"
+    "key_id": "agendum-2026-1",
+    "value": "J-Srfddiw_iREZxaT_-_CzIG2gaBA6Gz-X4JTAn4L54oWAZMr-kISOQqMFNKfzbhmQb_fu_7zFFN_N-EBmkJYCeP-LQ6_goXgAhj2MzI9YZQP7nHinduiOUVWta_zaUgR8pIxXR9agxfrEouMHEY47UZF3u9M-rg-DZeRQAYjs6s0rZCgSC0qYxrPUsyTU_I1rUNJsYyRGSZd7ANjEXrL9OpHcNThypmvz5ZVLBrJCOzW5mhN7iQqhJUnP01t7WNRwOkDwJYlQyYku77QkewrqCs8yFvrKmb-JxAuc_3OwIcYuxzvUsyIoefK4LTnpbw4ToN7CdVDIg0vTXRMS7iOE-gg46gV-KalggRTUaQnqbSEjWAcIU7AwTUYBAcajnTKKTHM8k4IgujQ5Vr6q9OW8VaM4x2QL7ce9BafPyYRbznm-58X7aIau0COkx_gYLZs0TWgrU3mUQAS_0ZTUYoJk-589vmdlknPcoq_7xQl7x2wi67_9c05FKDEC47_VLJ"
   }
 }

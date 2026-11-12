@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""notice-hub 的命令行入口：跑服务、跑调度、预览、自检、看统计、解析群文件。
+"""Agendum 的命令行入口：跑服务、跑调度、预览、自检、看统计、解析群文件。
 
 子命令（`python main.py <子命令>`）：
     run          常驻监听、汇总、推送（服务本体）
@@ -138,7 +138,7 @@ def _take_exclusive(handle) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     """按 _COMMANDS 拼出完整命令行。"""
-    parser = argparse.ArgumentParser(description="notice-hub：把群通知变成待办与日历事件")
+    parser = argparse.ArgumentParser(description="Agendum：把群通知变成待办与日历事件")
     parser.add_argument("--env", default="", help=".env 文件路径，默认项目根目录 .env")
     sub = parser.add_subparsers(dest="command", required=True)
     for name, help_text, handler, argument_specs in _COMMANDS:

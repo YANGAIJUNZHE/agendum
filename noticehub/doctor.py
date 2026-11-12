@@ -266,7 +266,7 @@ def _napcat_probe(settings: Settings) -> dict[str, Any]:
 def _readme_text(bundle_name: str) -> str:
     return (
         "【这是什么】\n"
-        f"{bundle_name} 是 notice-hub 的一键诊断包，用于排查「跑不起来 / 推送不通 / 更新异常」。\n\n"
+        f"{bundle_name} 是 Agendum 的一键诊断包，用于排查「跑不起来 / 推送不通 / 更新异常」。\n\n"
         "【已脱敏】\n"
         "- .env 只有键名与「已设置 / 长度」，不含任何值；\n"
         "- 日志、state 里的 token / cookie / password / api_key / secret / Authorization 一律打码为 ***；\n"

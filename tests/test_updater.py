@@ -142,7 +142,7 @@ class SignedManifestCheckMixin(SigningKeyMixin):
 class CheckUrlTests(SignedManifestCheckMixin, unittest.TestCase):
     def test_fork_release_without_signed_entry_is_manual_only(self):
         release = release_payload(tag="v9.9.9")
-        release["html_url"] = "https://github.com/YANGAIJUNZHE/notice-hub/releases/tag/v9.9.9"
+        release["html_url"] = "https://github.com/YANGAIJUNZHE/agendum/releases/tag/v9.9.9"
         with (
             patch.object(updater.update_sources, "sources", return_value=self._github_only()),
             patch.object(updater, "_fetch_json", return_value=[release]),
@@ -1354,7 +1354,7 @@ class LauncherUpdateCheckTests(unittest.TestCase):
                     launcher._update_check_worker(root, data, "beta")
             self.assertEqual(len(shown), 1)
             self.assertIn("v1.1.0", shown[0][0])
-            self.assertEqual(shown[0][1], "群务台 有新版本")
+            self.assertEqual(shown[0][1], "Agendum 有新版本")
             state = json.loads((data / "updates" / "state.json").read_text(encoding="utf-8"))
             self.assertEqual(state["notified_tag"], "v1.1.0")
             self.assertEqual(state["last_check"], "2026-10-11 13:00:00")

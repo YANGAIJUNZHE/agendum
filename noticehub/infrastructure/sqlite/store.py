@@ -381,7 +381,7 @@ class Store(sync_storage.SyncStoreMixin):
         version = self._stored_version()
         if version > SCHEMA_VERSION:
             raise RuntimeError(
-                "数据库结构版本 %d 高于本程序支持的 %d，请升级 notice-hub 后再启动：%s"
+                "数据库结构版本 %d 高于本程序支持的 %d，请升级 Agendum 后再启动：%s"
                 % (version, SCHEMA_VERSION, self.path.resolve())
             )
         if version < 2 and self.path.is_file() and self.path.stat().st_size and not recovered:

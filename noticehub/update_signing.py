@@ -25,7 +25,8 @@ from typing import Any
 SHA256_DIGEST_INFO = bytes.fromhex("3031300d060960864801650304020105000420")
 
 # key_id -> (n, e)。轮换时把新公钥并列加进来：先发带新公钥的版本，再用新私钥签后续清单。
-# 当前这把与 release/manifest-pubkey.json 完全一致（3072 位，e = 0x10001）。
+# agendum-2026-1 与 release/manifest-pubkey.json 完全一致（3072 位，e = 0x10001）。
+# nh-2026-1 是独立前上游时期的旧钥，保留只为验历史清单。
 KNOWN_KEYS: dict[str, tuple[int, int]] = {
     "nh-2026-1": (
         int(
@@ -37,6 +38,20 @@ KNOWN_KEYS: dict[str, tuple[int, int]] = {
             "987cd26923fc35914b2a91513e1263247a98473c657c4a4136c062ee499d11c75f1c784a2822cc0d888d0383387c4200"
             "f04307f7f0a1f7709c30e2a72323ea3f1deb5580b032d1b0474f1d177bb4a3c5fd3eb8f99024e78c0678ed1c72c60fe6"
             "badecdbb8b852e05ed9224bcf1572279614db6e14fc3de254dee994f89e2edcb51390d17d06b7a5ec195da74d7ff16e9",
+            16,
+        ),
+        0x10001,
+    ),
+    "agendum-2026-1": (
+        int(
+            "a5aa40e6af54d573c8d2ad5b178f85d5cd55ee51738d6439ad4aca39fda3a55ab26ed6c05f3026b5982296f38f3a6e65"
+            "3fe7d58d44d781bdb35e9b78cda900af51776d792f74ce78ceb680482472ff05ce279e542bf0171ef2a40abb3b71562d"
+            "4bca95412880255b71fa51196ff5dda5d6a811775b6e7c5c88149b2cbe95d5126bcfcdcc1ae389c1aeef27e4d85a64f4"
+            "47fc254461d5b3dbbdc9f115d460d86d2f9dcf46dd7dab4c0a78b5a4a0829bdead2bcd8f76cbaced2429f0d0a5c5a298"
+            "70f368850ba0de23e207449307c64eba9211ecec35294c9d181fbf43403420e80a75472a4a3e0e5b0bd7ba365bcf295a"
+            "6e3112baf13b6539e7f09a7c34e38b5507ad2f476e77608e72ac9e34d6cae0d81dcade2e7aa71460f0039b9962668f72"
+            "cd89c5a17c1994f169cde7a701105dbc25dc95acfeec93e035e2d572a3d61e5e335f3833e423a920bec3455d99f7b8af"
+            "098331514194cb8bc9319d18f68660d40aca548bed20f7aafba3c07f66276dff5cc7680c1e66357706ae29147c634263",
             16,
         ),
         0x10001,

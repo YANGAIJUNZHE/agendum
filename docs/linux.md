@@ -14,8 +14,8 @@ sudo apt install -y git python3 python3-venv python3-pip
 克隆仓库到一个长期保留的目录，然后运行安装脚本：
 
 ```bash
-git clone https://github.com/ExpertKT/notice-hub.git ~/notice-hub
-cd ~/notice-hub
+git clone https://github.com/YANGAIJUNZHE/agendum.git ~/agendum
+cd ~/agendum
 bash packaging/linux/install.sh
 ```
 

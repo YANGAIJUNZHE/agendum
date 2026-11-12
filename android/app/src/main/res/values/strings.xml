@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">群务台</string>
+    <string name="app_name">Agendum</string>
     <string name="unpair_title">解绑这台电脑？</string>
     <string name="unpair_message">之后需要重新扫码或输入配对码。</string>
     <string name="unpair_confirm">解绑</string>

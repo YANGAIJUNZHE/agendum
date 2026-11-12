@@ -10,7 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>群务台</title>
+<title>Agendum</title>
 <style>
 :root{
   --bg:#0a0c12;--bg-top:#111728;--surface:rgba(255,255,255,.055);--surface-2:rgba(255,255,255,.08);
@@ -871,10 +871,10 @@ html[data-theme=dark] .task-filter input::placeholder,html[data-theme=dark] .set
     <div class="announce-modal-actions"><button id="announce-modal-prev" class="btn" type="button" hidden>上一条</button><button id="announce-modal-next" class="btn" type="button" hidden>下一条</button><span id="announce-modal-count" class="announce-modal-count"></span><button id="announce-modal-ok" class="btn primary" type="button">我知道了</button></div>
   </div>
 </div>
-<div id="onboarding" hidden style="position:fixed;inset:0;z-index:1200;background:rgba(10,20,18,.72);display:flex;align-items:center;justify-content:center;padding:20px"><section role="dialog" aria-modal="true" aria-labelledby="onboarding-title" style="position:relative;max-width:620px;max-height:90vh;overflow:auto;background:var(--paper);color:var(--ink);padding:24px;border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.3)"><button id="onboarding-close" class="btn" type="button" aria-label="关闭" style="position:absolute;top:10px;right:10px">×</button><h2 id="onboarding-title">欢迎使用群务台</h2><p>它把你指定的 QQ 群里的通知挑出来，变成待办和手机日历。先看四步就能用起来。</p><ol><li>点「一键接入」装好引擎</li><li>按页面提示完成 QQ 登录</li><li>在设置里选要订阅的群</li><li>把日历订阅地址加到手机日历</li></ol><div role="note" style="padding:12px;margin:12px 0;background:var(--amber-soft);border-left:3px solid var(--amber)"><strong>风险提示</strong><p>NapCat 是第三方 QQ 协议客户端。用它登录主号有被风控甚至封号的风险，建议用小号。群务台只读群消息，不发言、不改群设置、不主动加好友。请遵守 QQ 用户协议，风险自负。</p><p><strong>如果登录后很快就被踢下线</strong>（刚扫码几分钟就掉、反复重扫反复掉、手机上收到安全提醒），这通常说明该账号已被腾讯的风控识别为第三方客户端登录。<strong>这时请停止反复重扫</strong>——每次重连都是一次新的识别样本，连续重试只会让判定更重。先停几个小时到一两天，期间用手机上的官方 QQ 正常使用这个号，确认账号本身没有被限制，再回来试一次。详细信息见 <code>docs/使用说明.md</code> 第八节。</p></div><div role="note" style="padding:12px;margin:12px 0;background:var(--amber-soft);border-left:3px solid var(--amber)"><strong>微信（默认关闭）</strong><p>打开微信接入后，群务台会读取这台电脑上微信自己的聊天数据库，用来把微信群消息变成待办。它只读：不会替你发消息、不发送好友申请、不改群设置。微信的数据库是加密的，程序需要从微信进程内存里取出解密密钥，这种做法可能被微信判定为异常，存在触发风控甚至封号的风险。默认关闭，需要你自己在设置里手动打开，风险自负。</p></div><div role="note"><strong>数据说明</strong><p>消息、待办和附件都存在这台电脑的 SQLite 里，不上传到任何服务器。只有你自己配置了模型或推送通道时，内容才会发给你选的那家服务商。</p></div><p>本软件按 PolyForm Noncommercial 1.0.0 许可「按原样」提供，不提供任何担保；商用需授权，请联系 https://github.com/ExpertKT/notice-hub/issues。</p><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button id="onboarding-accept" class="btn primary" type="button">我知道了，开始使用</button></div><p id="onboarding-error" role="alert" hidden style="margin:8px 0 0"></p></section></div>
+<div id="onboarding" hidden style="position:fixed;inset:0;z-index:1200;background:rgba(10,20,18,.72);display:flex;align-items:center;justify-content:center;padding:20px"><section role="dialog" aria-modal="true" aria-labelledby="onboarding-title" style="position:relative;max-width:620px;max-height:90vh;overflow:auto;background:var(--paper);color:var(--ink);padding:24px;border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.3)"><button id="onboarding-close" class="btn" type="button" aria-label="关闭" style="position:absolute;top:10px;right:10px">×</button><h2 id="onboarding-title">欢迎使用Agendum</h2><p>它把你指定的 QQ 群里的通知挑出来，变成待办和手机日历。先看四步就能用起来。</p><ol><li>点「一键接入」装好引擎</li><li>按页面提示完成 QQ 登录</li><li>在设置里选要订阅的群</li><li>把日历订阅地址加到手机日历</li></ol><div role="note" style="padding:12px;margin:12px 0;background:var(--amber-soft);border-left:3px solid var(--amber)"><strong>风险提示</strong><p>NapCat 是第三方 QQ 协议客户端。用它登录主号有被风控甚至封号的风险，建议用小号。Agendum只读群消息，不发言、不改群设置、不主动加好友。请遵守 QQ 用户协议，风险自负。</p><p><strong>如果登录后很快就被踢下线</strong>（刚扫码几分钟就掉、反复重扫反复掉、手机上收到安全提醒），这通常说明该账号已被腾讯的风控识别为第三方客户端登录。<strong>这时请停止反复重扫</strong>——每次重连都是一次新的识别样本，连续重试只会让判定更重。先停几个小时到一两天，期间用手机上的官方 QQ 正常使用这个号，确认账号本身没有被限制，再回来试一次。详细信息见 <code>docs/使用说明.md</code> 第八节。</p></div><div role="note" style="padding:12px;margin:12px 0;background:var(--amber-soft);border-left:3px solid var(--amber)"><strong>微信（默认关闭）</strong><p>打开微信接入后，Agendum会读取这台电脑上微信自己的聊天数据库，用来把微信群消息变成待办。它只读：不会替你发消息、不发送好友申请、不改群设置。微信的数据库是加密的，程序需要从微信进程内存里取出解密密钥，这种做法可能被微信判定为异常，存在触发风控甚至封号的风险。默认关闭，需要你自己在设置里手动打开，风险自负。</p></div><div role="note"><strong>数据说明</strong><p>消息、待办和附件都存在这台电脑的 SQLite 里，不上传到任何服务器。只有你自己配置了模型或推送通道时，内容才会发给你选的那家服务商。</p></div><p>本软件按 PolyForm Noncommercial 1.0.0 许可「按原样」提供，不提供任何担保；商用需授权，请联系 https://github.com/YANGAIJUNZHE/agendum/issues。</p><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button id="onboarding-accept" class="btn primary" type="button">我知道了，开始使用</button></div><p id="onboarding-error" role="alert" hidden style="margin:8px 0 0"></p></section></div>
 <header class="masthead" role="banner">
   <div class="masthead-row">
-    <button type="button" id="brand-home" class="brand" aria-label="回到页面顶部"><span class="brand-logo" id="brand-mark" aria-hidden="true"><svg class="brand-mark" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><circle cx="230.4" cy="281.6" r="204.8" fill="var(--brand-ink,#173b34)"/><circle cx="399.36" cy="107.52" r="107.52" fill="#FFFFFF"/><circle cx="399.36" cy="107.52" r="76.8" fill="var(--brand-accent,#12695b)"/><path d="M112.64 307.2 L184.32 378.88 L276.48 235.52" fill="none" stroke="#FFFFFF" stroke-width="66.56" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-text"><strong>群务台</strong><span class="brand-sub"><small>群消息 · 待办与日历</small><!--CHANNEL_BADGE--></span></span></button>
+    <button type="button" id="brand-home" class="brand" aria-label="回到页面顶部"><span class="brand-logo" id="brand-mark" aria-hidden="true"><svg class="brand-mark" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><circle cx="230.4" cy="281.6" r="204.8" fill="var(--brand-ink,#173b34)"/><circle cx="399.36" cy="107.52" r="107.52" fill="#FFFFFF"/><circle cx="399.36" cy="107.52" r="76.8" fill="var(--brand-accent,#12695b)"/><path d="M112.64 307.2 L184.32 378.88 L276.48 235.52" fill="none" stroke="#FFFFFF" stroke-width="66.56" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-text"><strong>Agendum</strong><span class="brand-sub"><small>群消息 · 待办与日历</small><!--CHANNEL_BADGE--></span></span></button>
     <div class="masthead-tools">
       <button id="announce-bell" class="announce-bell" type="button" aria-label="公告" aria-haspopup="dialog" aria-controls="announce-panel" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span id="announce-bell-badge" class="announce-bell-badge" hidden>0</span></button>
       <span class="local-badge"><i aria-hidden="true"></i> 本地运行</span>
@@ -968,8 +968,8 @@ html[data-theme=dark] .task-filter input::placeholder,html[data-theme=dark] .set
       <section id="connect" class="surface connect-panel" aria-labelledby="connect-title">
         <div class="panel-heading"><div><span class="eyebrow">ACCOUNT</span><h2 id="connect-title">QQ 接入</h2></div><span class="panel-index">01</span></div>
         <div class="status-slot"><div id="status" role="status" aria-live="polite">正在检查 QQ 登录状态…</div><p class="status-slot-fit" aria-hidden="true">NapCat 的接口端口（127.0.0.1:3001）在监听，但接口调用失败：这是配置问题，不是没登录，继续扫码解决不了。请核对连接密码是否和 NapCat 里填的一致，以及 3001 端口是否被别的程序占用（换端口或关掉占用它的程序），改完点「重启引擎」。</p></div>
-        <div id="install-box"><p id="napcat-engine" role="status">正在检查 NapCat 引擎…</p><p>NapCat 会安装到独立数据目录，不会动你平时使用的电脑版 QQ；移除该目录即可卸载。</p><details id="napcat-dir-details"><summary>已经自己装过 NapCat？</summary><label class="field"><input id="napcat-dir" type="text" autocomplete="off" placeholder="NapCat 安装目录"></label><button id="napcat-dir-save" class="btn" type="button">保存并重载</button><p id="napcat-dir-result" role="status"></p><p class="connect-hint">目录保存后要重启群务台生效；高级方式：在 .env 写 QQ_DIGEST_NAPCAT_DIR=&lt;目录&gt; 后重启。</p></details><p id="install-result" role="status"></p></div>
-        <div class="connect-actions"><div class="connect-actions-primary"><button id="auto-setup" class="btn ghost" type="button" hidden title="第一次用点这个：下载安装 NapCat、启动引擎并显示登录二维码">一键接入</button><button id="go" class="btn primary" type="button" hidden aria-label="启动 NapCat 并登录" title="只启动引擎并确认登录状态；不会退出电脑版 QQ">启动并登录</button><button id="napcat-connect" class="btn primary" type="button" hidden title="手动起的 NapCat 在跑、群务台连不上它的接口时点这个：按 3001 → 3000 → NapCat 自己配置里的端口逐个试，连上就把地址记下来">帮我连上它</button></div><div class="connect-actions-secondary"><button id="refresh-qr" class="btn" type="button" hidden title="二维码过期或看不清时重新获取一张">刷新二维码</button><button id="restart-napcat" class="btn" type="button" hidden title="引擎卡住、二维码一直不变时点这个：停掉本安装的 NapCat 再启动一次，需要用手机重新扫码">重启引擎</button></div></div>
+        <div id="install-box"><p id="napcat-engine" role="status">正在检查 NapCat 引擎…</p><p>NapCat 会安装到独立数据目录，不会动你平时使用的电脑版 QQ；移除该目录即可卸载。</p><details id="napcat-dir-details"><summary>已经自己装过 NapCat？</summary><label class="field"><input id="napcat-dir" type="text" autocomplete="off" placeholder="NapCat 安装目录"></label><button id="napcat-dir-save" class="btn" type="button">保存并重载</button><p id="napcat-dir-result" role="status"></p><p class="connect-hint">目录保存后要重启Agendum生效；高级方式：在 .env 写 QQ_DIGEST_NAPCAT_DIR=&lt;目录&gt; 后重启。</p></details><p id="install-result" role="status"></p></div>
+        <div class="connect-actions"><div class="connect-actions-primary"><button id="auto-setup" class="btn ghost" type="button" hidden title="第一次用点这个：下载安装 NapCat、启动引擎并显示登录二维码">一键接入</button><button id="go" class="btn primary" type="button" hidden aria-label="启动 NapCat 并登录" title="只启动引擎并确认登录状态；不会退出电脑版 QQ">启动并登录</button><button id="napcat-connect" class="btn primary" type="button" hidden title="手动起的 NapCat 在跑、Agendum连不上它的接口时点这个：按 3001 → 3000 → NapCat 自己配置里的端口逐个试，连上就把地址记下来">帮我连上它</button></div><div class="connect-actions-secondary"><button id="refresh-qr" class="btn" type="button" hidden title="二维码过期或看不清时重新获取一张">刷新二维码</button><button id="restart-napcat" class="btn" type="button" hidden title="引擎卡住、二维码一直不变时点这个：停掉本安装的 NapCat 再启动一次，需要用手机重新扫码">重启引擎</button></div></div>
         <p id="qq-next-step" class="setting-note" role="status" hidden></p>
         <div id="napcat-connect-help" class="setting-note" role="status" hidden></div>
         <details id="qq-qr-details" open><summary>登录二维码</summary><div id="qrbox"><p id="qr-note">启动 NapCat 后，这里会显示登录二维码。</p><img id="qr" alt="QQ 登录二维码" hidden></div></details>
@@ -1002,7 +1002,7 @@ html[data-theme=dark] .task-filter input::placeholder,html[data-theme=dark] .set
          </section>
          <section id="rail-about" class="surface rail-panel" aria-labelledby="rail-about-title">
            <div class="panel-heading"><div><span class="eyebrow">SUPPORT</span><h2 id="rail-about-title">关于与支持</h2></div><span class="panel-index">03</span></div>
-           <p class="connect-hint">群务台是开源项目，觉得有用可以去给个 star；遇到问题也欢迎直接提 issue。</p>
+           <p class="connect-hint">Agendum是开源项目，觉得有用可以去给个 star；遇到问题也欢迎直接提 issue。</p>
            <p class="about-notice"><button id="onboarding-open" class="about-link" type="button">使用须知与风险提示</button></p>
            <p id="rail-community" class="connect-hint">社区在线：…</p>
            <div class="about-actions">
@@ -1149,7 +1149,7 @@ function friendlyError(raw) {
   if (/10060|timed out|超时/i.test(text)) return '连接超时：QQ 或 NapCat 没有响应，请稍后重试。';
   if (/Chaoxing login session is invalid or expired/i.test(text)) return '学习通登录状态无效或已过期：优先在浏览器重新登录并自动读取；失败时用托盘「读取学习通登录凭证」；仍失败可展开设置里的「高级：手动粘贴登录凭证」（可能缺少 HttpOnly 项）。';
   if (/^HTTP \d+$/.test(text)) return '请求失败（' + text.slice(5) + '），请重试。';
-  if (/Failed to fetch|NetworkError|Load failed|不能连接到远程服务器/i.test(text)) return '本机服务没有响应，先看看群务台是不是还在运行。';
+  if (/Failed to fetch|NetworkError|Load failed|不能连接到远程服务器/i.test(text)) return '本机服务没有响应，先看看Agendum是不是还在运行。';
   return text || '未知错误';
 }
 // 红队 S1：URL 里的令牌先换一次 HttpOnly 会话 Cookie，换成功就把 token 从地址栏抹掉并重载，
@@ -1169,7 +1169,7 @@ function showTokenHint(message) {
 }
 function exchangeUrlToken() {
   if (!nhUrlToken) return Promise.resolve(false);
-  var wrongTokenHint = '令牌不正确或已失效：请从托盘「打开控制台」重新打开群务台，或去找一个带最新令牌的访问地址。';
+  var wrongTokenHint = '令牌不正确或已失效：请从托盘「打开控制台」重新打开Agendum，或去找一个带最新令牌的访问地址。';
   return fetch('/api/session/exchange', {
     method: 'POST',
     credentials: 'same-origin',
@@ -2689,13 +2689,13 @@ function downloadFirewallScript(port){
     var url=URL.createObjectURL(blob);
     var link=document.createElement('a');
     link.href=url;
-    link.download='允许手机访问群务台.cmd';
+    link.download='允许手机访问Agendum.cmd';
     link.style.display='none';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.setTimeout(function(){URL.revokeObjectURL(url);},1000);
-    if(hint){hint.dataset.state='ok';hint.textContent='已生成「允许手机访问群务台.cmd」，双击运行（需要管理员）。没看到下载？检查浏览器有没有拦截提示。';}
+    if(hint){hint.dataset.state='ok';hint.textContent='已生成「允许手机访问Agendum.cmd」，双击运行（需要管理员）。没看到下载？检查浏览器有没有拦截提示。';}
   }catch(error){
     fail('下载被浏览器拦截或失败了：'+((error&&error.message)||'未知原因')+'。可以改用上面的复制命令手动执行。');
   }
@@ -3284,7 +3284,7 @@ if(!localStorage.getItem(WKEY))openWizard(1);
 </script>
 <div id="star-prompt" class="star-prompt" hidden role="dialog" aria-modal="true" aria-labelledby="star-prompt-title">
   <div class="star-prompt-card surface">
-    <h2 id="star-prompt-title">群务台已经帮你推送过消息了</h2>
+    <h2 id="star-prompt-title">Agendum已经帮你推送过消息了</h2>
     <p class="setting-note">如果它确实省了你的事，去 GitHub 点个 star；不方便也没关系，随时可以关掉。</p>
     <div class="star-prompt-actions">
       <a id="star-prompt-go" class="btn primary" href="https://github.com/ExpertKT/notice-hub" target="_blank" rel="noopener noreferrer">去 GitHub 点 star</a>

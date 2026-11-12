@@ -1,4 +1,4 @@
-"""notice-hub 冷装冒烟脚本（每次发版复用）。
+"""Agendum 冷装冒烟脚本（每次发版复用）。
 
 流程：解压 zip 到 %TEMP%\\nh-smoke-<guid> → 注入环境变量 → 启动实例 →
 等 /health → 查版本 → 检查主页 → 停止实例 → 删除临时目录。
@@ -78,9 +78,9 @@ def run_smoke(zip_path: Path, port: int, token: str, timeout: float) -> tuple[bo
         for path in tmp_root.rglob("*"):
             if path.is_file():
                 os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
-        exe = tmp_root / "qq-live-digest.exe"
+        exe = tmp_root / "noticehub.exe"
         if not exe.is_file():
-            raise StepFailure("extract", f"包里没有 qq-live-digest.exe: {tmp_root}")
+            raise StepFailure("extract", f"包里没有 noticehub.exe: {tmp_root}")
 
         env = dict(os.environ)
         for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
@@ -155,7 +155,7 @@ def run_smoke(zip_path: Path, port: int, token: str, timeout: float) -> tuple[bo
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="notice-hub 冷装冒烟")
+    parser = argparse.ArgumentParser(description="Agendum 冷装冒烟")
     parser.add_argument("--zip", default=str(DEFAULT_ZIP), help="安装包路径")
     parser.add_argument("--port", type=int, default=0, help="端口，0=随机空闲端口")
     parser.add_argument("--token", default="smoketoken", help="注入的 web token")

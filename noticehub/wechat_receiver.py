@@ -791,7 +791,7 @@ def storage_unavailable_hint() -> str:
         "2. 程序会自动读这个位置；仍找不到时，打开设置页 →「微信」→「微信数据目录（可选）」，"
         "填上面那个存储位置目录（例如 D:\\Wechat files，也可以填 …\\xwechat_files 或某个账号的 …\\db_storage），"
         "点「保存目录」立即生效，不用重启。",
-        f"3. 也可以改程序目录 .env 里的 {STORAGE_DIR_ENV}（老办法，需要重启群务台）。",
+        f"3. 也可以改程序目录 .env 里的 {STORAGE_DIR_ENV}（老办法，需要重启Agendum）。",
     ]
     diagnosis = _storage_diagnosis()
     if diagnosis:

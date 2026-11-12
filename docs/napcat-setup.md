@@ -1,4 +1,4 @@
-# Windows 11：NapCatQQ 接入群务台
+# Windows 11：NapCatQQ 接入Agendum
 
 > 本文只配置“接收群消息”。项目的 OneBot v11 HTTP 接收器监听 `127.0.0.1:8765`；NapCat 应作为 **HTTP 客户端**，向该地址 POST 事件。不要把它配置成 HTTP 服务端。
 >
@@ -30,18 +30,18 @@ NapCat 是基于 NTQQ 的协议端。官方安装说明的顺序是“安装对�
 ## 3. 自动安装
 
 > **最省事的装法：把本文链接直接丢给你的 AI Agent。**
-> 把 `https://github.com/ExpertKT/notice-hub/blob/main/docs/napcat-setup.md` 发给 Claude Code、DSH、Codex 之类的编码 Agent，说一句「按这篇装 NapCat」。它会从官方 Release 下载 `NapCat.Shell.zip`（程序钉死在 v4.18.33，不查「最新版本」）、解压到群务台的数据目录、并把引擎路径填好。你只需要在它提示扫码那一步拿出手机。
+> 把 `https://github.com/YANGAIJUNZHE/agendum/blob/codex/notice-hub-custom/docs/napcat-setup.md` 发给 Claude Code、DSH、Codex 之类的编码 Agent，说一句「按这篇装 NapCat」。它会从官方 Release 下载 `NapCat.Shell.zip`（程序钉死在 v4.18.33，不查「最新版本」）、解压到Agendum的数据目录、并把引擎路径填好。你只需要在它提示扫码那一步拿出手机。
 
 如果页面检测不到 NapCat，点击接入区的「自动下载并安装 NapCat」。程序从官方 GitHub Release 下载官方 `NapCat.Shell.zip`（完整 Shell 包，不是约 1 MB 的 OneKey 安装桩），解压到项目数据目录下的 `<数据目录>\napcat`，不会修改电脑上自己的 QQ。安装完成后即可回到页面点击「启动 NapCat 并登录」。不想继续使用时删除该 `napcat` 文件夹即可卸载；也可以继续按下文手工安装，二者互为替代方案。
 
 **已经自己装过 NapCat 的**：程序在这些位置找引擎——`%APPDATA%`、`%LOCALAPPDATA%`、`%ProgramFiles%`、`%ProgramFiles(x86)%` 这四个目录本身、以及它们下面的 `napcat` 和 `NapCat*` 包，`.env` 里的 `QQ_DIGEST_NAPCAT_DIR`，`QQ_DIGEST_DATA_DIR\napcat`，再加上注册表里记录的 QQ 安装目录及其下的 `NapCat.*` 包（`qq_live_digest/napcat_admin.py:71` 的 `find_roots()`）。**没有**硬编码 `F:\NapCat` 或 `F:\napcat-dl`；装在别处的（例如解压在桌面）不会被自动发现。两种接法任选：
 
-- 在 `.env` 里加一行 `QQ_DIGEST_NAPCAT_DIR=<你的 NapCat 根目录>`（写解压出来的那一层；判定引擎目录靠的是 `NapCatWinBootMain.exe` + `NapCatWinBootHook.dll`，NapCat Shell 包里不含 `QQ.exe`），保存后重启群务台；
+- 在 `.env` 里加一行 `QQ_DIGEST_NAPCAT_DIR=<你的 NapCat 根目录>`（写解压出来的那一层；判定引擎目录靠的是 `NapCatWinBootMain.exe` + `NapCatWinBootHook.dll`，NapCat Shell 包里不含 `QQ.exe`），保存后重启Agendum；
 - 或者把整个 NapCat 文件夹挪到 `<数据目录>\\napcat`，不用改配置。
 
 ## 4. 启动、扫码与登录态
 
-> **推荐路径**：你不用自己启动 NapCat。装好解压出 `NapCatWinBootMain.exe` + `NapCatWinBootHook.dll` 之后，直接在群务台页面上点「启动并登录」，程序会带独立资料目录把它拉起来。本节余下步骤是手工启动/手工进 WebUI 的备选路径。NapCat 的 HTTP 服务端与 WebUI 端口分别默认 `3001` 与 `6099`，页面上的「托管状态」会显示 NapCat 是否在跑、是否已登录。
+> **推荐路径**：你不用自己启动 NapCat。装好解压出 `NapCatWinBootMain.exe` + `NapCatWinBootHook.dll` 之后，直接在Agendum页面上点「启动并登录」，程序会带独立资料目录把它拉起来。本节余下步骤是手工启动/手工进 WebUI 的备选路径。NapCat 的 HTTP 服务端与 WebUI 端口分别默认 `3001` 与 `6099`，页面上的「托管状态」会显示 NapCat 是否在跑、是否已登录。
 
 1. 按 Shell 官方 Windows 教程启动 NapCat；首次启动后查看控制台输出的 WebUI URL。WebUI 默认端口为 `6099`，实际端口可能因占用自动递增：https://napneko.github.io/config/basic
 2. 浏览器打开控制台显示的 WebUI 地址（形如 `http://127.0.0.1:6099/webui?token=...`）。
@@ -58,7 +58,7 @@ NapCat 必须使用独立的 QQ 资料目录启动，否则可能抢用你日常
 
 这是腾讯服务端的规则，NapCat 无法绕过：NapCat 登着你的号，你自己的电脑版 QQ 就登不上（反之亦然）。
 
-群务台的「**托管**」就是替你做这个切换：托盘图标或网页设置里的「开始托管」= 先关掉电脑版 QQ、再启动 NapCat；「结束托管」= 停掉 NapCat、把电脑版 QQ 开回来。它**只关进程、再开进程**，不修改你的 QQ 任何文件。
+Agendum的「**托管**」就是替你做这个切换：托盘图标或网页设置里的「开始托管」= 先关掉电脑版 QQ、再启动 NapCat；「结束托管」= 停掉 NapCat、把电脑版 QQ 开回来。它**只关进程、再开进程**，不修改你的 QQ 任何文件。
 
 想两边随时都能用，最省事的办法是**申请一个 QQ 小号专门给机器人**。
 

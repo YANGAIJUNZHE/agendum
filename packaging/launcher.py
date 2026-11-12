@@ -358,14 +358,14 @@ def _notify_user(root: Path, message: str) -> None:
 
         user32 = ctypes.windll.user32
         user32.MessageBeep(0x40)  # MB_ICONEXCLAMATION
-        user32.MessageBoxW(None, message, "群务台 启动失败", 0x10)  # MB_ICONERROR
+        user32.MessageBoxW(None, message, "Agendum 启动失败", 0x10)  # MB_ICONERROR
         return
     except Exception:
         pass
     _log_launcher(root, "弹窗也弹不出来，请看 logs\\launcher.log：" + message)
 
 
-def _notify_info(root: Path, message: str, title: str = "群务台 有新版本") -> None:
+def _notify_info(root: Path, message: str, title: str = "Agendum 有新版本") -> None:
     """好消息用信息框（0x40 图标），别跟「启动失败」的红色错误框混在一起。"""
     try:
         import ctypes
@@ -640,7 +640,7 @@ def _update_check_worker(root: Path, data_dir: Path, channel: str | None = None)
         _notify_info(
             root,
             "发现新版本 %s：%s\n\n打开网页 →「设置 → 版本更新」可以一键更新" % (tag, name),
-            title="群务台 有新版本",
+            title="Agendum 有新版本",
         )
         _write_update_state(data_dir, {"notified_tag": tag})
     except Exception:
@@ -1212,10 +1212,10 @@ class TrayHost:
                 with urllib.request.urlopen(request, timeout=45) as response:
                     result = json.loads(response.read().decode("utf-8"))
             except (OSError, ValueError):
-                self._notify("群务台服务没有响应，请确认它在运行")
+                self._notify("Agendum服务没有响应，请确认它在运行")
                 return
             if not isinstance(result, dict):
-                self._notify("群务台服务没有响应，请确认它在运行")
+                self._notify("Agendum服务没有响应，请确认它在运行")
                 return
             if result.get("ok") is True:
                 self._notify("已读取学习通 Cookie，并自动启用学习通")
@@ -1294,10 +1294,10 @@ class TrayHost:
                 with urllib.request.urlopen(request, timeout=20) as response:
                     result = json.loads(response.read().decode("utf-8"))
             except (OSError, ValueError):
-                self._notify("群务台服务没有响应，请确认它在运行")
+                self._notify("Agendum服务没有响应，请确认它在运行")
                 return
             if not isinstance(result, dict):
-                self._notify("群务台服务没有响应，请确认它在运行")
+                self._notify("Agendum服务没有响应，请确认它在运行")
             elif result.get("ok") is True:
                 self._notify("已从剪贴板导入学习通 Cookie")
             else:
@@ -1534,7 +1534,7 @@ def main() -> int:
         if selected_port is None:
             reason = (
                 "端口 %d 已被占用，附近没有可用端口。\n"
-                "请关闭占用端口的程序后，再启动群务台；用户 .env 没有被修改。"
+                "请关闭占用端口的程序后，再启动Agendum；用户 .env 没有被修改。"
             ) % port
             _log_launcher(root, "启动前探测发现端口 %d 已被占用，未找到可用端口" % port)
             _notify_user(root, reason)

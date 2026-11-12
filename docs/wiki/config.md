@@ -1,6 +1,6 @@
 # 配置
 
-版本更新和公告默认读取 `YANGAIJUNZHE/notice-hub`，默认不启用 Gitee 镜像。需要镜像时，可将 `NOTICEHUB_UPDATE_MIRROR` 设为维护者提供的 `组织名/仓库名`，旧配置名 `QQ_DIGEST_UPDATE_MIRROR` 仍可用。镜像安装包仍须通过签名校验。
+版本更新和公告默认读取 `YANGAIJUNZHE/agendum`，默认不启用 Gitee 镜像。需要镜像时，可将 `NOTICEHUB_UPDATE_MIRROR` 设为维护者提供的 `组织名/仓库名`，旧配置名 `QQ_DIGEST_UPDATE_MIRROR` 仍可用。镜像安装包仍须通过签名校验。
 
 ## 设置页面与本机布局
 

@@ -57,6 +57,32 @@ class VerifyManifestTests(unittest.TestCase):
         del payload["items"][0]["download_url"]
         self.assertEqual(1, self._run(payload))
 
+    def test_github_release_url_exits_zero(self):
+        payload = _manifest("1.1.0-beta.11")
+        payload["items"][0]["download_url"] = (
+            "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.11/QQ-Notice-Hub.zip"
+        )
+        self.assertEqual(0, self._run(payload))
+
+    def test_untrusted_host_exits_one(self):
+        payload = _manifest("1.1.0-beta.11")
+        payload["items"][0]["download_url"] = (
+            "https://github.com.evil.example/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.11/QQ-Notice-Hub.zip"
+        )
+        self.assertEqual(1, self._run(payload))
+
+    def test_http_scheme_exits_one(self):
+        payload = _manifest("1.1.0-beta.11")
+        payload["items"][0]["download_url"] = (
+            "http://gitee.com/ExpertKT/notice-hub-mirror/releases/download/v1.1.0-beta.11/QQ-Notice-Hub.zip"
+        )
+        self.assertEqual(1, self._run(payload))
+
+    def test_non_release_path_exits_one(self):
+        payload = _manifest("1.1.0-beta.11")
+        payload["items"][0]["download_url"] = "https://github.com/YANGAIJUNZHE/agendum/blob/main/QQ-Notice-Hub.zip"
+        self.assertEqual(1, self._run(payload))
+
     def test_repo_manifest_passes(self):
         repo_manifest = _SCRIPT.parent.parent / "release" / "update-manifest.json"
         self.assertEqual(0, verify_manifest.main(["verify_manifest.py", str(repo_manifest)]))

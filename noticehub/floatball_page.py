@@ -5,7 +5,7 @@ FLOATBALL_PAGE_HTML = r'''<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>群务台 · 浮球</title>
+<title>Agendum · 浮球</title>
 <style>
 :root{color-scheme:light;--page:#e8ebee;--paper:#fff;--paper-alt:#f2f4f6;--ink:#172722;--muted:#3d4f47;--line:#b0b8bd;--teal:#12695b;--teal-soft:#d6ede7;--amber:#805411;--amber-soft:#fff3db;--red:#a5312d;--red-soft:#ffeeed;--ease-in:cubic-bezier(.2,.8,.2,1);--ease-out:cubic-bezier(.4,0,1,1)}
 html[data-theme=dark]{color-scheme:dark;--page:#0a0c12;--paper:#141925;--paper-alt:#1a2234;--ink:#f3f5fa;--muted:#b7c0d0;--line:#6a7284;--teal:#2ba895;--teal-soft:#193f39;--amber:#ffb84d;--amber-soft:#433416;--red:#ff6b6f;--red-soft:#522120}
