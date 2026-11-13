@@ -447,29 +447,73 @@ class Store(sync_storage.SyncStoreMixin):
         while target.exists():
             target = self.path.with_name("%s-%d" % (stem, attempt))
             attempt += 1
-        moved: list[str] = []
-        failed: list[str] = []
-        for suffix in ("", "-wal", "-shm"):
+        # 搬移顺序是旁路文件先、主库最后。主库只要还在原路径，下次启动就仍会判为损坏、
+        # 再报一次同样的错；反过来先搬主库，一旦 -wal 搬不动就会留下「主库没了、旁路还在」
+        # 的半隔离，下次启动看不到主库，静默建个空库——首启说「未创建新库」、再启无声建库，
+        # 同一个事实两个答案。
+        sidecar_moves: list[tuple[Path, Path]] = []
+        for suffix in ("-wal", "-shm"):
             source = self.path.with_name(self.path.name + suffix)
-            if not source.is_file():
-                continue
+            if source.is_file():
+                sidecar_moves.append((source, target.with_name(target.name + suffix)))
+        moved: list[tuple[Path, Path]] = []
+        failed: list[str] = []
+        for source, destination in sidecar_moves:
             try:
-                source.rename(target.with_name(target.name + suffix))
-                moved.append(source.name)
+                source.rename(destination)
             except OSError as error:
                 failed.append(source.name)
                 LOGGER.warning("隔离损坏数据库时无法移动 %s：%s", source, error)
+            else:
+                moved.append((source, destination))
+        # 旁路全搬走了才动主库：主库一动，失败时就只能靠回滚，而回滚本身也可能失败。
+        # 停在「主库没动过」比事后回滚稳。
+        if not failed:
+            try:
+                self.path.rename(target)
+            except OSError as error:
+                failed.append(self.path.name)
+                LOGGER.warning("隔离损坏数据库时无法移动 %s：%s", self.path, error)
+            else:
+                moved.append((self.path, target))
         if failed:
             # 隔离没做完就不能在原路径建新库：那会把没搬走的坏文件覆盖掉，数据就真没了。
+            # 已经搬走的按相反顺序搬回去，磁盘上保持和报错前一样，不留半隔离的中间态。
+            stuck: list[tuple[Path, Path]] = []
+            for source, destination in reversed(moved):
+                try:
+                    destination.rename(source)
+                except OSError as error:
+                    stuck.append((source, destination))
+                    LOGGER.error(
+                        "回滚隔离失败，%s 仍在 %s，需要手动搬回原处：%s",
+                        source.name,
+                        destination.name,
+                        error,
+                    )
+            if stuck:
+                # 回滚也失败说明文件正被别的进程独占：只能如实说清「哪个文件现在在哪」，
+                # 不能沿用「文件没动过」——那会让人以为磁盘上还是原样。
+                raise RuntimeError(
+                    "数据库已损坏，且隔离不完整：%s 移动失败，已移走的 %s 也没能搬回来"
+                    "（现在叫 %s）。请先关闭占用这些文件的程序，再把这些文件移回原处。"
+                    % (
+                        "、".join(failed),
+                        "、".join(source.name for source, _ in stuck),
+                        "、".join(destination.name for _, destination in stuck),
+                    )
+                )
+            rolled_back = "、".join(source.name for source, _ in moved)
+            detail = "已回滚 %s" % rolled_back if rolled_back else "文件没动过"
             LOGGER.error(
-                "数据库已损坏（%s），但隔离不完整：%s 没能移走（已移走 %s）。未创建新库。",
+                "数据库已损坏（%s），但隔离不完整：%s 没能移走（%s）。未创建新库。",
                 problem,
                 "、".join(failed),
-                "、".join(moved) or "无",
+                detail,
             )
             raise RuntimeError(
-                "数据库已损坏，且隔离不完整：%s 移动失败。请先关闭占用这些文件的程序再重试。"
-                % "、".join(failed)
+                "数据库已损坏，且隔离不完整：%s 移动失败，%s。"
+                "请先关闭占用这些文件的程序再重试。" % ("、".join(failed), detail)
             )
         LOGGER.error(
             "数据库已损坏（%s），已隔离为 %s，新库已建立，历史数据需从备份恢复。",

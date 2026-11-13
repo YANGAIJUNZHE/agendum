@@ -579,18 +579,132 @@ class StoreTest(TestCase):
 class QuarantineTests(TestCase):
     """损坏库隔离：搬不干净就不能在原路径建新库，否则坏文件被覆盖、数据真没了。"""
 
+    def broken_database(self, tmp):
+        """造一个「正常建好之后才坏掉」的库，连带 -wal / -shm 旁路文件。
+
+        必须先正常构造再写坏：直接把坏字节写进去的话，``Store.__init__`` 当场就把库隔离走了，
+        后面再调用隔离函数时原位上已经是新建的空库——断言照样通过，其实一个字节都没锁住。
+        """
+        path = Path(tmp) / "broken.sqlite3"
+        store = Store(path)
+        path.write_bytes(b"not a database")
+        sidecars = [path.with_name(path.name + suffix) for suffix in ("-wal", "-shm")]
+        for sidecar in sidecars:
+            sidecar.write_bytes(b"sidecar" + sidecar.suffix.encode())
+        before = {p.name: p.read_bytes() for p in [path, *sidecars]}
+        return store, path, sidecars, before
+
     def test_partial_quarantine_raises_and_keeps_the_broken_file(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "broken.sqlite3"
-            path.write_bytes(b"not a database")
-            quarantined = Store(path)
-            before = path.read_bytes()
+            store, path, _sidecars, before = self.broken_database(tmp)
             with mock.patch.object(Store, "_integrity_problem", return_value="malformed"):
                 with mock.patch.object(Path, "rename", side_effect=OSError("locked")):
                     with self.assertRaises(RuntimeError) as error:
-                        quarantined._quarantine_broken_database()
+                        store._quarantine_broken_database()
             self.assertIn("隔离不完整", str(error.exception))
-            self.assertEqual(before, path.read_bytes())
+            # 一个都没搬动，磁盘上就该跟报错前一模一样，也不留半截隔离出来的文件。
+            for name, content in before.items():
+                self.assertEqual(content, (Path(tmp) / name).read_bytes())
+            self.assertEqual([], sorted(Path(tmp).glob("*.corrupt-*")))
+
+    def test_sidecar_failure_keeps_main_database_in_place(self):
+        """旁路文件搬不动时，主库连试都不该试。
+
+        主库要是先被搬走、-wal 又搬不动，就留下「主库不在、旁路还在」的半隔离：
+        下次启动看不到主库，会静默建一个空库——首启说「未创建新库」，再启却默默建了，
+        同一个事实两个答案，用户的历史数据也没人告诉他去哪儿了。
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            store, _path, _sidecars, before = self.broken_database(tmp)
+            real_rename = Path.rename
+            attempted: list[str] = []
+
+            def rename_except_sidecars(self, target):
+                attempted.append(self.name)
+                if self.name.endswith(("-wal", "-shm")):
+                    raise OSError("locked")
+                return real_rename(self, target)
+
+            with mock.patch.object(Store, "_integrity_problem", return_value="malformed"):
+                with mock.patch.object(Path, "rename", new=rename_except_sidecars):
+                    with self.assertRaises(RuntimeError):
+                        store._quarantine_broken_database()
+            # 主库一次都没被 rename 过：不靠回滚兜，靠顺序保证。
+            self.assertEqual(["broken.sqlite3-wal", "broken.sqlite3-shm"], attempted)
+            for name, content in before.items():
+                self.assertEqual(content, (Path(tmp) / name).read_bytes())
+            self.assertEqual([], sorted(Path(tmp).glob("*.corrupt-*")))
+
+    def test_main_database_failure_rolls_sidecars_back(self):
+        """主库搬不动时，已经搬走的旁路文件要搬回来——不留半隔离的中间态。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            store, path, _sidecars, before = self.broken_database(tmp)
+            real_rename = Path.rename
+            attempted: list[str] = []
+
+            def rename_except_main(self, target):
+                attempted.append(self.name)
+                if self.name == path.name:
+                    raise OSError("locked")
+                return real_rename(self, target)
+
+            with mock.patch.object(Store, "_integrity_problem", return_value="malformed"):
+                with mock.patch.object(Path, "rename", new=rename_except_main):
+                    with self.assertRaises(RuntimeError) as error:
+                        store._quarantine_broken_database()
+            self.assertIn("已回滚", str(error.exception))
+            # 旁路先搬、主库最后：顺序反了就没有「主库没动过」这条保证了。
+            main_attempt = attempted.index(path.name)
+            self.assertGreater(main_attempt, attempted.index("broken.sqlite3-shm"))
+            # 主库失败之后的 rename 全是回滚，把旁路从隔离名搬回原位。
+            self.assertTrue(all(".corrupt-" in name for name in attempted[main_attempt + 1:]))
+            for name, content in before.items():
+                self.assertEqual(content, (Path(tmp) / name).read_bytes())
+            self.assertEqual([], sorted(Path(tmp).glob("*.corrupt-*")))
+
+    def test_broken_database_moves_main_and_sidecars_together(self):
+        """搬得动的时候，主库和旁路要落到同一个隔离名上，原件一个不留。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            store, path, _sidecars, before = self.broken_database(tmp)
+            with mock.patch.object(Store, "_integrity_problem", return_value="malformed"):
+                quarantined = store._quarantine_broken_database()
+            self.assertRegex(quarantined, r"^broken\.sqlite3\.corrupt-\d{8}-\d{6}$")
+            self.assertFalse(path.exists())
+            for suffix in ("-wal", "-shm"):
+                self.assertFalse((Path(tmp) / (path.name + suffix)).exists(), suffix)
+                self.assertEqual(
+                    before[path.name + suffix],
+                    (Path(tmp) / (quarantined + suffix)).read_bytes(),
+                )
+            self.assertEqual(before[path.name], (Path(tmp) / quarantined).read_bytes())
+
+    def test_rollback_failure_says_where_the_file_went(self):
+        """回滚也失败时不能还说「文件没动过」——得说清哪个文件现在叫什么、在哪。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            store, path, _sidecars, _before = self.broken_database(tmp)
+            real_rename = Path.rename
+
+            def rename_main_and_wal_rollback_fail(self, target):
+                if self.name == path.name:
+                    raise OSError("locked")
+                if ".corrupt-" in self.name and self.name.endswith("-wal"):
+                    raise OSError("still locked")
+                return real_rename(self, target)
+
+            with mock.patch.object(Store, "_integrity_problem", return_value="malformed"):
+                with mock.patch.object(Path, "rename", new=rename_main_and_wal_rollback_fail):
+                    with self.assertRaises(RuntimeError) as error:
+                        store._quarantine_broken_database()
+            message = str(error.exception)
+            self.assertIn("没能搬回来", message)
+            self.assertIn("broken.sqlite3-wal", message)
+            self.assertNotIn("文件没动过", message)
+            # -wal 确实停在了隔离名上；-shm 回滚成功，回到原位。
+            self.assertFalse((Path(tmp) / "broken.sqlite3-wal").exists())
+            self.assertEqual(1, len(list(Path(tmp).glob("broken.sqlite3.corrupt-*-wal"))))
+            self.assertTrue((Path(tmp) / "broken.sqlite3-shm").exists())
+            self.assertTrue((Path(tmp) / path.name).exists())
+
 
 
 if __name__ == "__main__":
