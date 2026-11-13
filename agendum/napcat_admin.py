@@ -1,6 +1,7 @@
 """NapCat discovery and one-click OneBot wiring."""
 from __future__ import annotations
 
+import datetime
 import json
 import hashlib
 import logging
@@ -52,6 +53,10 @@ MAX_EXTRACTED_ENTRIES = 5000
 # 能不起 PowerShell 就不起（进程名与 PID 用 tasklist，命令行才真去查 CIM）。
 PROBE_TIMEOUT = 10.0
 PROBE_CACHE_SECONDS = 10.0
+
+# 拉起 NapCat 之后等这么久再判断它活没活：启动器自己会常驻（拉起的 QQ 是它的子进程），
+# 立刻退出就说明没真起来——旧 QQ 进程占着同一个数据目录，或加载器被安全软件拦了。
+_LAUNCH_LIVENESS_SECONDS = 3.0
 
 # 「帮我连上它」：先试 3001、3000，再试引擎配置里声明的端口；整段 3 秒内结束。
 DEFAULT_API_PORTS = (3001, 3000)
@@ -136,7 +141,7 @@ def _process_details() -> list[dict[str, Any]]:
     def produce() -> list[dict[str, Any]]:
         script = (
             "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process | "
-            "Select-Object Name,ProcessId,ParentProcessId,CommandLine,ExecutablePath | ConvertTo-Json -Compress"
+            "Select-Object Name,ProcessId,ParentProcessId,CreationDate,CommandLine,ExecutablePath | ConvertTo-Json -Compress"
         )
         raw = _run_probe(["powershell.exe", "-NoProfile", "-Command", script], what="进程命令行")
         if raw is None:
@@ -1227,8 +1232,18 @@ def _launch(settings: Any, *, uin: str | None = None, profile_dir: str | None = 
     # 只报告状态，绝不再拉第二个。
     running = _matching_pids(str(profile), require_profile=True)
     if running:
-        result.update(ok=True, already_running=True, pid=running[0], starting=True)
-        return result
+        # 空壳启动器：进程还在，但底下的 QQ 早就被杀掉了（更新、关机、手动结束后都可能这样）。
+        # 这种壳会让「已经有一份在跑」的判断永远成立，用户看到的是一直「正在启动」、
+        # 二维码不出来。只有确认它是空壳、而且已经活了一阵子，才清掉重拉。
+        husks = _husk_launcher_pids(running)
+        if husks:
+            _kill_pids(husks, what="空壳 NapCat 启动器")
+            LOGGER.info("清掉空壳 NapCat 启动器进程：%s", husks)
+            result["stale_launcher_pids"] = husks
+            running = [pid for pid in running if pid not in husks]
+        if running:
+            result.update(ok=True, already_running=True, pid=running[0], starting=True)
+            return result
     if boot is None:
         result["error"] = _QQ_REQUIRED_ERROR if find_qq_exe() is None else "没找到 NapCat。点本页面的「自动下载并安装 NapCat」；下载不通就把已有的 NapCat 整个放进 <数据目录>\\napcat\\ 再重试。"
         return result
@@ -1243,6 +1258,10 @@ def _launch(settings: Any, *, uin: str | None = None, profile_dir: str | None = 
         result["error"] = _onebot_config_failure(result["onebot_config"].get("error"))
         return result
     profile.mkdir(parents=True, exist_ok=True)
+    # 清掉占着本安装 profile 的残留 QQ.exe：上次被杀掉启动器之后，QQ 常还挂在
+    # 同一个 --user-data-dir 上。这时再拉 NapCat，新的 boot 会把参数交给已经在跑的
+    # 那个 QQ 然后自己退出，用户看到的就是「点了启动、二维码不出来、引擎永远不上线」。
+    result["reaped_orphans"] = _reap_profile_orphans(profile)
     cwd_dir = Path(boot["data_dir"])
     if not cwd_dir.is_dir():
         cwd_dir = Path(boot["boot_exe"]).parent  # 兜底：工作目录必须真实存在，否则 Popen 报 WinError 267
@@ -1257,6 +1276,24 @@ def _launch(settings: Any, *, uin: str | None = None, profile_dir: str | None = 
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
         child = subprocess.Popen(command, cwd=cwd_dir, env=env, creationflags=flags)
         result.update(ok=True, pid=child.pid)
+        # 拉起来就死 = 没真的起来。以前这里照样报 ok，用户只会看到「点了没反应、
+        # 二维码不出来」。等一小会儿，确认它活着再算成功。
+        poll = getattr(child, "poll", None)
+        if callable(poll):
+            deadline = time.monotonic() + _LAUNCH_LIVENESS_SECONDS
+            while time.monotonic() < deadline and poll() is None:
+                time.sleep(0.1)
+            exit_code = poll()
+            if exit_code is not None:
+                result.update(
+                    ok=False,
+                    pid=None,
+                    error=(
+                        "NapCat 启动后立刻退出了（退出码 %s）。常见原因是上次退出时留下的 QQ 进程还占着同一个数据目录，"
+                        "或者 QQ 目录里的加载器被安全软件拦住了。先点「重启引擎」清一遍；还不行就重启电脑再试。"
+                        % exit_code
+                    ),
+                )
     except OSError as exc:
         result["error"] = f"{exc}。NapCat 引擎目录不可用，请在本目录 .env 里把 AGENDUM_NAPCAT_DIR 指向 NapCat 引擎目录（里面有 NapCatWinBootMain.exe 的那个）后重启。"
     return result
@@ -1305,6 +1342,109 @@ def _matching_pids(pattern: str, *, require_profile: bool = False) -> list[int]:
         elif str(pid or "").isdigit():
             pids.append(int(str(pid)))
     return pids
+
+
+def _reap_profile_orphans(profile: Path) -> list[int]:
+    """清掉占着本安装 profile 的残留 QQ.exe。
+
+    只认 --user-data-dir 完整等于本安装 profile 的 QQ 进程（与 _matching_pids 同一套
+    归属判断），同机上别的 QQ 一律不碰。探测失败（拿不到进程表）时返回空列表，
+    绝不因为查不到就乱杀。
+    """
+    needle = str(profile)
+    rows = _process_details()
+    if not needle or not rows:
+        return []
+    killed: list[int] = []
+    for row in rows:
+        if str(row.get("Name") or "").casefold() != "qq.exe":
+            continue
+        if not _uses_profile(str(row.get("CommandLine") or ""), needle):
+            continue
+        raw = row.get("ProcessId")
+        pid = raw if isinstance(raw, int) else (int(str(raw)) if str(raw or "").isdigit() else 0)
+        if not pid:
+            continue
+        try:
+            subprocess.run(
+                ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
+                check=False,
+                timeout=5,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+            )
+        except subprocess.TimeoutExpired:
+            LOGGER.warning("结束残留 QQ 进程 %s 超时，继续启动", pid)
+            continue
+        killed.append(pid)
+    if killed:
+        LOGGER.info("清掉 %d 个占着本安装 profile 的残留 QQ 进程：%s", len(killed), killed)
+    return killed
+
+
+def _kill_pids(pids: list[int], *, what: str = "进程") -> list[int]:
+    """按 PID 结束进程树。只给「已经确认是自己这套安装的」进程用。"""
+    for pid in pids:
+        try:
+            subprocess.run(
+                ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
+                check=False,
+                timeout=5,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+            )
+        except subprocess.TimeoutExpired:
+            LOGGER.warning("结束%s %s 超时，继续往下走", what, pid)
+    return pids
+
+
+def _wmi_age_seconds(text: Any) -> float | None:
+    """WMI 的 CreationDate（形如 20261102190440.123456+480）→ 已经活了多久。"""
+    digits = "".join(ch for ch in str(text or "")[:14] if ch.isdigit())
+    if len(digits) != 14:
+        return None
+    try:
+        started = datetime.datetime.strptime(digits, "%Y%m%d%H%M%S")
+    except ValueError:
+        return None
+    return max(0.0, time.time() - started.timestamp())
+
+
+def _husk_launcher_pids(pids: list[int]) -> list[int]:
+    """哪些启动器是空壳：底下没有 QQ.exe 子进程，而且已经活了超过 90 秒。
+
+    刚拉起来的启动器要一两秒才把 QQ 拉起来，所以必须带时间门槛，
+    否则「刚点完启动」的那一下会被误杀。查不到进程表就一律不算空壳。
+    只看启动器本身：托管 QQ 单独活着不算空壳——它可能正等着扫码登录，
+    杀掉就把用户的登录状态丢了（见 test_orphan_qq_prevents_second_launch_before_login）。
+    """
+    targets = {int(pid) for pid in pids}
+    if not targets:
+        return []
+    rows = _process_details()
+    if not rows:
+        return []
+    children: dict[int, int] = {pid: 0 for pid in targets}
+    ages: dict[int, float | None] = {}
+    for row in rows:
+        raw_pid = row.get("ProcessId")
+        pid = raw_pid if isinstance(raw_pid, int) else (int(str(raw_pid)) if str(raw_pid or "").isdigit() else 0)
+        if pid in targets:
+            if str(row.get("Name") or "").casefold() == _NAPCAT_BOOT_EXE.casefold():
+                ages[pid] = _wmi_age_seconds(row.get("CreationDate"))
+            continue
+        raw_parent = row.get("ParentProcessId")
+        parent = raw_parent if isinstance(raw_parent, int) else (int(str(raw_parent)) if str(raw_parent or "").isdigit() else 0)
+        if parent in children and str(row.get("Name") or "").casefold() == "qq.exe":
+            children[parent] += 1
+    husks: list[int] = []
+    for pid in targets:
+        age = ages.get(pid)
+        if children.get(pid, 0) == 0 and age is not None and age > 90.0:
+            husks.append(pid)
+    return husks
 
 
 def _profile_dir(settings: Any, profile_dir: str | None = None) -> Path:

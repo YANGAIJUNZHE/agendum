@@ -45,6 +45,19 @@ class NapcatAdminTests(unittest.TestCase):
         # 否则上一条造的临时目录会被下一条当成「缓存里的真实状态」。
         na.clear_probe_cache()
         self.addCleanup(na.clear_probe_cache)
+        # 拉起之后要等一小会儿才判活。用例里不真等：poll() 的结果由各用例自己摆。
+        self._liveness_patcher = patch.object(na, "_LAUNCH_LIVENESS_SECONDS", 0.0)
+        self._liveness_patcher.start()
+        self.addCleanup(self._liveness_patcher.stop)
+        # 启动前会去清「占着本安装 profile 的残留 QQ 进程」，那要查真实进程表。
+        # 默认拦住，免得每条启动用例都去起 powershell；要测这条的用例自己停掉它。
+        self._reap_patcher = patch.object(na, "_reap_profile_orphans", return_value=[])
+        self._reap_patcher.start()
+        self.addCleanup(self._reap_patcher.stop)
+        # 判断「已有实例是空壳」也要查真实进程表，同理默认拦住。
+        self._husk_patcher = patch.object(na, "_husk_launcher_pids", return_value=[])
+        self._husk_patcher.start()
+        self.addCleanup(self._husk_patcher.stop)
 
     def test_ports_accept_any_listening_local_address(self):
         text = "  TCP    0.0.0.0:6099    0.0.0.0:0    LISTENING    10\n  TCP    [::]:6099       [::]:0       LISTENING    10\n"
@@ -115,6 +128,138 @@ class NapcatAdminTests(unittest.TestCase):
         pattern = Path(pids_probe.call_args.args[0])
         self.assertEqual(pattern, (S.data_dir / "napcat-profile").resolve())
         self.assertNotIn("NapCatWinBootMain", str(pattern))
+
+    def test_launch_reaps_orphan_qq_left_on_the_same_profile(self):
+        """上次关机或更新把启动器杀了、QQ 还挂在同一个 --user-data-dir 上时，
+        新的 boot 会把参数交给那个已经在跑的 QQ 然后自己退出，用户看到的就是
+        「点了启动、二维码不出来、引擎永远不上线」。启动前必须把这种残留清掉，
+        而且只清命令行里含本安装 profile 的那个，同机上别人家的 QQ 不许碰。
+        """
+        profile = (S.data_dir / "napcat-profile").resolve()
+        self._reap_patcher.stop()
+        rows = [
+            {"Name": "QQ.exe", "ProcessId": 777, "CommandLine": '"D:\\QQ\\QQ.exe" --user-data-dir=%s' % profile},
+            {"Name": "QQ.exe", "ProcessId": 778, "CommandLine": '"D:\\QQ\\QQ.exe"'},
+        ]
+        boot = {"boot_exe": "b", "qq_exe": "q", "hook_dll": "h", "data_dir": "."}
+        with patch.object(na, "_ports", return_value=set()), \
+             patch.object(na, "detect_boot", return_value=boot), \
+             patch.object(na, "_process_details", return_value=rows), \
+             patch.object(na.subprocess, "run") as run, \
+             patch.object(na.subprocess, "Popen") as popen:
+            popen.return_value.poll.return_value = None
+            result = na.launch(S(), uin="123")
+        self.assertEqual(result["reaped_orphans"], [777])
+        self.assertTrue(result["ok"])
+        killed = [call.args[0] for call in run.call_args_list]
+        self.assertIn(["taskkill.exe", "/PID", "777", "/T", "/F"], killed)
+        self.assertNotIn(["taskkill.exe", "/PID", "778", "/T", "/F"], killed)
+
+    def test_launch_reports_failure_when_the_engine_dies_right_away(self):
+        """拉起来就死不能报成功：以前照样 ok=True，用户只觉得「点了没反应」。"""
+        boot = {"boot_exe": "b", "qq_exe": "q", "hook_dll": "h", "data_dir": "."}
+        with patch.object(na, "_ports", return_value=set()), \
+             patch.object(na, "detect_boot", return_value=boot), \
+             patch.object(na, "_process_details", return_value=[]), \
+             patch.object(na.subprocess, "Popen") as popen:
+            popen.return_value.poll.return_value = 3
+            popen.return_value.returncode = 3
+            result = na.launch(S(), uin="123")
+        self.assertFalse(result["ok"])
+        self.assertIsNone(result["pid"])
+        self.assertIn("立刻退出", result["error"])
+        self.assertIn("重启引擎", result["error"])
+
+    def test_launch_reaps_a_husk_launcher_without_qq_children(self):
+        """进程还在、底下的 QQ 早被杀了：这种空壳会让「已经有一份在跑」永远成立，
+        用户看到的就是一直「正在启动」、二维码不出来。确认是空壳且活够久才清掉重拉。
+        """
+        with tempfile.TemporaryDirectory() as td:
+            _shell, _app, boot = self._make_loader_install(td)
+            profile = str(Path(td) / "profile")
+            self._husk_patcher.stop()
+            rows = [
+                {
+                    "Name": "NapCatWinBootMain.exe",
+                    "ProcessId": 4242,
+                    "ParentProcessId": 1,
+                    "CreationDate": "20261101142426.000000+480",
+                    "CommandLine": profile,
+                }
+            ]
+            child = type("Child", (), {"pid": 11, "poll": staticmethod(lambda: None)})()
+            with patch.object(na, "_ports", return_value=set()), \
+                 patch.object(na, "detect_boot", return_value=boot), \
+                 patch.object(na, "_matching_pids", return_value=[4242]), \
+                 patch.object(na, "_process_details", return_value=rows), \
+                 patch.object(na.subprocess, "run") as run, \
+                 patch.object(na.subprocess, "Popen", return_value=child):
+                result = na.launch(S(), profile_dir=profile)
+        self.assertEqual(result["stale_launcher_pids"], [4242])
+        self.assertFalse(result["already_running"])
+        self.assertTrue(result["ok"])
+        self.assertEqual(run.call_args_list[0].args[0], ["taskkill.exe", "/PID", "4242", "/T", "/F"])
+
+    def test_a_young_launcher_is_not_treated_as_a_husk(self):
+        """刚拉起来的启动器要一两秒才带出 QQ：这时候绝不能当成空壳杀掉。"""
+        self._husk_patcher.stop()
+        fresh = time.strftime("%Y%m%d%H%M%S")
+        rows = [
+            {"Name": "NapCatWinBootMain.exe", "ProcessId": 4242, "ParentProcessId": 1, "CreationDate": fresh},
+        ]
+        with patch.object(na, "_process_details", return_value=rows):
+            self.assertEqual(na._husk_launcher_pids([4242]), [])
+
+    def test_a_launcher_with_qq_children_is_not_a_husk(self):
+        """底下带着 QQ 的启动器是正常实例，活再久也不许当空壳清掉。"""
+        self._husk_patcher.stop()
+        old = "20261101142426.000000+480"
+        rows = [
+            {"Name": "NapCatWinBootMain.exe", "ProcessId": 4242, "ParentProcessId": 1, "CreationDate": old},
+            {"Name": "QQ.exe", "ProcessId": 4243, "ParentProcessId": 4242, "CreationDate": old},
+        ]
+        with patch.object(na, "_process_details", return_value=rows):
+            self.assertEqual(na._husk_launcher_pids([4242]), [])
+
+    def test_no_process_table_means_no_husk(self):
+        """查不到进程表时一律不算空壳：绝不因为「查不到」就杀进程。"""
+        self._husk_patcher.stop()
+        with patch.object(na, "_process_details", return_value=[]):
+            self.assertEqual(na._husk_launcher_pids([4242]), [])
+
+    def test_a_lone_managed_qq_is_never_treated_as_a_husk(self):
+        """本线的 _matching_pids 把单独活着的托管 QQ 也算「在跑」（它可能正等扫码）。
+        这种 QQ 就算没有子进程、活了很久，也不能被当成空壳启动器杀掉。"""
+        self._husk_patcher.stop()
+        rows = [
+            {"Name": "QQ.exe", "ProcessId": 20212, "ParentProcessId": 1, "CreationDate": "20261101142426.000000+480"},
+        ]
+        with patch.object(na, "_process_details", return_value=rows):
+            self.assertEqual(na._husk_launcher_pids([20212]), [])
+
+    def test_reap_never_touches_qq_on_a_different_profile(self):
+        """前缀相近的目录、只是日志参数里提到 profile 的 QQ，都不是本安装的，不许杀。"""
+        self._reap_patcher.stop()
+        with tempfile.TemporaryDirectory() as td:
+            profile = Path(td) / "napcat-profile"
+            rows = [
+                {"Name": "QQ.exe", "ProcessId": 801, "CommandLine": f'QQ.exe --user-data-dir="{profile}-other"'},
+                {"Name": "QQ.exe", "ProcessId": 802, "CommandLine": f'QQ.exe --log-file="{profile}"'},
+                {"Name": "QQ.exe", "ProcessId": 803, "CommandLine": f'QQ.exe --user-data-dir="{profile}"'},
+            ]
+            with patch.object(na, "_process_details", return_value=rows), \
+                 patch.object(na.subprocess, "run") as run:
+                self.assertEqual(na._reap_profile_orphans(profile), [803])
+            killed = [call.args[0] for call in run.call_args_list]
+            self.assertEqual(killed, [["taskkill.exe", "/PID", "803", "/T", "/F"]])
+
+    def test_reap_does_nothing_when_the_process_table_is_unavailable(self):
+        """拿不到进程表就一个都不杀，也不许起 taskkill。"""
+        self._reap_patcher.stop()
+        with patch.object(na, "_process_details", return_value=[]), \
+             patch.object(na.subprocess, "run") as run:
+            self.assertEqual(na._reap_profile_orphans(Path("D:/data/napcat-profile")), [])
+        run.assert_not_called()
 
     def test_running_pids_keys_on_this_install_profile(self):
         """状态查询靠这个判断「引擎在不在跑」：只认本安装的 profile 目录。
