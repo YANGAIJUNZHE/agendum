@@ -1667,11 +1667,20 @@ class WeChatLocalReader:
             raise RuntimeError("微信消息交付失败，将在下轮重试")
         self._rowids.update(rowid_updates)
         if not rowid_fallback:
-            # 失败分片的签名留在原地，下一轮仍判为「有变化」，重试同一批分片。
-            merged = dict(self._signatures)
-            for name, signature in current_signatures.items():
-                if name not in failed_shards:
-                    merged[name] = signature
+            # 签名以「这一轮看到的文件集」为底，失败分片回填旧签名：下一轮仍判为有变化、重试同一批。
+            # 不能拿上一轮的签名当底——那样已经被删掉的分片会永远留在表里，
+            # 每次都进 removed 重算一遍，_signatures 再也收敛不到真实文件集。
+            merged = dict(current_signatures)
+            for name in failed_shards:
+                if name not in current_signatures:
+                    # 不在这一轮的文件集里，就别借回填把它的旧签名复活。
+                    continue
+                if name in self._signatures:
+                    merged[name] = self._signatures[name]
+                else:
+                    # 这一轮才出现、第一次就没读成的分片：不记签名，否则下轮会当成
+                    # 「没变化」跳过，等于假装读过。
+                    merged.pop(name, None)
             self._signatures = merged
             if failed_shards:
                 self.logger.warning(

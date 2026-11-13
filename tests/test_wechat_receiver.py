@@ -568,6 +568,74 @@ class ReaderLifecycleTests(unittest.TestCase):
             reader._finish_scan()
             self.assertEqual(reader.status["scan_stage"], "数据库未变化，跳过")
 
+    def test_scan_once_retries_failed_shard_and_forgets_removed_one(self):
+        """失败分片的签名不推进（下一轮重试），已经删掉的分片不许留在签名表里。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = make_storage(
+                tmp,
+                message_dbs=[("message_0.db", b"x" * 4096), ("message_1.db", b"y" * 4096)],
+            )
+            reader = wr.WeChatLocalReader({GROUP}, storage_dir=storage)
+            reader._key = b"k" * 32
+            current = reader._file_signatures(storage)
+            stale = {name: (0, 0, 0) for name in current}
+            stale["message_9.db"] = (1, 2, 3)  # 磁盘上早就没有这个分片了
+            reader._signatures = dict(stale)
+
+            def fake_fetch(*args, **kwargs):
+                kwargs["failed_shards"].append("message_1.db")
+                return []
+
+            with mock.patch.object(wr, "_safe_group_names", return_value={}), \
+                 mock.patch.object(wr, "fetch_messages", side_effect=fake_fetch):
+                self.assertEqual(reader.scan_once(), 0)
+
+            # 读成功的分片推进到当前签名，失败的那片保持旧签名 → 下一轮仍判为有变化、重试。
+            self.assertEqual(reader._signatures["message_0.db"], current["message_0.db"])
+            self.assertEqual(reader._signatures["message_1.db"], (0, 0, 0))
+            # 已经不存在的分片不能残留：否则 _signatures 永远不等于真实文件集。
+            self.assertNotIn("message_9.db", reader._signatures)
+
+    def test_new_shard_failing_on_first_read_is_retried_next_round(self):
+        """第一轮就没读成的分片不许记签名：记了就等于假装读过，下轮会被当成「没变化」跳过。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = make_storage(tmp, message_dbs=[("message_0.db", b"x" * 4096)])
+            reader = wr.WeChatLocalReader({GROUP}, storage_dir=storage)
+            reader._key = b"k" * 32
+            seen: list[list[str]] = []
+
+            def failing_fetch(*args, **kwargs):
+                seen.append([path.name for path in kwargs["db_paths"]])
+                kwargs["failed_shards"].append("message_0.db")
+                return []
+
+            with mock.patch.object(wr, "_safe_group_names", return_value={}), \
+                 mock.patch.object(wr, "fetch_messages", side_effect=failing_fetch):
+                self.assertEqual(reader.scan_once(), 0)
+                self.assertNotIn("message_0.db", reader._signatures)
+                self.assertEqual(reader.scan_once(), 0)
+
+            # 第二轮仍然把它当「有变化」送进去读，而不是当成读过了。
+            self.assertEqual([["message_0.db"], ["message_0.db"]], seen)
+
+    def test_failed_shard_missing_from_disk_is_not_resurrected(self):
+        """failed_shards 里冒出一个磁盘上早没有的分片时，不能借回填把旧签名写回去。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            storage = make_storage(tmp, message_dbs=[("message_0.db", b"x" * 4096)])
+            reader = wr.WeChatLocalReader({GROUP}, storage_dir=storage)
+            reader._key = b"k" * 32
+            reader._signatures = {"message_0.db": (0, 0, 0), "message_9.db": (1, 2, 3)}
+
+            def fake_fetch(*args, **kwargs):
+                kwargs["failed_shards"].extend(["message_0.db", "message_9.db"])
+                return []
+
+            with mock.patch.object(wr, "_safe_group_names", return_value={}), \
+                 mock.patch.object(wr, "fetch_messages", side_effect=fake_fetch):
+                self.assertEqual(reader.scan_once(), 0)
+            self.assertEqual({"message_0.db"}, set(reader._signatures))
+            self.assertEqual((0, 0, 0), reader._signatures["message_0.db"])
+
     def test_file_signature_includes_wal_and_shm(self):
         with tempfile.TemporaryDirectory() as tmp:
             storage = make_storage(tmp, message_dbs=[("message_0.db", b"x" * 4096)])
