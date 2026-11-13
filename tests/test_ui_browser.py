@@ -1132,7 +1132,7 @@ class QrViewportBrowserTest(unittest.TestCase):
                 failed_requests: list[str] = []
                 page.on("requestfailed",
                         lambda request: failed_requests.append(
-                            "%s %s" % (request.url, (request.failure() or ""))))
+                            "%s %s" % (request.url, (request.failure or ""))))
                 try:
                     page.goto(self.base + "/?token=" + TOKEN + "&nowiz=1",
                               wait_until="domcontentloaded", timeout=60000)

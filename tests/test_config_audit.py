@@ -78,7 +78,7 @@ class AuditSourceTests(unittest.TestCase):
                         "QQ_DIGEST_NAPCAT_API_URL", "QQ_DIGEST_WECHAT_DIR"):
                 os.environ.pop(key, None)
             with mock.patch(
-                "noticehub.config_audit.parse_env_file",
+                "agendum.config_audit.parse_env_file",
                 side_effect=PermissionError("文件被占用"),
             ):
                 items = _by_key(audit_config(settings))

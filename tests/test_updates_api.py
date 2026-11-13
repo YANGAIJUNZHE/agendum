@@ -115,7 +115,7 @@ class WriteUpdatesStateRetryTests(unittest.TestCase):
             raise PermissionError(13, "file is being used by another process")
 
         with mock.patch.object(Path, "replace", new=always_locked):
-            with self.assertLogs("noticehub.webapp", level="WARNING") as logs:
+            with self.assertLogs("agendum.webapp", level="WARNING") as logs:
                 with self.assertRaises(PermissionError):
                     updates_api._write_updates_state(self.state_path, {"ok": True})
         text = "\n".join(logs.output)
