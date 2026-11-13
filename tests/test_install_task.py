@@ -232,7 +232,10 @@ class WikiTests(unittest.TestCase):
             if name == "未发布" or name.startswith(version.APP_VERSION)
         ]
         self.assertTrue(candidates, "changelog 里既没有「未发布」也没有当前版本小节")
-        for needle in ("NapCat-QQ-Watchdog", "manual-exit.flag"):
+        # 关键词跟着「正在交付的这一批」换：上一批是看门狗的 NapCat-QQ-Watchdog /
+        # manual-exit.flag，这一批是安卓签名。换批次时连同这里一起改，别把断言放宽成
+        # 「随便写点什么都算」。
+        for needle in ("verifyReleaseSigning", "apksigner verify"):
             if not any(needle in sections[name] for name in candidates):
                 self.fail(
                     f"本批改动 {needle} 既没进未发布、也没进当前版本小节"
