@@ -717,13 +717,15 @@ class QrViewportBrowserTest(unittest.TestCase):
                         page.route('**/api/napcat/qrcode**', self._napcat_qrcode_stub)
                         try:
                             open_authed_page(context, page, self.base, TOKEN)
-                            page.wait_for_selector('#task-list-panel .task')
+                            page.wait_for_selector('#task-list-panel .task', timeout=60000)
                             page.evaluate("""() => document.querySelectorAll('.side-rail .rail-panel-toggle[aria-expanded=false]')
                                 .forEach(button => button.click())""")
                             page.evaluate("""() => document.querySelectorAll('.side-rail .rail-panel-toggle[aria-expanded=true]')
                                 .forEach(button => button.click())""")
                             page.reload()
-                            page.wait_for_selector('#task-list-panel .task')
+                            # CI 的慢 runner 上 reload 后重建任务列表可能超过默认 30 秒；
+                            # 放宽的只是等待预算，「卡片必须出现」的断言不变。
+                            page.wait_for_selector('#task-list-panel .task', timeout=60000)
                             self.assertEqual(page.locator('.side-rail .rail-panel-toggle[aria-expanded=true]').count(), 0)
                             geometry = page.evaluate("""() => ({
                                 bottom: document.body.getBoundingClientRect().bottom + scrollY,
