@@ -65,6 +65,12 @@ BUSY_TIMEOUT_SECONDS = 90.0
 # `--quit` 与托盘之间的信号文件：托盘没有可投递的窗口消息，看门狗每
 # WATCHDOG_POLL_SECONDS 查一次这个文件，见到就执行退出（见 watchdog_tick）。
 QUIT_REQUEST_NAME = "launcher.quit"
+# 用户从托盘点「退出」= 明确表示「别再自动拉起来」。外部看门狗（tools/watchdog-task.ps1）
+# 看到这个标记就跳过重启。放 %LOCALAPPDATA%：安装目录在 Program Files 下时不可写。
+MANUAL_EXIT_DIR_NAME = "Agendum"
+MANUAL_EXIT_FLAG_NAME = "manual-exit.flag"
+# 整体覆盖标记路径：验收与测试不该往真实用户目录里留状态。
+MANUAL_EXIT_FLAG_ENV = "AGENDUM_MANUAL_EXIT_FLAG"
 
 ENV_TEMPLATE = (
     "QQ_DIGEST_WEB=1\n"
@@ -233,6 +239,43 @@ def _quit_request_path(root: Path) -> Path:
     return Path(root) / QUIT_REQUEST_NAME
 
 
+def _manual_exit_flag_path() -> Path:
+    """用户主动退出的标记：外部看门狗见到就不再拉起服务。
+
+    默认落在 %LOCALAPPDATA%\\Agendum\\manual-exit.flag —— 安装目录可能装在
+    Program Files 下不可写，data/ 又会被清理脚本整个删掉，都不适合放这个标记。
+    环境变量 AGENDUM_MANUAL_EXIT_FLAG 可整体覆盖路径，供验收与测试用。
+    """
+    override = os.environ.get(MANUAL_EXIT_FLAG_ENV, "").strip()
+    if override:
+        return Path(override)
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(base) / MANUAL_EXIT_DIR_NAME / MANUAL_EXIT_FLAG_NAME
+
+
+def _mark_manual_exit(root: Path) -> None:
+    """写「用户主动退出」标记。写失败只记日志，绝不拦住退出。"""
+    path = _manual_exit_flag_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(time.strftime("%Y-%m-%d %H:%M:%S"), encoding="utf-8")
+        _log_launcher(root, "已写入主动退出标记：%s" % path)
+    except OSError as exc:
+        _log_launcher(root, "写主动退出标记失败（继续退出）：%s" % exc)
+
+
+def _clear_manual_exit(root: Path) -> None:
+    """正常启动时清掉标记；带 --from-watchdog 启动时不能清（见 main）。"""
+    path = _manual_exit_flag_path()
+    try:
+        path.unlink()
+        _log_launcher(root, "已清除主动退出标记")
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        _log_launcher(root, "清除主动退出标记失败（忽略）：%s" % exc)
+
+
 def _other_instance_running(root: Path) -> bool:
     """只探测、不持有：这个安装目录里是不是已经有托盘在跑。"""
     try:
@@ -391,6 +434,29 @@ def _data_dir_for(root: Path, settings: object) -> Path:
     except Exception:
         pass
     return Path(root) / "data"
+
+
+def _drop_installed_pending(root: Path, settings: object) -> None:
+    """待装记录里的版本就是当前版本 ⇒ 更新已经装上了，把记录清掉。
+
+    不清的话托盘菜单一直显示「重启并更新」、页面一直提示「更新包已就绪」，
+    用户再点一次就会把同一个包重新装一遍。只有版本相等才清：记录里是别的版本，
+    那是真的还没装，不能碰。
+    """
+    try:
+        from agendum import updater
+
+        data_dir = _data_dir_for(root, settings)
+        pending = updater.pending_update(data_dir)
+        if not pending:
+            return
+        version = str(pending.get("version") or "")
+        if version != updater.current_version():
+            return
+        updater.clear_pending(data_dir)
+        _log_launcher(root, "待装记录与当前版本一致（%s），已清理" % version)
+    except Exception as error:  # 清理失败只记日志，不能挡住启动
+        _log_launcher(root, "清理待装记录失败：%s" % error)
 
 
 def _applying_flag_path(data_dir: Path) -> Path:
@@ -1355,6 +1421,9 @@ class TrayHost:
 
     def on_quit(self, icon: object = None, item: object = None) -> None:
         def shutdown() -> None:
+            # 先落「用户主动退出」标记，再走退出流程：外部看门狗见到它就不会再把服务拉回来。
+            # 写失败只记日志——标记写不进去也得让用户退得掉。
+            _mark_manual_exit(self.root)
             # 到点没退干净就硬退。托盘「退出」是用户唯一的出口：一旦里面哪步卡住，
             # 图标就黏在托盘点不掉，只能去任务管理器强杀（用户 2026-10-11 就是这么撞上的）。
             threading.Timer(QUIT_HARD_DEADLINE_SECONDS, self._force_quit).start()
@@ -1496,6 +1565,17 @@ class TrayHost:
         return True
 
 
+def _should_clear_manual_exit(argv: list[str]) -> bool:
+    """这次启动要不要清「用户主动退出」标记。
+
+    只有用户自己双击启动才算「我改主意了」。看门狗拉起的（``--from-watchdog``）
+    不能清，否则用户点了退出、被拉起一次标记就没了，下一轮拦不住；``--quit``
+    是安装/更新脚本用来让托盘退出的，也不能替用户取消他刚表达过的意愿。
+    """
+    args = list(argv[1:])
+    return "--from-watchdog" not in args and "--quit" not in args
+
+
 def main() -> int:
     global BROWSER_SUPPRESSED
     BROWSER_SUPPRESSED = "--no-browser" in sys.argv[1:]
@@ -1510,6 +1590,10 @@ def main() -> int:
     logs = root / "logs"
     data.mkdir(exist_ok=True)
     logs.mkdir(exist_ok=True)
+    # 用户自己双击启动 = 明确表示要用，把「主动退出」标记清掉。
+    # 看门狗拉起来的（--from-watchdog）不能清：标记是它用来判断「用户不想跑」的唯一依据。
+    if _should_clear_manual_exit(sys.argv):
+        _clear_manual_exit(root)
     if "--quit" in sys.argv[1:]:
         # 让本目录里正跑着的托盘退出；日志与 data 目录要先生成，_request_quit 才写得进去。
         return _request_quit(root)
@@ -1522,11 +1606,18 @@ def main() -> int:
     port = int(getattr(settings, "web_port", 8766) or 8766)
     url = _console_url(env_file, port)
     if not _acquire_single_instance(root):
-        # 同一个安装目录已经在跑：把已经开着的那份控制台再打开一次，然后安静退出。
+        # 同一个安装目录已经在跑：安静退出。
         # 注意这里打开的是**本安装目录自己的** .env 拼出来的 url，所以另一个安装目录
         # （生产 / beta）不会走到这个分支——它们的互斥体名不同。
-        _open_browser(url)
+        # 只有「看不到控制台窗口」时才开一次浏览器：双击启动、开机自启、自动更新后的重启
+        # 都会走到这里，无条件打开会在浏览器里堆一串一模一样的标签。
+        if _console_window_open():
+            _log_launcher(root, "已有实例在运行；控制台已打开，不再新开标签")
+        else:
+            _open_browser(url)
+            _log_launcher(root, "已有实例在运行；未检测到控制台窗口，打开一次")
         return 0
+    _drop_installed_pending(root, settings)
     selected_port = port
     port_state = _port_probe(port)
     if port_state != "free":
