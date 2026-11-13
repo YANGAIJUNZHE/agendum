@@ -2,6 +2,17 @@
   "version": 1,
   "items": [
     {
+      "tag": "v1.1.0-beta.19",
+      "version": "1.1.0-beta.19",
+      "name": "Agendum 1.1.0-beta.19（测试版）",
+      "notes": "服务没了有人管：看门狗每 5 分钟探一次健康，没应答才隐藏拉起，从托盘主动退出的不会被拉回来。不再自己堆浏览器标签：已有实例在运行时只在看不到控制台才开一次页面，开机自启与更新后重启都不开标签。装完的更新记录自己消失，托盘不再一直显示「重启并更新」。拉起引擎前清掉占着本安装数据目录的残留 QQ，拉起后确认它真的活着，秒退不再报成功。另捡回一批旧线修复：微信分片解密失败不再静默丢消息、损坏库隔离不完整时不再硬建新库、state.json 被占用时继续重试写盘、.env 读不出来时配置审计报未知来源。内部标识统一为 Agendum：环境变量改用 AGENDUM_*（旧名仍兼容），安卓包名改为 com.agendum.app，需卸载旧版重装并重新配对。",
+      "published_at": "",
+      "asset_name": "Agendum.zip",
+      "size": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "download_url": "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.19/Agendum.zip"
+    },
+    {
       "tag": "v1.1.0-beta.18",
       "version": "1.1.0-beta.18",
       "name": "Agendum 1.1.0-beta.18（测试版）",
@@ -16,6 +27,6 @@
   "signature": {
     "alg": "RS256",
     "key_id": "agendum-2026-1",
-    "value": "J-Srfddiw_iREZxaT_-_CzIG2gaBA6Gz-X4JTAn4L54oWAZMr-kISOQqMFNKfzbhmQb_fu_7zFFN_N-EBmkJYCeP-LQ6_goXgAhj2MzI9YZQP7nHinduiOUVWta_zaUgR8pIxXR9agxfrEouMHEY47UZF3u9M-rg-DZeRQAYjs6s0rZCgSC0qYxrPUsyTU_I1rUNJsYyRGSZd7ANjEXrL9OpHcNThypmvz5ZVLBrJCOzW5mhN7iQqhJUnP01t7WNRwOkDwJYlQyYku77QkewrqCs8yFvrKmb-JxAuc_3OwIcYuxzvUsyIoefK4LTnpbw4ToN7CdVDIg0vTXRMS7iOE-gg46gV-KalggRTUaQnqbSEjWAcIU7AwTUYBAcajnTKKTHM8k4IgujQ5Vr6q9OW8VaM4x2QL7ce9BafPyYRbznm-58X7aIau0COkx_gYLZs0TWgrU3mUQAS_0ZTUYoJk-589vmdlknPcoq_7xQl7x2wi67_9c05FKDEC47_VLJ"
+    "value": "CtsvQGsvUtJttRyOY6Uuns436uxBlzMBihAsw5ZiOIcoQcqGayBuFali5Ddalexe3qDtKvQBaqe8cFtlAEn0LD1WN6ZO4vXgViHZ7POzx-6JC-rElRpSXPYEYQOv48aXcInEjtHZGSmi-vs-oQtU1bio1Ysv50PdGrC4XAPMZxJmFrq55NfPnPL7Ruh3e0LGBYbxZrSbAAY0cJe2oUR7BEBn5Bg1TphSbk5mCKf4MDEdRrquLib_k6T2ZKB0luhCvDHUBJrsz4nb8-R1CvKRzIISnVvIj3hGqLHpeFjlJfjStdPZ6NKOQW_hkMPfuciW0PzLbCHb4o62y-cJf7YNP6HXKINGYKotkTwGVsPRMoqLHFLgQQTjfmNLpUWYEIpNOWlFWgIBJAL3tCzZ4xuYaspFtmNwAZpN0IMPSgOAa-VZSKy0iramMLE7Wzy8uBDBdsQn4Qy4IfhMzvbAObKI0obscKqdb5y4e5xZhCOUqkwv724lEzCS_9D8H25vxMf_"
   }
 }

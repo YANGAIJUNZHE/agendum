@@ -16,8 +16,8 @@ android { namespace 'com.agendum.app'; compileSdk 35; buildToolsVersion '35.0.0'
         applicationId 'com.agendum.app'
         minSdk 23
         targetSdk 35
-        versionCode project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 18
-        versionName project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : '1.1.0-beta.18'
+        versionCode project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 19
+        versionName project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : '1.1.0-beta.19'
         buildConfigField 'String', 'PAIR_SERVER', '"' + defaultServer + '"'
         buildConfigField 'String', 'DEFAULT_SERVER', '"' + defaultServer + '"'
     }

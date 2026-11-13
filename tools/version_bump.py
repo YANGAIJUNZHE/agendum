@@ -29,7 +29,12 @@ MANIFEST = Path("release/update-manifest.json")
 
 # 前缀/后缀各留一组，替换时只换中间的值，别把 `APP_VERSION =` 一起吃掉。
 _VERSION_RE = re.compile(r"^([ \t]*APP_VERSION[ \t]*=[ \t]*[\"'])([^\"']+)([\"'])", re.M)
-_GRADLE_RE = re.compile(r"(versionName[ \t]+[\"'])([^\"']+)([\"'])")
+# versionName 有两种写法：直接赋值，或带 -P 参数覆盖的三元式（默认值在行尾）。
+_GRADLE_RE = re.compile(
+    r"(versionName[ \t]+(?:project\.hasProperty\([\"']appVersionName[\"']\)[ \t]*\?[ \t]*"
+    r"project\.property\([\"']appVersionName[\"']\)\.toString\(\)[ \t]*:[ \t]*)?[\"'])"
+    r"([^\"']+)([\"'])"
+)
 # README 里「明显的版本串」只有两种写法：完整 tag 与标题里的短式括号。
 _FULL_TOKEN_RE = re.compile(r"\d+\.\d+\.\d+-beta\.\d+")
 _SHORT_TOKEN_RE = re.compile(r"测试版（(beta\.\d+)）")

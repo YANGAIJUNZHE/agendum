@@ -32,6 +32,16 @@ _GRADLE = """android {
 }
 """
 
+# 真仓库现在的写法：-P 参数可覆盖，默认值在行尾。门禁两种写法都要认。
+_GRADLE_TERNARY = """android {
+    defaultConfig {
+        applicationId 'com.agendum.app'
+        versionCode project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 18
+        versionName project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : '1.1.0-beta.11'
+    }
+}
+"""
+
 _ANNOUNCEMENTS = """{"version": 1, "items": [
   {"id": "a", "date": "2026-10-15", "title": "Agendum 1.1.0 测试版（beta.1）已发布"},
   {"id": "b", "date": "2026-10-24", "title": "Agendum 1.1.0 测试版（beta.11）已发布"}
@@ -166,6 +176,28 @@ class VersionBumpTests(unittest.TestCase):
         code, out = tree.run("--set", "beta.12")
         self.assertEqual(code, 1, out)
         self.assertIn("版本号格式不对", out)
+
+    def test_check_passes_with_parameterized_gradle(self) -> None:
+        tree = self.make_tree(gradle=_GRADLE_TERNARY)
+        code, out = tree.run("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("版本号一致：1.1.0-beta.11", out)
+
+    def test_check_fails_on_parameterized_gradle_mismatch(self) -> None:
+        tree = self.make_tree(gradle=_GRADLE_TERNARY.replace("'1.1.0-beta.11'", "'1.1.0-beta.9'"))
+        code, out = tree.run("--check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("android/app/build.gradle:1.1.0-beta.11:1.1.0-beta.9", out)
+
+    def test_set_updates_parameterized_gradle_default_only(self) -> None:
+        """只换行尾的默认值：-P 覆盖结构与 versionCode 都不许动。"""
+        tree = self.make_tree(gradle=_GRADLE_TERNARY)
+        code, out = tree.run("--set", "1.1.0-beta.12")
+        self.assertEqual(code, 0, out)
+        gradle = tree.path("android/app/build.gradle").read_text(encoding="utf-8")
+        self.assertIn("project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : '1.1.0-beta.12'", gradle)
+        self.assertIn("project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 18", gradle)
+        self.assertNotIn("1.1.0-beta.11", gradle)
 
 
 if __name__ == "__main__":
