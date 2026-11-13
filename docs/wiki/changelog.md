@@ -6,7 +6,11 @@
 
 ## 未发布
 
-（暂无）
+**Android 发版不再卡在签名。** 之前每次发版都红在 `packageRelease`，报的是「Get Key failed: Given final block not properly padded」。根子是密钥库为 PKCS12，只有一把密码：`keytool` 生成时会忽略单独的 `-keypass`，私钥一直用 `storePassword` 加密，而 CI 里另填的 `keyPassword` 是另一个值。`keytool` 查库时偷着用 `storePassword`，所以本地怎么查都正常；Gradle 把 `keyPassword` 原样交给 `KeyStore.getKey()`，就解不开了。现在 `keyPassword` 缺省回落到 `storePassword`，仓库 Secret 也换成了正确的值。
+
+**签名材料在打包前先验一遍。** 新增 `verifyReleaseSigning` 任务，`assembleRelease` 依赖它：用同一套密码真解一次私钥，失败时直接说清是 `storePassword`、`keyAlias` 还是 `keyPassword` 不对，不用再拿一分钟构建换一句看不懂的异常。签名产物还要过 `apksigner verify`，未签名的 `*-unsigned.apk` 不会再被当成发布包上传。`ANDROID_KEY_PASSWORD` 现在可以不配。
+
+**本地签名属性里的路径改对了。** `storeFile` 原来写成 Git Bash 的 `/c/Users/...`，在 Windows 上会被当成相对路径，本地打包会找不到密钥库。
 
 ## 1.1.0-beta.19 · 2026-11-13
 

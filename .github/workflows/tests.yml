@@ -186,18 +186,33 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::error::Missing Android release signing secrets. Required secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD."
-            exit 1
-          fi
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing Android signing secret for $name. Required: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS (ANDROID_KEY_PASSWORD only if the keystore truly has a separate key password)."
+              exit 1
+            fi
+          done
           KEYSTORE_PATH="$(pwd)/android/release.jks"
-          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
-          cat <<EOF > android/keystore.properties
-          storeFile=$KEYSTORE_PATH
-          storePassword=$KEYSTORE_PASSWORD
-          keyAlias=$KEY_ALIAS
-          keyPassword=$KEY_PASSWORD
-          EOF
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          # PKCS12 只有一把密码（keytool 忽略 -keypass），没配 KEY_PASSWORD 就沿用 storePassword。
+          # 塞一个不存在的第二密码只会让打包在 packageRelease 报 padded 错误，所以这里绝不猜。
+          if [ -z "$KEY_PASSWORD" ]; then
+            KEY_PASSWORD="$KEYSTORE_PASSWORD"
+          fi
+          {
+            echo "storeFile=$KEYSTORE_PATH"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/keystore.properties
+          chmod 600 "$KEYSTORE_PATH" android/keystore.properties
+
+      # 真解一次私钥再打包：密码不对在这里就红，不用等一分钟的构建换来一句 KeytoolException。
+      - name: Verify signing material
+        if: inputs.release_sha != ''
+        run: |
+          cd android
+          ./gradlew verifyReleaseSigning --no-daemon
 
       - name: Build Android APK
         env:
@@ -219,12 +234,22 @@ jobs:
         if: inputs.release_sha != ''
         run: |
           mkdir -p apk-dist
-          apk_file=$(find android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          if [ -z "$apk_file" ] || [ ! -f "$apk_file" ]; then
-            echo "::error::No release APK found in android/app/build/outputs/apk/release/"
+          release_dir=android/app/build/outputs/apk/release/
+          apk_file=$(find "$release_dir" -name "*.apk" ! -name "*unsigned*" | head -n 1)
+          if [ -z "$apk_file" ]; then
+            echo "::error::No signed release APK in $release_dir - the build produced nothing or only an unsigned one. Check the signing secrets (docs/wiki/release.md)."
+            ls -R "$release_dir" || true
             exit 1
           fi
           cp "$apk_file" apk-dist/agendum-android.apk
+          # 复制成功不等于签上了名：拿 apksigner 真验一遍，宁可这里红，也不发一个装不上的包。
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          apksigner=$(find "$sdk/build-tools" -maxdepth 2 -name apksigner -type f 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$apksigner" ]; then
+            echo "::error::apksigner not found under $sdk/build-tools - cannot prove the APK is signed."
+            exit 1
+          fi
+          "$apksigner" verify --verbose --print-certs apk-dist/agendum-android.apk
 
       - name: Save tested APK
         if: inputs.release_sha != ''

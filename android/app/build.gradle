@@ -1,3 +1,4 @@
+import java.security.KeyStore
 import java.util.Properties
 
 plugins { id 'com.android.application' }
@@ -7,9 +8,18 @@ def pairingFile = rootProject.file('pairing.properties')
 if (pairingFile.exists()) pairingFile.withInputStream { pairingProperties.load(it) }
 def defaultServer = (pairingProperties['server'] ?: '').toString().replace('\\', '\\\\').replace('"', '\\"')
 
- def signingProperties = new Properties()
- def signingFile = rootProject.file('keystore.properties')
- if (signingFile.exists()) signingFile.withInputStream { signingProperties.load(it) }
+def signingProperties = new Properties()
+def signingFile = rootProject.file('keystore.properties')
+if (signingFile.exists()) signingFile.withInputStream { signingProperties.load(it) }
+
+// PKCS12 密钥库只有一把密码：keytool -genkeypair 带 -keypass 时会被它直接忽略（提示
+// "PKCS12 密钥库不支持独立的密钥密码"），私钥始终用 storePassword 加密。而 Gradle 会把
+// keyPassword 原样交给 KeyStore.getKey()，填了别的值就报
+// 「Get Key failed: Given final block not properly padded ... bad key used during decryption」。
+// 所以这里缺省回落到 storePassword：一个 PKCS12 库只留一个密码，别写第二份。
+def signingValue = { String key -> (signingProperties[key] ?: '').toString().trim() }
+def releaseStorePassword = signingValue('storePassword')
+def releaseKeyPassword = signingValue('keyPassword') ?: releaseStorePassword
 
 android { namespace 'com.agendum.app'; compileSdk 35; buildToolsVersion '35.0.0'
     defaultConfig {
@@ -25,10 +35,10 @@ android { namespace 'com.agendum.app'; compileSdk 35; buildToolsVersion '35.0.0'
     signingConfigs {
         release {
             if (signingFile.exists()) {
-                storeFile file(signingProperties['storeFile'])
-                storePassword signingProperties['storePassword']
-                keyAlias signingProperties['keyAlias']
-                keyPassword signingProperties['keyPassword']
+                storeFile file(signingValue('storeFile'))
+                storePassword releaseStorePassword
+                keyAlias signingValue('keyAlias')
+                keyPassword releaseKeyPassword
             }
         }
     }
@@ -48,6 +58,70 @@ android { namespace 'com.agendum.app'; compileSdk 35; buildToolsVersion '35.0.0'
         javaCompileOptions { annotationProcessorOptions { arguments += ['room.schemaLocation': "$projectDir/schemas".toString()] } }
     }
     testOptions { unitTests.returnDefaultValues = true }
+}
+
+// 发布包必须签名，而且必须现在就能解开。把「密码不对」留到 packageRelease 才炸，CI 只会甩
+// 一句 KeytoolException 天书，看不出是哪个密码错了。这里用打包时同一套密码真解一次私钥：
+// 库打不开 = storePassword 错；别名不在 = keyAlias 错；私钥解不开 = keyPassword 错。
+tasks.register('verifyReleaseSigning') {
+    group = 'verification'
+    description = '用 keystore.properties 真解一次私钥，确认发布签名材料可用。'
+    doLast {
+        if (!signingFile.exists()) {
+            throw new GradleException(
+                "缺少 android/keystore.properties，发布包没法签名。本地从 ~/.dsh/agendum-signing/android/ 复制一份；" +
+                "CI 由 ANDROID_KEYSTORE_* secrets 自动生成。只要调试包就改用 assembleDebug。")
+        }
+        def missing = ['storeFile', 'storePassword', 'keyAlias'].findAll { !signingValue(it) }
+        if (missing) {
+            throw new GradleException("keystore.properties 缺字段：${missing.join('、')}")
+        }
+        def store = file(signingValue('storeFile'))
+        if (!store.isFile()) {
+            throw new GradleException(
+                "storeFile 指向的文件不存在：${store}\n" +
+                "（路径按 android/app 解析，和 AGP 的 signingConfig 一致；Git Bash 的 /c/Users/... 写法不是合法路径。）")
+        }
+        def alias = signingValue('keyAlias')
+        def ks = null
+        for (String type : [signingValue('storeType'), KeyStore.defaultType, 'JKS'].findAll { it }) {
+            try {
+                ks = KeyStore.getInstance(type)
+                break
+            } catch (Exception ignored) {
+                // 换下一种类型再试
+            }
+        }
+        if (ks == null) {
+            throw new GradleException("没有可用的 keystore 解析器（storeType=${signingValue('storeType') ?: '默认'}）")
+        }
+        try {
+            store.withInputStream { ks.load(it, releaseStorePassword.toCharArray()) }
+        } catch (Exception e) {
+            throw new GradleException(
+                "storePassword 打不开 ${store.name}：${e.message}。" +
+                "检查 ANDROID_KEYSTORE_PASSWORD 是否与这份 keystore 匹配。")
+        }
+        if (!ks.containsAlias(alias)) {
+            def known = java.util.Collections.list(ks.aliases()).join('、')
+            throw new GradleException("keystore 里没有别名 ${alias}（现有：${known}）。检查 ANDROID_KEY_ALIAS。")
+        }
+        try {
+            ks.getKey(alias, releaseKeyPassword.toCharArray())
+        } catch (Exception e) {
+            def hint = releaseKeyPassword == releaseStorePassword ?
+                '两者当前相同，问题在 storePassword 本身' :
+                '两者当前不同；PKCS12 只有一把密码，keyPassword 必须等于 storePassword'
+            throw new GradleException(
+                "别名 ${alias} 的私钥解不开：${e.message}\n" +
+                "keyPassword 与 storePassword ${hint}。检查 ANDROID_KEY_PASSWORD。")
+        }
+        println "verifyReleaseSigning: ${store.name} 里的 ${alias} 私钥可用"
+    }
+}
+
+afterEvaluate {
+    tasks.named('assembleRelease') { dependsOn tasks.named('verifyReleaseSigning') }
 }
 
 dependencies {
