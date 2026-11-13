@@ -2,6 +2,17 @@
   "version": 1,
   "items": [
     {
+      "tag": "v1.1.0-beta.20",
+      "version": "1.1.0-beta.20",
+      "name": "Agendum 1.1.0-beta.20（测试版）",
+      "notes": "这一版只动发版流水线：安卓包的签名密码改成与密钥库一致，打包前先用别名把私钥真解一次，解不开就当场停并说清是哪个字段不对；上传前再用 apksigner 验一遍，未签名的包不会再被当成发布包。应用本身的行为与 beta.19 相同。",
+      "published_at": "",
+      "asset_name": "Agendum.zip",
+      "size": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "download_url": "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.20/Agendum.zip"
+    },
+    {
       "tag": "v1.1.0-beta.19",
       "version": "1.1.0-beta.19",
       "name": "Agendum 1.1.0-beta.19（测试版）",
