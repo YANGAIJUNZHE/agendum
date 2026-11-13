@@ -6,10 +6,10 @@
       "version": "1.1.0-beta.20",
       "name": "Agendum 1.1.0-beta.20（测试版）",
       "notes": "这一版只动发版流水线：安卓包的签名密码改成与密钥库一致，打包前先用别名把私钥真解一次，解不开就当场停并说清是哪个字段不对；上传前再用 apksigner 验一遍，未签名的包不会再被当成发布包。应用本身的行为与 beta.19 相同。",
-      "published_at": "",
+      "published_at": "2026-11-13T16:51:11+08:00",
       "asset_name": "Agendum.zip",
-      "size": 1,
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 48384663,
+      "sha256": "fd235fd3c3616302e3b59049e6500c77d65cdf074acca391705a48f26f761276",
       "download_url": "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.20/Agendum.zip"
     },
     {
@@ -38,6 +38,6 @@
   "signature": {
     "alg": "RS256",
     "key_id": "agendum-2026-1",
-    "value": "CtsvQGsvUtJttRyOY6Uuns436uxBlzMBihAsw5ZiOIcoQcqGayBuFali5Ddalexe3qDtKvQBaqe8cFtlAEn0LD1WN6ZO4vXgViHZ7POzx-6JC-rElRpSXPYEYQOv48aXcInEjtHZGSmi-vs-oQtU1bio1Ysv50PdGrC4XAPMZxJmFrq55NfPnPL7Ruh3e0LGBYbxZrSbAAY0cJe2oUR7BEBn5Bg1TphSbk5mCKf4MDEdRrquLib_k6T2ZKB0luhCvDHUBJrsz4nb8-R1CvKRzIISnVvIj3hGqLHpeFjlJfjStdPZ6NKOQW_hkMPfuciW0PzLbCHb4o62y-cJf7YNP6HXKINGYKotkTwGVsPRMoqLHFLgQQTjfmNLpUWYEIpNOWlFWgIBJAL3tCzZ4xuYaspFtmNwAZpN0IMPSgOAa-VZSKy0iramMLE7Wzy8uBDBdsQn4Qy4IfhMzvbAObKI0obscKqdb5y4e5xZhCOUqkwv724lEzCS_9D8H25vxMf_"
+    "value": "kzuZmPhyzG6htCGa4tjIWoTmPCtGAkTwcKOBPbhH7Mrq3Tx2LLP1vimD5QEKq99JXsAm-TE4pKb3UdoYNYRTJHocFLfQTkYok6WNjAYoFMOtbWmDyMe5LER_9Xh6PEtjv2cia6Xgn_HUbmhlsbPbP1xWYZHh0nRc39nWqOa_bJOxuaiaSvsbnSv5aw1Tti9SzWHujPqumglv1W75t51YMAQ3Sh4CnwU1pvKxBDdeS5m3lrfkhec2a6TvBnirNXes-7NlxgbUTdyyoVkQVeym-GhBaxvTI_dJtBVAoBJcjLUhlPUJ6TT1OMhkdgkY77H4eSHe6FMv2tFeeaw5LTRRwnTldJWYQUjxMOpddpMGu0LaBY3QOk7T4N0zXasA7gpO694gt4xYcldZHc3u83QlvknPURIcujlZ-VSkP5XEUUfXHGP8m-i_rnvFod7wor4hQhhZ4vzO9iTHl1dQ-ZQIVJCQp67rQm3hA1blOw7L4XRu_BBJ1gOc3dQEdpDLn6b4"
   }
 }
