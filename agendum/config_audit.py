@@ -70,7 +70,10 @@ class _EnvFile:
 
 
 def _source_for(suffix: str, env_file: _EnvFile) -> tuple[str, dict[str, str] | None]:
-    """返回（来源, shadowed）。来源只会是 env / dotenv / default。
+    """返回（来源, shadowed）。来源只会是 env / dotenv / default / unknown。
+
+    最后那个 ``unknown`` 是「配置文件读不出来」——这时既不能说用户没配（default），
+    也不能说配在文件里（dotenv），只能老实说不知道。
 
     ``suffix`` 不带前缀：新旧两套名字都认，新名优先。
     """
