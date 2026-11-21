@@ -124,6 +124,24 @@ def _read_env_value(env_file: Path, key: str) -> str:
     return parse_env_file(env_file).get(key, "")
 
 
+# 三种前缀并存：新名优先、旧名兜底，顺序必须和 agendum.config 保持一致。
+ENV_PREFIXES = ("AGENDUM_", "NOTICEHUB_", "QQ_DIGEST_")
+
+
+def _read_env_prefixed(env_file: Path, suffix: str) -> str:
+    """按 AGENDUM_ → NOTICEHUB_ → QQ_DIGEST_ 读同一个配置项。
+
+    启动器原先只认 QQ_DIGEST_*：用户 .env 迁到 AGENDUM_* 之后 `_console_url`
+    读不到 token，托盘「打开控制台」拼出 `?token=`（空值），浏览器落在 401 页面上。
+    """
+    values = parse_env_file(env_file)
+    for prefix in ENV_PREFIXES:
+        text = (values.get(prefix + suffix) or "").strip()
+        if text:
+            return text
+    return ""
+
+
 def _ensure_env_file(root: Path, env_file: Path) -> None:
     if env_file.exists():
         return
@@ -519,8 +537,8 @@ def _write_update_state(data_dir: Path, state: dict) -> None:
 
 
 def _update_channel(env_file: Path) -> str | None:
-    """.env 里的 QQ_DIGEST_UPDATE_CHANNEL：stable/beta/off 显式指定，其它值交给 updater 默认。"""
-    value = _read_env_value(env_file, "QQ_DIGEST_UPDATE_CHANNEL").strip().lower()
+    """.env 里的 AGENDUM_UPDATE_CHANNEL：stable/beta/off 显式指定，其它值交给 updater 默认。"""
+    value = _read_env_prefixed(env_file, "UPDATE_CHANNEL").lower()
     return value if value in {"stable", "beta", "off"} else None
 
 
@@ -720,7 +738,7 @@ def _read_meta_token(env_file: Path, root: Path) -> str:
     这里用标准库 sqlite3 只读回退一次 meta 里的 web_token（无新依赖，失败即空串）。
     """
     try:
-        data_dir_text = _read_env_value(env_file, "QQ_DIGEST_DATA_DIR").strip()
+        data_dir_text = _read_env_prefixed(env_file, "DATA_DIR")
         if data_dir_text and Path(data_dir_text).is_absolute():
             data_dir = Path(data_dir_text)
         else:
@@ -740,7 +758,7 @@ def _read_meta_token(env_file: Path, root: Path) -> str:
 
 def _console_url(env_file: Path, port: int) -> str:
     root = Path(env_file).parent
-    token = _read_env_value(env_file, "QQ_DIGEST_WEB_TOKEN") or _read_meta_token(env_file, root)
+    token = _read_env_prefixed(env_file, "WEB_TOKEN") or _read_meta_token(env_file, root)
     return "http://127.0.0.1:%d/?token=%s" % (port, urllib.parse.quote(token, safe=""))
 
 
@@ -751,7 +769,7 @@ def _launch_service(root: Path, env_file: Path, port: int | None = None) -> subp
     child_env = os.environ.copy()
     if port is not None:
         # 仅给本次子进程覆盖端口，绝不改用户 .env。
-        child_env["QQ_DIGEST_WEB_PORT"] = str(port)
+        child_env["AGENDUM_WEB_PORT"] = str(port)
     return subprocess.Popen(
         [str(root / SERVICE_EXE), "--env", str(env_file), "run"],
         cwd=root,
