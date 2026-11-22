@@ -6,10 +6,10 @@
       "version": "1.1.0-beta.22",
       "name": "Agendum 1.1.0-beta.22（测试版）",
       "notes": "承接 beta.21 未发版改动的正式测试版：Windows 主界面改用独立 Edge 应用窗口与专属资料目录，支持已有活窗口激活与失败退回默认浏览器；桌面端工作区重做为 Windows 11 风格，补齐浅/深双主题、动效与轮询增量更新；启动器补齐手机公网 cloudflared 隧道托管与端口顺移告警，统一 AGENDUM_/NOTICEHUB_/QQ_DIGEST_ 令牌与脚本前缀；Android 客户端重写为原生 Jetpack Compose + Material 3 界面；另含损坏库先搬旁路、微信分片签名重建，以及非 Windows 环境模拟路径与隧道退出清理兼容修复。",
-      "published_at": "",
+      "published_at": "2026-11-22T22:00:59+08:00",
       "asset_name": "Agendum.zip",
-      "size": 1,
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 48538859,
+      "sha256": "1222fc74d30ad50d8abf5811b23ccadba6dc186cc6cd5634537b6c488c4390e6",
       "download_url": "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.22/Agendum.zip"
     },
     {
@@ -49,6 +49,6 @@
   "signature": {
     "alg": "RS256",
     "key_id": "agendum-2026-1",
-    "value": "kzuZmPhyzG6htCGa4tjIWoTmPCtGAkTwcKOBPbhH7Mrq3Tx2LLP1vimD5QEKq99JXsAm-TE4pKb3UdoYNYRTJHocFLfQTkYok6WNjAYoFMOtbWmDyMe5LER_9Xh6PEtjv2cia6Xgn_HUbmhlsbPbP1xWYZHh0nRc39nWqOa_bJOxuaiaSvsbnSv5aw1Tti9SzWHujPqumglv1W75t51YMAQ3Sh4CnwU1pvKxBDdeS5m3lrfkhec2a6TvBnirNXes-7NlxgbUTdyyoVkQVeym-GhBaxvTI_dJtBVAoBJcjLUhlPUJ6TT1OMhkdgkY77H4eSHe6FMv2tFeeaw5LTRRwnTldJWYQUjxMOpddpMGu0LaBY3QOk7T4N0zXasA7gpO694gt4xYcldZHc3u83QlvknPURIcujlZ-VSkP5XEUUfXHGP8m-i_rnvFod7wor4hQhhZ4vzO9iTHl1dQ-ZQIVJCQp67rQm3hA1blOw7L4XRu_BBJ1gOc3dQEdpDLn6b4"
+    "value": "VgpR1QI1Qs3ZY8A072jCzN3hxcHJ5eJjey59LOoZW6vwJGMl-jpSqDjmDJbjrnOjnePYxPx-beWlNsreA67EZhMDxBYSgJWResMFYss8uczUzhz4HwN1fS0HhAp81pN8Dv6Ev4XERoa10IMbrGM_drVO2vOTegjljeNbFMOREvQZ0N8lxaUyafDws-7NmtPCQhJ4j-Xms1DD85iba4KjouUKA-Pqd57tI02JHk27prgPLfCNYkT06LvNLGRAu5UAv-clPEQv8arkpKws4przr0eAUyVMKx_C-iVIqkHzcMWREygssnMD5CEdSy9HrW90g8Kcyv8eevx4QDEA-Eu40KnswYKpO6MIc29Q8SXIYEwkJaiTlTFqzICAaJz9ng6y0RDLtmBgLwMmUpLLF2VaSBf2sjV1NrNj_u-DnPoGFGmbqeKnuRQfOGfBT6Bc2AmaJsgUzScheFP9JFm6fXo0oldw4SaobBT8vQgtqtlIZdl9Gd-nzMVQWvP0EJwvTK8K"
   }
 }
