@@ -232,10 +232,10 @@ class WikiTests(unittest.TestCase):
             if name == "未发布" or name.startswith(version.APP_VERSION)
         ]
         self.assertTrue(candidates, "changelog 里既没有「未发布」也没有当前版本小节")
-        # 关键词跟着「正在交付的这一批」换：上一批是安卓签名的 verifyReleaseSigning /
-        # apksigner verify，这一批是独立应用窗口、隧道托管与原生 Compose 客户端。换批次时连同这里一起改，别把断言放宽成
-        # 「随便写点什么都算」。
-        for needle in ("app-window-profile", "cloudflared.exe", "ScheduleViewModelTest"):
+        # 关键词跟着「正在交付的这一批」换：这一批承接 beta.21 并修掉 Linux 下
+        # WindowsPath/ntpath/--token-file 跨平台兼容问题。换批次时连同这里一起改，
+        # 别把断言放宽成「随便写点什么都算」。
+        for needle in ("WindowsPath", "ntpath", "--token-file"):
             if not any(needle in sections[name] for name in candidates):
                 self.fail(
                     f"本批改动 {needle} 既没进未发布、也没进当前版本小节"

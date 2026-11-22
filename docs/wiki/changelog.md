@@ -6,7 +6,11 @@
 
 ## 未发布
 
-**修掉跨平台单测路径校验的三处兼容性问题。** 在 Linux 环境运行并模拟 `os.name == "nt"` 时，`agendum/edge_app.py` 与 `packaging/launcher.py` 直接构造 `Path(...)` 或调用 `os.path.normcase` 会因系统不支持实例化 `WindowsPath` 或按 POSIX 规则比较盘符路径而报错，导致独立窗口资料目录匹配、隧道 `--token-file` 匹配及退出清理隧道子进程失败。现在改为统一按真实宿主构造路径、以 `ntpath` 规则规范化 Windows 路径，并在路径解析与 `.resolve()` 调用处补充非 Windows 平台与 `NotImplementedError` 兜底，同时在单测里补上模拟用例。
+（暂无）
+
+## 1.1.0-beta.22 · 2026-11-22
+
+**承接 `1.1.0-beta.21` 未发版改动后的首个实际发版，并修掉非 Windows 环境路径校验的三处兼容问题。** 上一版因 Linux CI 阻塞没有打标签发布，该版的所有改动（Windows 独立应用窗口、Win11 风格桌面工作区、手机公网隧道托管、原生 Jetpack Compose 安卓客户端以及数据库与微信分片修复）统一从本版交付。同时修掉在 Linux 模拟 Windows 环境下跑单测时，直接实例化 `Path` 触发 `WindowsPath` 报错、用 POSIX 规则对比 `--token-file` 路径失败，以及退出阶段清理隧道子进程被异常拦断的问题：路径构造改按真实宿主类型处理、Windows 路径规范化统一走 `ntpath`，并为 `.resolve()` 补全非 Windows 与 `NotImplementedError` 兜底，同时在单测中补上模拟回归用例。
 
 ## 1.1.0-beta.21 · 2026-11-22
 
