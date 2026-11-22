@@ -14,9 +14,10 @@ import ntpath
 import os
 import re
 import subprocess
+import sys
 import time
 import uuid
-from pathlib import Path
+from pathlib import Path, PosixPath, WindowsPath
 from typing import Any, Iterable, Sequence
 
 from .win_text import decode_console_output
@@ -126,6 +127,38 @@ class _PROPVARIANT_LPWSTR(ctypes.Structure):
 
 _DPI_READY = False
 _U32_READY = False
+_HOST_PATH_CLS = WindowsPath if sys.platform == "win32" else PosixPath
+
+
+def host_path(value: Path | str | os.PathLike[str]) -> Path:
+    """Return a real host Path even when `os.name` is patched in cross-platform tests."""
+    return value if isinstance(value, _HOST_PATH_CLS) else _HOST_PATH_CLS(os.fspath(value))
+
+
+def normalize_windows_path(value: Path | str) -> str:
+    """Normalize a Windows path (slashes, case, dot segments) consistently across OSes."""
+    raw = str(value or "").strip().strip('"').strip("'").replace("/", "\\")
+    if not raw:
+        return ""
+    norm = ntpath.normcase(ntpath.normpath(raw))
+    if len(norm) > 3 and norm.endswith("\\"):
+        norm = norm.rstrip("\\")
+    return norm
+
+
+def _resolved_existing_file(path: Path | str | None) -> str:
+    """Resolve an existing file path safely without instantiating foreign Path types."""
+    if path is None:
+        return ""
+    raw = os.fspath(path)
+    if not raw or not os.path.isfile(raw):
+        return ""
+    if sys.platform == "win32":
+        try:
+            return str(host_path(raw).resolve())
+        except (OSError, NotImplementedError):
+            pass
+    return os.path.abspath(raw)
 
 
 def ensure_dpi_aware() -> None:
@@ -274,7 +307,7 @@ def find_edge_path(candidates: Sequence[str] | None = None) -> str:
     """Locate msedge.exe from known installation paths."""
     pool = EDGE_CANDIDATES if candidates is None else candidates
     for candidate in pool:
-        if candidate and Path(candidate).is_file():
+        if candidate and os.path.isfile(candidate):
             return str(candidate)
     raise RuntimeError("找不到 Microsoft Edge：请确认 msedge.exe 已安装")
 
@@ -304,15 +337,13 @@ def normalize_profile_path(profile: Path | str) -> str:
     if not raw:
         return ""
     text = raw
-    if os.name == "nt":
+    if sys.platform == "win32":
+        cleaned = raw.strip('"').strip("'")
         try:
-            text = str(Path(raw).resolve())
-        except OSError:
-            text = raw
-    norm = ntpath.normcase(ntpath.normpath(text))
-    if len(norm) > 3 and norm.endswith("\\"):
-        norm = norm.rstrip("\\")
-    return norm
+            text = str(host_path(cleaned).resolve())
+        except (OSError, NotImplementedError):
+            text = cleaned
+    return normalize_windows_path(text)
 
 
 def process_matches_commandline(command_line: str, profile: Path | str) -> bool:
@@ -553,11 +584,11 @@ def apply_window_icon_and_aumid(
     if not lib.IsWindow(hwnd):
         return []
     handles: list[int] = []
-    if icon_path is not None and Path(icon_path).is_file():
-        resolved = str(Path(icon_path).resolve())
+    resolved_icon = _resolved_existing_file(icon_path)
+    if resolved_icon:
         for icon_type, size in ((ICON_BIG, 32), (ICON_SMALL, 16)):
             try:
-                hicon = lib.LoadImageW(None, resolved, IMAGE_ICON, size, size, LR_LOADFROMFILE)
+                hicon = lib.LoadImageW(None, resolved_icon, IMAGE_ICON, size, size, LR_LOADFROMFILE)
                 if hicon:
                     lib.SendMessageW(hwnd, WM_SETICON, icon_type, int(hicon))
                     handles.append(int(hicon))
@@ -599,8 +630,8 @@ def apply_window_icon_and_aumid(
                 release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
                 try:
                     _set_window_property(store_ptr, set_value, _PKEY_APPUSERMODEL_ID, app_id)
-                    if icon_path is not None and Path(icon_path).is_file():
-                        _set_window_property(store_ptr, set_value, _PKEY_RELAUNCH_ICON, str(Path(icon_path).resolve()))
+                    if resolved_icon:
+                        _set_window_property(store_ptr, set_value, _PKEY_RELAUNCH_ICON, resolved_icon)
                     if display_name:
                         _set_window_property(store_ptr, set_value, _PKEY_RELAUNCH_DISPLAY_NAME, display_name)
                     if relaunch_command:
@@ -680,8 +711,10 @@ __all__ = [
     "extract_user_data_dirs",
     "find_edge_path",
     "find_windows_for_pids",
+    "host_path",
     "kill_tree",
     "normalize_profile_path",
+    "normalize_windows_path",
     "parse_process_age_seconds",
     "pids_using_profile",
     "process_matches_commandline",

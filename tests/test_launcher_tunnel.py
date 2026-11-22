@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -12,7 +13,7 @@ import tempfile
 import threading
 import unittest
 import urllib.error
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -127,6 +128,29 @@ class TokenFileMatchingTests(unittest.TestCase):
             launcher.subprocess, "run", side_effect=OSError("cim blocked")
         ):
             self.assertIsNone(launcher._find_tunnel_processes(Path(r"D:\Agendum\data\cloudflared.token")))
+
+    def test_posix_os_path_and_not_implemented_path_still_match_windows_token_paths(self):
+        def raise_windows_path(*_args, **_kwargs):
+            raise NotImplementedError("cannot instantiate 'WindowsPath' on your system")
+
+        token_file = PureWindowsPath(r"D:\Agendum\data\cloudflared.token")
+        with patch.object(launcher.os, "path", posixpath), \
+                patch.object(launcher.os, "name", "nt"), \
+                patch.object(launcher.sys, "platform", "linux"), \
+                patch.object(launcher, "Path", side_effect=raise_windows_path), \
+                patch.object(Path, "resolve", side_effect=raise_windows_path):
+            self.assertTrue(
+                launcher._command_uses_token_file(
+                    r"cloudflared.exe tunnel run --token-file=d:/agendum/data/cloudflared.token",
+                    token_file,
+                )
+            )
+            self.assertFalse(
+                launcher._command_uses_token_file(
+                    r'cloudflared.exe tunnel run --token-file "D:\Agendum-beta\data\cloudflared.token"',
+                    token_file,
+                )
+            )
 
 
 class EnsureTunnelRunningTests(unittest.TestCase):
@@ -353,6 +377,48 @@ class TrayTunnelLifecycleAndTokenTests(unittest.TestCase):
             self.assertEqual(stopped_pids, [6333])
             for cmd in taskkill_cmds:
                 self.assertNotIn("/IM", cmd)
+
+    def test_quit_stops_tunnel_when_path_raises_not_implemented_under_mocked_nt(self):
+        def raise_windows_path(*_args, **_kwargs):
+            raise NotImplementedError("cannot instantiate 'WindowsPath' on your system")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data_dir = root / "data"
+            data_dir.mkdir()
+            (data_dir / "cloudflared.token").write_text("tok", encoding="utf-8")
+            settings = SimpleNamespace(web_port=18766, data_dir=str(data_dir))
+            tunnel_proc = FakeTunnelProcess([None], pid=6111)
+            service_proc = FakeTunnelProcess([None], pid=6222)
+            with patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
+                host = launcher.TrayHost(
+                    root, root / ".env", settings, service_proc, "http://127.0.0.1:18766", tunnel_process=tunnel_proc
+                )
+            host.icon = SimpleNamespace(stop=lambda: None)
+            host.floatball = SimpleNamespace(stop=lambda: None)
+            stopped_pids: list[int] = []
+            taskkill_cmds: list[list[str]] = []
+
+            def fake_run(cmd, **kwargs):
+                taskkill_cmds.append(list(cmd))
+                if "/PID" in cmd:
+                    stopped_pids.append(int(cmd[cmd.index("/PID") + 1]))
+                return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+
+            with patch.object(launcher, "_find_tunnel_processes", return_value=[6333]), \
+                    patch.object(launcher.os, "name", "nt"), \
+                    patch.object(launcher.sys, "platform", "linux"), \
+                    patch.object(launcher, "Path", side_effect=raise_windows_path), \
+                    patch.object(launcher.subprocess, "run", side_effect=fake_run), \
+                    patch.object(hosting, "hosting_status", return_value={"hosting_active": False}):
+                host._quit_steps()
+
+            self.assertEqual(stopped_pids, [6333])
+            for cmd in taskkill_cmds:
+                self.assertNotIn("/IM", cmd)
+            log_text = (root / "logs" / "launcher.log").read_text(encoding="utf-8")
+            self.assertIn("pid=6333", log_text)
+            self.assertNotIn("退出时结束隧道子进程出错", log_text)
 
     def test_watchdog_tick_restarts_unexpectedly_exited_tunnel_up_to_limit(self):
         with tempfile.TemporaryDirectory() as tmp:

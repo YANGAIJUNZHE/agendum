@@ -6,7 +6,7 @@
 
 ## 未发布
 
-（暂无）
+**修掉跨平台单测路径校验的三处兼容性问题。** 在 Linux 环境运行并模拟 `os.name == "nt"` 时，`agendum/edge_app.py` 与 `packaging/launcher.py` 直接构造 `Path(...)` 或调用 `os.path.normcase` 会因系统不支持实例化 `WindowsPath` 或按 POSIX 规则比较盘符路径而报错，导致独立窗口资料目录匹配、隧道 `--token-file` 匹配及退出清理隧道子进程失败。现在改为统一按真实宿主构造路径、以 `ntpath` 规则规范化 Windows 路径，并在路径解析与 `.resolve()` 调用处补充非 Windows 平台与 `NotImplementedError` 兜底，同时在单测里补上模拟用例。
 
 ## 1.1.0-beta.21 · 2026-11-22
 

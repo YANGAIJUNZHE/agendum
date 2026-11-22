@@ -42,6 +42,7 @@ from .edge_app import (
     ensure_dpi_aware,
     find_edge_path,
     find_windows_for_pids,
+    host_path,
     kill_tree as _kill_tree,
     pids_using_profile,
     process_matches_commandline,
@@ -112,7 +113,7 @@ class FloatBallHost:
     WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_ssize_t, ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_ssize_t)
 
     def __init__(self, data_dir: Path) -> None:
-        self.data_dir = Path(data_dir)
+        self.data_dir = host_path(data_dir)
         self.state_path = self.data_dir / STATE_NAME
         self.process: subprocess.Popen | None = None
         self.hwnd: int | None = None

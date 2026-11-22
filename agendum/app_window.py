@@ -25,6 +25,7 @@ from .edge_app import (
     ensure_dpi_aware,
     find_edge_path,
     find_windows_for_pids,
+    host_path,
     kill_tree,
     normalize_profile_path,
     pids_using_profile,
@@ -61,10 +62,10 @@ class AppWindowResult:
 
 def app_window_profile_dir(data_dir: Path | str) -> Path:
     """Dedicated Edge `--user-data-dir` for the main window (separate from floatball)."""
-    target = Path(data_dir) / APP_PROFILE_DIR_NAME
+    target = host_path(data_dir) / APP_PROFILE_DIR_NAME
     try:
         return target.resolve()
-    except OSError:
+    except (OSError, NotImplementedError):
         return target
 
 
@@ -76,7 +77,7 @@ def app_user_model_id(install_root: Path | str) -> str:
 
 
 def select_app_icon_path(install_root: Path | str, channel: str | None = None) -> Path | None:
-    root = Path(install_root)
+    root = host_path(install_root)
     names = ("icon-beta.ico", "icon.ico") if channel == "beta" else ("icon.ico",)
     for name in names:
         candidate = root / "assets" / name
@@ -194,8 +195,8 @@ class AppWindowHost:
         popen: Callable[..., subprocess.Popen] | None = None,
         logger: Callable[[str], None] | None = None,
     ) -> None:
-        self.install_root = Path(install_root)
-        self.data_dir = Path(data_dir)
+        self.install_root = host_path(install_root)
+        self.data_dir = host_path(data_dir)
         self.channel = channel
         self.profile_dir = app_window_profile_dir(self.data_dir)
         self.pid_path = self.data_dir / APP_PID_FILE_NAME
@@ -622,7 +623,7 @@ class AppWindowHost:
         if self._icon_handles:
             destroy_icons(self._icon_handles)
             self._icon_handles = []
-        if os.name == "nt":
+        if os.name == "nt" and (self.profile_dir.exists() or self._tracked_pid() or hwnd):
             _, pids = self._profile_state()
             if pids and hwnd:
                 time.sleep(0.4)

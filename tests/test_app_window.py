@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import posixpath
 import subprocess
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -175,6 +177,72 @@ class ProcessMatchingAndSafetyTests(unittest.TestCase):
         self.assertEqual(args, ["taskkill", "/PID", "4321", "/T", "/F"])
         self.assertNotIn("/IM", args)
         self.assertNotIn("msedge.exe", args)
+
+    def test_posix_path_semantics_and_windows_path_not_implemented_are_handled(self):
+        def raise_windows_path(*_args, **_kwargs):
+            raise NotImplementedError("cannot instantiate 'WindowsPath' on your system")
+
+        target = PureWindowsPath(r"F:\Agendum\data\app-window-profile")
+        failed = SimpleNamespace(returncode=1, stdout=b"", stderr="无法从客户端中访问 CIM 资源".encode("gbk"))
+        payload = json.dumps(
+            [
+                {
+                    "ProcessId": 101,
+                    "ParentProcessId": 1,
+                    "CommandLine": r'msedge.exe --app=http://127.0.0.1:8766/ --user-data-dir="f:/agendum/data/app-window-profile/"',
+                    "StartedMs": 1_700_000_000_000,
+                },
+                {
+                    "ProcessId": 303,
+                    "ParentProcessId": 1,
+                    "CommandLine": r'msedge.exe --app=http://127.0.0.1:8767/ --user-data-dir="F:\Agendum-beta\data\app-window-profile"',
+                    "StartedMs": 1_700_000_000_000,
+                },
+            ]
+        ).encode("utf-8")
+        ok = SimpleNamespace(returncode=0, stdout=payload, stderr=b"")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            assets_dir = Path(tmp) / "assets"
+            assets_dir.mkdir()
+            ico = assets_dir / "icon.ico"
+            ico.write_bytes(b"ico")
+            expected_profile = Path(tmp) / "data" / "app-window-profile"
+            with patch.object(edge_app.sys, "platform", "linux"), \
+                    patch.object(edge_app.os, "name", "nt"), \
+                    patch.object(edge_app, "Path", side_effect=raise_windows_path), \
+                    patch.object(app_window, "Path", side_effect=raise_windows_path), \
+                    patch.object(Path, "resolve", side_effect=raise_windows_path):
+                self.assertEqual(
+                    edge_app.normalize_profile_path(target),
+                    r"f:\agendum\data\app-window-profile",
+                )
+                self.assertEqual(
+                    edge_app.normalize_profile_path("f:/agendum/data/app-window-profile/"),
+                    r"f:\agendum\data\app-window-profile",
+                )
+                self.assertTrue(
+                    edge_app.process_matches_commandline(
+                        r'msedge.exe --user-data-dir="f:/agendum/data/app-window-profile/"',
+                        target,
+                    )
+                )
+                with patch.object(edge_app.subprocess, "run", return_value=failed):
+                    self.assertIsNone(edge_app.processes_using_profile(target))
+                with patch.object(edge_app.subprocess, "run", return_value=ok):
+                    rows = edge_app.processes_using_profile(target)
+                self.assertEqual([row["pid"] for row in (rows or [])], [101])
+                self.assertEqual(app_window_profile_dir(tmp).name, "app-window-profile")
+                self.assertEqual(select_app_icon_path(tmp), ico)
+                host = AppWindowHost(tmp, os.path.join(tmp, "data"))
+                self.assertEqual(host.profile_dir, expected_profile)
+                self.assertEqual(edge_app._resolved_existing_file(ico), os.path.abspath(str(ico)))
+
+        with patch.object(edge_app.os, "path", posixpath):
+            self.assertEqual(
+                edge_app.normalize_windows_path("d:/Agendum/data/app-window-profile/"),
+                r"d:\agendum\data\app-window-profile",
+            )
 
 
 class AppWindowHostLifecycleTests(unittest.TestCase):

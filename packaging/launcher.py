@@ -29,6 +29,7 @@ from pathlib import Path
 
 from agendum import host_actions, hosting
 from agendum.config import Settings, parse_env_file
+from agendum.edge_app import host_path, normalize_windows_path
 from agendum.win_text import decode_console_output
 try:
     from agendum.app_window import AppWindowHost, app_window_profile_dir
@@ -243,10 +244,14 @@ def _icon_names(channel: str | None) -> tuple[str, ...]:
 
 
 def _shortcut_icon_location(root: Path, channel: str | None) -> str:
-    target = Path(root) / LAUNCHER_EXE
-    beta_icon = Path(root) / "assets" / "icon-beta.ico"
+    base = host_path(root)
+    target = base / LAUNCHER_EXE
+    beta_icon = base / "assets" / "icon-beta.ico"
     if channel == "beta" and beta_icon.is_file():
-        return str(beta_icon.resolve())
+        try:
+            return str(beta_icon.resolve())
+        except (OSError, NotImplementedError):
+            return str(beta_icon)
     return str(target) + ",0"
 
 
@@ -304,8 +309,8 @@ def _instance_mutex_name(root: Path) -> str:
     contain backslashes, and hashing keeps the name short and case-normalised.
     """
     try:
-        resolved = str(root.resolve())
-    except OSError:
+        resolved = str(host_path(root).resolve())
+    except (OSError, NotImplementedError):
         resolved = str(root)
     digest = hashlib.sha256(resolved.lower().encode("utf-8", "replace")).hexdigest()[:16]
     return "Local\\agendum-launcher-%s" % digest
@@ -324,7 +329,7 @@ def _acquire_single_instance(root: Path | None = None) -> bool:
         import ctypes
 
         if root is None:
-            root = Path(sys.executable).resolve().parent
+            root = host_path(sys.executable).resolve().parent
         kernel32 = ctypes.windll.kernel32
         _INSTANCE_MUTEX = kernel32.CreateMutexW(None, False, _instance_mutex_name(root))
         return kernel32.GetLastError() != 183  # ERROR_ALREADY_EXISTS
@@ -333,7 +338,7 @@ def _acquire_single_instance(root: Path | None = None) -> bool:
 
 
 def _quit_request_path(root: Path) -> Path:
-    return Path(root) / QUIT_REQUEST_NAME
+    return host_path(root) / QUIT_REQUEST_NAME
 
 
 def _manual_exit_flag_path() -> Path:
@@ -345,9 +350,9 @@ def _manual_exit_flag_path() -> Path:
     """
     override = os.environ.get(MANUAL_EXIT_FLAG_ENV, "").strip()
     if override:
-        return Path(override)
-    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-    return Path(base) / MANUAL_EXIT_DIR_NAME / MANUAL_EXIT_FLAG_NAME
+        return host_path(override)
+    base = os.environ.get("LOCALAPPDATA") or str(host_path(os.path.expanduser("~")) / "AppData" / "Local")
+    return host_path(base) / MANUAL_EXIT_DIR_NAME / MANUAL_EXIT_FLAG_NAME
 
 
 def _mark_manual_exit(root: Path) -> None:
@@ -456,7 +461,7 @@ def _log_launcher(root: Path, message: str) -> None:
     用户下次回来问「为什么双击没反应」，这个文件就是答案。按 2 MB 轮转，防止无限增长。
     """
     try:
-        log_file = root / "logs" / "launcher.log"
+        log_file = host_path(root) / "logs" / "launcher.log"
         log_file.parent.mkdir(parents=True, exist_ok=True)
         _rotate_launcher_log(log_file)
         with log_file.open("a", encoding="utf-8") as stream:
@@ -470,10 +475,10 @@ def _console_window_open() -> bool:
     if os.name != "nt" or AppWindowHost is None:
         return False
     try:
-        root = Path(sys.executable).resolve().parent
+        root = host_path(sys.executable).resolve().parent
         env_file = root / ".env"
         data_text = _read_env_prefixed(env_file, "DATA_DIR") if env_file.is_file() else ""
-        data_dir = Path(data_text) if data_text and Path(data_text).is_absolute() else (root / "data")
+        data_dir = host_path(data_text) if data_text and host_path(data_text).is_absolute() else (root / "data")
         return AppWindowHost(root, data_dir).has_live_window()
     except Exception:
         return False
@@ -520,10 +525,10 @@ def _data_dir_for(root: Path, settings: object) -> Path:
     try:
         configured = getattr(settings, "data_dir", None)
         if configured:
-            return Path(configured)
+            return host_path(configured)
     except Exception:
         pass
-    return Path(root) / "data"
+    return host_path(root) / "data"
 
 
 def _drop_installed_pending(root: Path, settings: object) -> None:
@@ -556,11 +561,11 @@ def _applying_flag_path(data_dir: Path) -> Path:
         name = APPLYING_FLAG
     except Exception:
         name = "applying.flag"
-    return Path(data_dir) / UPDATES_DIR_NAME / name
+    return host_path(data_dir) / UPDATES_DIR_NAME / name
 
 
 def _update_state_path(data_dir: Path) -> Path:
-    return Path(data_dir) / UPDATES_DIR_NAME / UPDATE_STATE_NAME
+    return host_path(data_dir) / UPDATES_DIR_NAME / UPDATE_STATE_NAME
 
 
 def _read_update_state(data_dir: Path) -> dict:
@@ -639,11 +644,11 @@ def _firewall_rule_command(port: int) -> str:
 
 
 def _firewall_request_path(data_dir: Path) -> Path:
-    return Path(data_dir) / FIREWALL_REQUEST_NAME
+    return host_path(data_dir) / FIREWALL_REQUEST_NAME
 
 
 def _firewall_result_path(data_dir: Path) -> Path:
-    return Path(data_dir) / FIREWALL_RESULT_NAME
+    return host_path(data_dir) / FIREWALL_RESULT_NAME
 
 
 def _firewall_allows(port: int, data_dir: Path | None = None) -> dict:
@@ -661,7 +666,7 @@ def _firewall_allows(port: int, data_dir: Path | None = None) -> dict:
 
 
 def _firewall_state_path(data_dir: Path) -> Path:
-    return Path(data_dir) / FIREWALL_STATE_NAME
+    return host_path(data_dir) / FIREWALL_STATE_NAME
 
 
 def _read_firewall_state(data_dir: Path) -> dict:
@@ -683,7 +688,7 @@ def _write_firewall_state(data_dir: Path, state: dict) -> None:
         temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(temporary, path)
     except OSError as exc:
-        _log_launcher(Path(data_dir).parent, "防火墙状态写入失败：%s（%s）" % (path, exc))
+        _log_launcher(host_path(data_dir).parent, "防火墙状态写入失败：%s（%s）" % (path, exc))
         try:
             temporary.unlink()
         except OSError:
@@ -811,10 +816,10 @@ def _read_meta_token(env_file: Path, root: Path) -> str:
     """
     try:
         data_dir_text = _read_env_prefixed(env_file, "DATA_DIR")
-        if data_dir_text and Path(data_dir_text).is_absolute():
-            data_dir = Path(data_dir_text)
+        if data_dir_text and host_path(data_dir_text).is_absolute():
+            data_dir = host_path(data_dir_text)
         else:
-            data_dir = root / "data"
+            data_dir = host_path(root) / "data"
         db_path = data_dir / "digest.sqlite3"
         if not db_path.is_file():
             return ""
@@ -829,7 +834,7 @@ def _read_meta_token(env_file: Path, root: Path) -> str:
 
 
 def _console_url(env_file: Path, port: int) -> str:
-    root = Path(env_file).parent
+    root = host_path(env_file).parent
     token = _read_env_prefixed(env_file, "WEB_TOKEN") or _read_meta_token(env_file, root)
     return "http://127.0.0.1:%d/?token=%s" % (port, urllib.parse.quote(token, safe=""))
 
@@ -930,7 +935,7 @@ def _icon_image(root: Path | None = None, channel: str | None = None) -> object 
     解压目录里没有 assets（或图坏了、没装 Pillow）时，回退到下面这段内联绘制 ——
     **没有 assets 也绝不让托盘起不来**。
     """
-    base = Path(root) if root is not None else Path(sys.executable).resolve().parent
+    base = host_path(root) if root is not None else host_path(sys.executable).resolve().parent
     for name in _icon_names(channel):
         try:
             if (base / "assets" / name).is_file():
@@ -970,7 +975,7 @@ def _mobile_base_url(env_file: Path, settings: object) -> str:
 
 
 def _tunnel_origin_port(data_dir: Path, fallback_port: int) -> int:
-    deploy_file = Path(data_dir) / TUNNEL_DEPLOYMENT_NAME
+    deploy_file = host_path(data_dir) / TUNNEL_DEPLOYMENT_NAME
     if deploy_file.is_file():
         try:
             payload = json.loads(deploy_file.read_text(encoding="utf-8"))
@@ -992,24 +997,22 @@ def _tunnel_origin_port(data_dir: Path, fallback_port: int) -> int:
 
 
 def _normalize_windows_path(value: str | Path) -> str:
-    text = str(value or "").strip().strip('"').strip("'").replace("/", "\\")
-    if not text:
-        return ""
-    return os.path.normcase(os.path.normpath(text))
+    return normalize_windows_path(value)
 
 
 def _token_file_candidates(token_file: Path) -> set[str]:
     candidates: set[str] = set()
-    for raw in (Path(token_file),):
+    for raw in (host_path(token_file),):
         norm = _normalize_windows_path(raw)
         if norm:
             candidates.add(norm)
-        try:
-            resolved = _normalize_windows_path(raw.resolve())
-            if resolved:
-                candidates.add(resolved)
-        except OSError:
-            pass
+        if sys.platform == "win32" or os.path.exists(raw):
+            try:
+                resolved = _normalize_windows_path(raw.resolve())
+                if resolved:
+                    candidates.add(resolved)
+            except (OSError, NotImplementedError):
+                pass
     return candidates
 
 
@@ -1025,12 +1028,12 @@ def _command_uses_token_file(command_line: str, token_file: Path) -> bool:
         normalized = _normalize_windows_path(raw_arg)
         if normalized in expected:
             return True
-        if raw_arg:
+        if raw_arg and (sys.platform == "win32" or os.path.exists(raw_arg)):
             try:
-                resolved = _normalize_windows_path(Path(raw_arg).resolve())
+                resolved = _normalize_windows_path(host_path(raw_arg).resolve())
                 if resolved in expected:
                     return True
-            except OSError:
+            except (OSError, NotImplementedError):
                 pass
     return False
 
@@ -1164,7 +1167,7 @@ def _launch_tunnel_attempt(
     token_file: Path,
     protocol: str = "",
 ) -> tuple[subprocess.Popen, Path, int]:
-    log_dir = Path(root) / "logs"
+    log_dir = host_path(root) / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     out_log = log_dir / "mobile-tunnel.out.log"
     err_log = log_dir / "mobile-tunnel.err.log"
@@ -1175,8 +1178,8 @@ def _launch_tunnel_attempt(
     except OSError:
         err_offset = 0
     try:
-        resolved_token = str(token_file.resolve())
-    except OSError:
+        resolved_token = str(host_path(token_file).resolve())
+    except (OSError, NotImplementedError):
         resolved_token = str(token_file)
     args = [str(cloudflared_exe), "tunnel", "--no-autoupdate"]
     if protocol:
@@ -1450,7 +1453,7 @@ class TrayHost:
         self._startup_notices = list(startup_notices or [])
         self.app_window = app_window if app_window is not None else _create_app_window(self.root, self.env_file, self.settings)
         # 测试里的 Settings 替身可能没有 data_dir；退回安装目录下的 data，别让托盘整体起不来。
-        self.floatball = FloatBallWindow(Path(getattr(settings, "data_dir", "") or (self.root / "data"))) if FloatBallWindow else None
+        self.floatball = FloatBallWindow(host_path(getattr(settings, "data_dir", "") or (host_path(self.root) / "data"))) if FloatBallWindow else None
 
     # ---- 忙碌标志 ----
     @property
@@ -1969,7 +1972,7 @@ class TrayHost:
 
                     result = updater.apply_async(
                         self.root,
-                        Path(pending["zip"]),
+                        host_path(pending["zip"]),
                         os.getpid(),
                         data_dir=_data_dir_for(self.root, self.settings),
                     )
@@ -2286,7 +2289,7 @@ def main() -> int:
         sys.stdout = open(os.devnull, "w", encoding="utf-8")
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w", encoding="utf-8")
-    root = Path(sys.executable).resolve().parent
+    root = host_path(sys.executable).resolve().parent
     data = root / "data"
     logs = root / "logs"
     data.mkdir(exist_ok=True)
