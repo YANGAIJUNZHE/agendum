@@ -21,6 +21,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -28,6 +29,12 @@ from pathlib import Path
 
 from agendum import host_actions, hosting
 from agendum.config import Settings, parse_env_file
+from agendum.win_text import decode_console_output
+try:
+    from agendum.app_window import AppWindowHost, app_window_profile_dir
+except Exception:  # pragma: no cover - 启动器仍可退回默认浏览器
+    AppWindowHost = None  # type: ignore[assignment]
+    app_window_profile_dir = None  # type: ignore[assignment]
 try:  # 浮球模块不在发布范围内：缺函数时托盘仍要能起来
     from agendum.floatball_host import ensure_dpi_aware
 except Exception:  # pragma: no cover - 只影响 DPI 校准，不影响主程序
@@ -45,6 +52,78 @@ def _open_browser(url: str) -> bool:
     if BROWSER_SUPPRESSED:
         return False
     return bool(webbrowser.open(url))
+
+
+def _create_app_window(root: Path, env_file: Path, settings: object) -> object | None:
+    if AppWindowHost is None:
+        return None
+    return AppWindowHost(
+        root,
+        _data_dir_for(root, settings),
+        channel=_update_channel(env_file),
+        logger=lambda message: _log_launcher(root, message),
+    )
+
+
+def _open_console(
+    root: Path,
+    env_file: Path,
+    settings: object,
+    url: str,
+    *,
+    app_window: object | None = None,
+    tray_notify: object | None = None,
+    duplicate_launch: bool = False,
+) -> bool:
+    """打开或激活控制台主界面：优先 Edge `--app=` 独立窗口，失败则退回默认浏览器。"""
+    if BROWSER_SUPPRESSED:
+        return False
+    host = app_window if app_window is not None else _create_app_window(root, env_file, settings)
+    if _console_window_open():
+        activated = host.activate_existing(url) if host is not None else None
+        if activated is not None and activated.ok:
+            if duplicate_launch:
+                _log_launcher(root, "已有实例在运行；控制台已打开，已激活现有窗口")
+            return True
+        if activated is None:
+            if duplicate_launch:
+                _log_launcher(root, "已有实例在运行；控制台已打开，不再新开标签")
+            return True
+        if activated.message:
+            _log_launcher(root, activated.message)
+            if callable(tray_notify):
+                try:
+                    tray_notify(activated.message)
+                except Exception:
+                    pass
+        return _open_browser(url)
+
+    opened = False
+    if host is not None:
+        result = host.open_or_activate(url)
+        if result.ok:
+            opened = True
+        else:
+            if result.message:
+                _log_launcher(root, result.message)
+                if callable(tray_notify):
+                    try:
+                        tray_notify(result.message)
+                    except Exception:
+                        pass
+            opened = _open_browser(url)
+    else:
+        reason = "独立窗口宿主不可用，已改用默认浏览器打开控制台。下一步：确认安装包完整后，再点托盘「打开控制台」。"
+        _log_launcher(root, reason)
+        if callable(tray_notify):
+            try:
+                tray_notify(reason)
+            except Exception:
+                pass
+        opened = _open_browser(url)
+    if duplicate_launch and opened:
+        _log_launcher(root, "已有实例在运行；未检测到控制台窗口，打开一次")
+    return opened
 
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -387,24 +466,17 @@ def _log_launcher(root: Path, message: str) -> None:
 
 
 def _console_window_open() -> bool:
-    """Every launch used to open another console tab; one visible page is enough."""
-    if os.name != "nt":
+    """检测当前安装目录的主窗口 profile 是否已有活着的控制窗。"""
+    if os.name != "nt" or AppWindowHost is None:
         return False
-    found: list[int] = []
-    user32 = ctypes.windll.user32
-
-    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_ssize_t)
-    def enum_window(hwnd, _param):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        title = ctypes.create_unicode_buffer(256)
-        user32.GetWindowTextW(hwnd, title, 256)
-        if any(word in title.value for word in ("\u7fa4\u52a1\u53f0", "\u7fa4\u6d88\u606f\u5f85\u529e")):
-            found.append(1)
-        return True
-
-    user32.EnumWindows(enum_window, 0)
-    return bool(found)
+    try:
+        root = Path(sys.executable).resolve().parent
+        env_file = root / ".env"
+        data_text = _read_env_prefixed(env_file, "DATA_DIR") if env_file.is_file() else ""
+        data_dir = Path(data_text) if data_text and Path(data_text).is_absolute() else (root / "data")
+        return AppWindowHost(root, data_dir).has_live_window()
+    except Exception:
+        return False
 
 
 def _notify_user(root: Path, message: str) -> None:
@@ -880,10 +952,467 @@ def _icon_image(root: Path | None = None, channel: str | None = None) -> object 
     return image
 
 
+# ---- Cloudflare 手机公网隧道托管 ----
+TUNNEL_EXE = "cloudflared.exe"
+TUNNEL_TOKEN_NAME = "cloudflared.token"
+TUNNEL_DEPLOYMENT_NAME = "mobile-deployment.json"
+TUNNEL_VERIFY_DELAY_SECONDS = 2.5
+TUNNEL_PROBE_TIMEOUT_SECONDS = 8.0
+TUNNEL_MAX_RESTARTS = 3
+_TOKEN_FILE_ARG_RE = re.compile(r"""--token-file(?:\s*=|\s+)(?:"([^"]+)"|'([^']+)'|(\S+))""", re.IGNORECASE)
+
+
+def _mobile_base_url(env_file: Path, settings: object) -> str:
+    configured = str(getattr(settings, "mobile_base_url", "") or "").strip()
+    if configured:
+        return configured.rstrip("/")
+    return _read_env_prefixed(env_file, "MOBILE_BASE_URL").strip().rstrip("/")
+
+
+def _tunnel_origin_port(data_dir: Path, fallback_port: int) -> int:
+    deploy_file = Path(data_dir) / TUNNEL_DEPLOYMENT_NAME
+    if deploy_file.is_file():
+        try:
+            payload = json.loads(deploy_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            payload = {}
+        if isinstance(payload, dict):
+            origin = str(payload.get("origin") or "").strip()
+            if origin:
+                try:
+                    parsed_port = urllib.parse.urlsplit(origin).port
+                    if parsed_port and 1 <= int(parsed_port) <= 65535:
+                        return int(parsed_port)
+                except ValueError:
+                    pass
+    try:
+        return int(fallback_port or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _normalize_windows_path(value: str | Path) -> str:
+    text = str(value or "").strip().strip('"').strip("'").replace("/", "\\")
+    if not text:
+        return ""
+    return os.path.normcase(os.path.normpath(text))
+
+
+def _token_file_candidates(token_file: Path) -> set[str]:
+    candidates: set[str] = set()
+    for raw in (Path(token_file),):
+        norm = _normalize_windows_path(raw)
+        if norm:
+            candidates.add(norm)
+        try:
+            resolved = _normalize_windows_path(raw.resolve())
+            if resolved:
+                candidates.add(resolved)
+        except OSError:
+            pass
+    return candidates
+
+
+def _command_uses_token_file(command_line: str, token_file: Path) -> bool:
+    """只认命令行 `--token-file` 参数严格指向本安装目录令牌文件的进程。"""
+    if not command_line:
+        return False
+    expected = _token_file_candidates(token_file)
+    if not expected:
+        return False
+    for match in _TOKEN_FILE_ARG_RE.finditer(command_line):
+        raw_arg = match.group(1) or match.group(2) or match.group(3) or ""
+        normalized = _normalize_windows_path(raw_arg)
+        if normalized in expected:
+            return True
+        if raw_arg:
+            try:
+                resolved = _normalize_windows_path(Path(raw_arg).resolve())
+                if resolved in expected:
+                    return True
+            except OSError:
+                pass
+    return False
+
+
+def _find_tunnel_processes(token_file: Path) -> list[int] | None:
+    """按 `--token-file` 完整路径查正在运行的 `cloudflared.exe` PID；探测失败返回 None。"""
+    if os.name != "nt":
+        return []
+    script = (
+        "$ErrorActionPreference='Stop'; "
+        "Get-CimInstance Win32_Process -Filter \"Name='cloudflared.exe'\" | "
+        "Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress"
+    )
+    try:
+        done = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True,
+            timeout=10,
+            creationflags=CREATE_NO_WINDOW,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if done.returncode != 0:
+        return None
+    text = decode_console_output(done.stdout).strip()
+    if not text:
+        return []
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return None
+    pids: list[int] = []
+    seen: set[int] = set()
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        cmd = str(row.get("CommandLine") or "")
+        if not _command_uses_token_file(cmd, token_file):
+            continue
+        try:
+            pid = int(row.get("ProcessId") or 0)
+        except (TypeError, ValueError):
+            continue
+        if pid > 0 and pid not in seen:
+            seen.add(pid)
+            pids.append(pid)
+    return pids
+
+
+def _terminate_process(process: object | None) -> None:
+    if process is None:
+        return
+    try:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+    except Exception:
+        pass
+
+
+def _stop_tunnel_pids(pids: list[int], token_file: Path, log_fn=None) -> None:
+    """只按匹配到的 PID 结束本安装目录的隧道进程，绝不按进程名杀。"""
+    for pid in pids:
+        try:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill.exe", "/PID", str(int(pid)), "/T", "/F"],
+                    capture_output=True,
+                    timeout=10,
+                    creationflags=CREATE_NO_WINDOW,
+                    check=False,
+                )
+            else:
+                os.kill(int(pid), 15)
+            if callable(log_fn):
+                log_fn("已停止同目录隧道进程（pid=%d，token=%s）" % (int(pid), token_file))
+        except Exception as exc:
+            if callable(log_fn):
+                log_fn("停止隧道进程失败（pid=%d）：%s" % (int(pid), exc))
+
+
+def _probe_tunnel_info(mobile_base_url: str, timeout: float = 4.0) -> tuple[bool, str]:
+    parsed = urllib.parse.urlsplit(str(mobile_base_url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False, "无效域名配置"
+    info_url = str(mobile_base_url).rstrip("/") + "/api/v1/info"
+    request = urllib.request.Request(info_url, headers={"User-Agent": "agendum-launcher"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            status = int(getattr(response, "status", 200) or 200)
+            body = response.read(4096).decode("utf-8", errors="replace")
+            if status != 200:
+                return False, "HTTP %d" % status
+            payload = json.loads(body)
+            if isinstance(payload, dict) and payload.get("ok") is True and payload.get("protocol") == 1:
+                return True, ""
+            return False, "返回内容不是新版同步接口"
+    except urllib.error.HTTPError as err:
+        return False, "HTTP %d" % err.code
+    except Exception as exc:
+        return False, str(exc) or exc.__class__.__name__
+
+
+def _last_tunnel_error_line(err_log: Path, offset: int = 0) -> str:
+    try:
+        with err_log.open("rb") as handle:
+            if offset > 0:
+                handle.seek(offset)
+            text = handle.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in reversed(lines[-25:]):
+        lowered = line.lower()
+        if " err " in lowered or "failed" in lowered or "error" in lowered:
+            return line[:240]
+    return lines[-1][:240] if lines else ""
+
+
+def _launch_tunnel_attempt(
+    root: Path,
+    cloudflared_exe: Path,
+    token_file: Path,
+    protocol: str = "",
+) -> tuple[subprocess.Popen, Path, int]:
+    log_dir = Path(root) / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    out_log = log_dir / "mobile-tunnel.out.log"
+    err_log = log_dir / "mobile-tunnel.err.log"
+    _rotate_launcher_log(out_log)
+    _rotate_launcher_log(err_log)
+    try:
+        err_offset = err_log.stat().st_size
+    except OSError:
+        err_offset = 0
+    try:
+        resolved_token = str(token_file.resolve())
+    except OSError:
+        resolved_token = str(token_file)
+    args = [str(cloudflared_exe), "tunnel", "--no-autoupdate"]
+    if protocol:
+        args.extend(["--protocol", str(protocol)])
+    args.extend(["run", "--token-file", resolved_token])
+    with out_log.open("a", encoding="utf-8") as out_f, err_log.open("a", encoding="utf-8") as err_f:
+        proc = subprocess.Popen(
+            args,
+            cwd=root,
+            stdin=subprocess.DEVNULL,
+            stdout=out_f,
+            stderr=err_f,
+            creationflags=CREATE_NO_WINDOW,
+        )
+    return proc, err_log, err_offset
+
+
+def _verify_tunnel_attempt(
+    process: subprocess.Popen,
+    mobile_base_url: str,
+    err_log: Path,
+    err_offset: int,
+    *,
+    stop_event: threading.Event | None = None,
+    verify_delay: float = TUNNEL_VERIFY_DELAY_SECONDS,
+    probe_timeout: float = TUNNEL_PROBE_TIMEOUT_SECONDS,
+) -> tuple[bool, str]:
+    def wait_step(seconds: float) -> bool:
+        if stop_event is not None:
+            return stop_event.wait(seconds)
+        time.sleep(seconds)
+        return False
+
+    boot_deadline = time.monotonic() + max(0.0, verify_delay)
+    while time.monotonic() < boot_deadline:
+        if stop_event is not None and stop_event.is_set():
+            return False, "stopped"
+        if process.poll() is not None:
+            detail = _last_tunnel_error_line(err_log, err_offset)
+            return False, "进程启动后退出（退出码 %s%s）" % (process.returncode, ("：" + detail) if detail else "")
+        remaining = boot_deadline - time.monotonic()
+        if remaining > 0 and wait_step(min(0.25, remaining)):
+            return False, "stopped"
+
+    if process.poll() is not None:
+        detail = _last_tunnel_error_line(err_log, err_offset)
+        return False, "进程启动后退出（退出码 %s%s）" % (process.returncode, ("：" + detail) if detail else "")
+
+    last_probe_error = ""
+    probe_deadline = time.monotonic() + max(0.0, probe_timeout)
+    while True:
+        if stop_event is not None and stop_event.is_set():
+            return False, "stopped"
+        if process.poll() is not None:
+            detail = _last_tunnel_error_line(err_log, err_offset)
+            return False, "进程运行中退出（退出码 %s%s）" % (process.returncode, ("：" + detail) if detail else "")
+        ok, err_text = _probe_tunnel_info(mobile_base_url)
+        if ok and process.poll() is None:
+            return True, ""
+        last_probe_error = err_text
+        if time.monotonic() >= probe_deadline:
+            break
+        if wait_step(0.8):
+            return False, "stopped"
+
+    detail = _last_tunnel_error_line(err_log, err_offset)
+    reason = last_probe_error or "公网未连通"
+    if detail:
+        reason = "%s（%s）" % (reason, detail)
+    return False, reason
+
+
+def _inspect_tunnel_prerequisites(
+    root: Path,
+    env_file: Path,
+    settings: object,
+    configured_port: int,
+    selected_port: int,
+) -> dict:
+    mobile_base_url = _mobile_base_url(env_file, settings)
+    data_dir = _data_dir_for(root, settings)
+    cloudflared_exe = data_dir / TUNNEL_EXE
+    token_file = data_dir / TUNNEL_TOKEN_NAME
+    deploy_file = data_dir / TUNNEL_DEPLOYMENT_NAME
+    expected_port = _tunnel_origin_port(data_dir, configured_port)
+
+    if not mobile_base_url:
+        return {"status": "skip", "reason": "no_base_url", "message": "", "mobile_base_url": "", "data_dir": data_dir}
+
+    has_tunnel_files = cloudflared_exe.is_file() or token_file.is_file() or deploy_file.is_file()
+    if expected_port and selected_port and int(selected_port) != int(expected_port) and has_tunnel_files:
+        message = (
+            "原端口 %d 被占用，本次服务改用 %d，但手机公网隧道仍指向 %d，手机将无法连接。"
+            "下一步：关闭占用端口 %d 的程序后，右键托盘「重启服务」或重启 Agendum。"
+        ) % (expected_port, selected_port, expected_port, expected_port)
+        return {
+            "status": "error",
+            "reason": "port_mismatch",
+            "message": message,
+            "mobile_base_url": mobile_base_url,
+            "data_dir": data_dir,
+            "expected_port": expected_port,
+        }
+    if token_file.is_file() and not cloudflared_exe.is_file():
+        return {
+            "status": "error",
+            "reason": "missing_exe",
+            "message": "检测到 data\\cloudflared.token，但缺少 data\\cloudflared.exe，手机公网隧道未启动。下一步：补齐 cloudflared.exe 后重启 Agendum。",
+            "mobile_base_url": mobile_base_url,
+            "data_dir": data_dir,
+        }
+    if cloudflared_exe.is_file() and not token_file.is_file():
+        return {
+            "status": "error",
+            "reason": "missing_token",
+            "message": "检测到 data\\cloudflared.exe，但缺少 data\\cloudflared.token，手机公网隧道未启动。下一步：放入隧道令牌文件后重启 Agendum。",
+            "mobile_base_url": mobile_base_url,
+            "data_dir": data_dir,
+        }
+    if not (cloudflared_exe.is_file() and token_file.is_file()):
+        return {"status": "skip", "reason": "no_tunnel_files", "message": "", "mobile_base_url": mobile_base_url, "data_dir": data_dir}
+    return {
+        "status": "ready",
+        "reason": "",
+        "message": "",
+        "mobile_base_url": mobile_base_url,
+        "data_dir": data_dir,
+        "cloudflared_exe": cloudflared_exe,
+        "token_file": token_file,
+        "expected_port": expected_port,
+    }
+
+
+def ensure_tunnel_running(
+    root: Path,
+    env_file: Path,
+    settings: object,
+    configured_port: int,
+    selected_port: int,
+    *,
+    stop_event: threading.Event | None = None,
+    on_process=None,
+    verify_delay: float = TUNNEL_VERIFY_DELAY_SECONDS,
+    probe_timeout: float = TUNNEL_PROBE_TIMEOUT_SECONDS,
+) -> dict:
+    """检查并启动本安装目录的 cloudflared 隧道（默认 QUIC，失败回退 http2）。"""
+    prereq = _inspect_tunnel_prerequisites(root, env_file, settings, configured_port, selected_port)
+    if prereq["status"] == "skip":
+        return {"ok": True, "skipped": True, "reason": prereq["reason"], "message": "", "process": None, "protocol": "", "existing_pids": []}
+    if prereq["status"] == "error":
+        _log_launcher(root, prereq["message"])
+        return {"ok": False, "skipped": False, "reason": prereq["reason"], "message": prereq["message"], "process": None, "protocol": "", "existing_pids": []}
+
+    mobile_base_url = prereq["mobile_base_url"]
+    cloudflared_exe = prereq["cloudflared_exe"]
+    token_file = prereq["token_file"]
+
+    existing = _find_tunnel_processes(token_file)
+    if existing is None:
+        _log_launcher(root, "探测同目录隧道进程失败，将直接尝试启动并验证公网接口")
+        existing = []
+    if existing:
+        ok_existing, err_existing = _probe_tunnel_info(mobile_base_url)
+        if not ok_existing:
+            if stop_event is not None:
+                stop_event.wait(2.0)
+            else:
+                time.sleep(2.0)
+            if stop_event is not None and stop_event.is_set():
+                return {"ok": False, "skipped": False, "reason": "stopped", "message": "", "process": None, "protocol": "", "existing_pids": []}
+            ok_existing, err_existing = _probe_tunnel_info(mobile_base_url)
+        if ok_existing:
+            _log_launcher(root, "检测到同目录隧道已在运行（pid=%s），跳过重复拉起" % ",".join(str(p) for p in existing))
+            return {"ok": True, "skipped": False, "reason": "", "message": "", "process": None, "protocol": "existing", "existing_pids": existing}
+        _log_launcher(root, "检测到同目录旧隧道无响应（pid=%s，%s），清理后重连" % (",".join(str(p) for p in existing), err_existing))
+        _stop_tunnel_pids(existing, token_file, log_fn=lambda msg: _log_launcher(root, msg))
+
+    last_error = ""
+    for protocol in ("", "http2"):
+        if stop_event is not None and stop_event.is_set():
+            return {"ok": False, "skipped": False, "reason": "stopped", "message": "", "process": None, "protocol": "", "existing_pids": []}
+        try:
+            proc, err_log, err_offset = _launch_tunnel_attempt(root, cloudflared_exe, token_file, protocol=protocol)
+        except OSError as exc:
+            last_error = "启动 cloudflared.exe 失败：%s" % exc
+            _log_launcher(root, last_error)
+            break
+        if callable(on_process):
+            on_process(proc)
+        ok, err_reason = _verify_tunnel_attempt(
+            proc,
+            mobile_base_url,
+            err_log,
+            err_offset,
+            stop_event=stop_event,
+            verify_delay=verify_delay,
+            probe_timeout=probe_timeout,
+        )
+        if ok:
+            mode_label = protocol or "default"
+            _log_launcher(root, "手机公网隧道已连通（mode=%s，pid=%s，url=%s）" % (mode_label, getattr(proc, "pid", "?"), mobile_base_url))
+            return {"ok": True, "skipped": False, "reason": "", "message": "", "process": proc, "protocol": mode_label, "existing_pids": []}
+        _terminate_process(proc)
+        if callable(on_process):
+            on_process(None)
+        if err_reason == "stopped":
+            return {"ok": False, "skipped": False, "reason": "stopped", "message": "", "process": None, "protocol": "", "existing_pids": []}
+        last_error = err_reason
+        if not protocol:
+            _log_launcher(root, "默认隧道连接未就绪（%s），改用 --protocol http2 重试" % err_reason)
+
+    fail_msg = (
+        "手机公网隧道启动失败（%s），手机暂时无法连接。"
+        "下一步：检查网络或代理设置及 data\\cloudflared.token，查看 logs\\mobile-tunnel.err.log 后右键托盘「重启服务」。"
+    ) % (last_error or "未知错误")
+    _log_launcher(root, fail_msg)
+    return {"ok": False, "skipped": False, "reason": "tunnel_failed", "message": fail_msg, "process": None, "protocol": "", "existing_pids": []}
+
+
 class TrayHost:
     """托盘宿主：托管开关都走 `agendum.hosting`。"""
 
-    def __init__(self, root: Path, env_file: Path, settings: Settings, process: subprocess.Popen, url: str, port: int | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        env_file: Path,
+        settings: Settings,
+        process: subprocess.Popen,
+        url: str,
+        port: int | None = None,
+        *,
+        configured_port: int | None = None,
+        tunnel_process: subprocess.Popen | None = None,
+        app_window: object | None = None,
+        startup_notices: list[str] | None = None,
+    ) -> None:
         self.root = root
         self.env_file = env_file
         self.settings = settings
@@ -894,6 +1423,10 @@ class TrayHost:
             self.port = int(port or getattr(settings, "web_port", 0) or 0)
         except (TypeError, ValueError):
             self.port = 0
+        try:
+            self.configured_port = int(configured_port or getattr(settings, "web_port", 0) or self.port or 0)
+        except (TypeError, ValueError):
+            self.configured_port = self.port
         self.icon = None
         self._busy = False
         self._busy_since = 0.0
@@ -907,6 +1440,15 @@ class TrayHost:
         self._cookie_read_busy = False
         self._clipboard_cookie_busy = False
         self._firewall_busy = False
+        self._open_lock = threading.Lock()
+        self.tunnel_process = tunnel_process
+        self._tunnel_lock = threading.Lock()
+        self._tunnel_stopping = threading.Event()
+        self._tunnel_starting = False
+        self._tunnel_restart_attempts = 0
+        self._tunnel_manual_required = False
+        self._startup_notices = list(startup_notices or [])
+        self.app_window = app_window if app_window is not None else _create_app_window(self.root, self.env_file, self.settings)
         # 测试里的 Settings 替身可能没有 data_dir；退回安装目录下的 data，别让托盘整体起不来。
         self.floatball = FloatBallWindow(Path(getattr(settings, "data_dir", "") or (self.root / "data"))) if FloatBallWindow else None
 
@@ -1175,6 +1717,7 @@ class TrayHost:
         if self._watchdog_stop.is_set():
             return True
         if self.process.poll() is None:
+            self._check_tunnel_watchdog()
             return True
         code = self.process.returncode
         pid = getattr(self.process, "pid", "?")
@@ -1259,8 +1802,25 @@ class TrayHost:
             return
         threading.Thread(target=self._stop, daemon=True).start()
 
+    def _open_console_sync(self) -> None:
+        lock = getattr(self, "_open_lock", None)
+        if lock is not None and not lock.acquire(blocking=False):
+            return
+        try:
+            _open_console(
+                self.root,
+                self.env_file,
+                self.settings,
+                self.url,
+                app_window=getattr(self, "app_window", None),
+                tray_notify=self._notify,
+            )
+        finally:
+            if lock is not None:
+                lock.release()
+
     def on_open(self, icon: object = None, item: object = None) -> None:
-        _open_browser(self.url)
+        threading.Thread(target=self._open_console_sync, name="agendum-open-console", daemon=True).start()
 
     def _pending_update(self) -> dict | None:
         try:
@@ -1285,7 +1845,7 @@ class TrayHost:
     def _read_chaoxing_cookie(self) -> None:
         self._cookie_read_busy = True
         try:
-            token = _read_env_value(self.env_file, "QQ_DIGEST_WEB_TOKEN") or _read_meta_token(self.env_file, self.root)
+            token = _read_env_prefixed(self.env_file, "WEB_TOKEN") or _read_meta_token(self.env_file, self.root)
             request = urllib.request.Request(
                 self._cookie_read_url(),
                 data=b"{}",
@@ -1367,7 +1927,7 @@ class TrayHost:
             if not cookie:
                 self._notify("剪贴板里没有内容")
                 return
-            token = _read_env_value(self.env_file, "QQ_DIGEST_WEB_TOKEN") or _read_meta_token(self.env_file, self.root)
+            token = _read_env_prefixed(self.env_file, "WEB_TOKEN") or _read_meta_token(self.env_file, self.root)
             request = urllib.request.Request(
                 self._settings_url(),
                 data=json.dumps({"chaoxing_cookie": cookie}, ensure_ascii=False).encode("utf-8"),
@@ -1427,6 +1987,12 @@ class TrayHost:
                 self.manual_restart_required = False
                 self.restart_failures = 0
                 if ok:
+                    if self.configured_port and self.port != self.configured_port and _wait_health(self.configured_port, self.process, timeout=10.0):
+                        self.port = self.configured_port
+                        self.url = _console_url(self.env_file, self.port)
+                    self._tunnel_manual_required = False
+                    self._tunnel_restart_attempts = 0
+                    self.start_tunnel_async()
                     self._notify("服务已重启。")
                 else:
                     self._notify("服务重启失败，需要人工处理")
@@ -1450,6 +2016,104 @@ class TrayHost:
 
         self.busy = True
         threading.Thread(target=shutdown, daemon=True).start()
+
+    def _set_tunnel_process(self, proc: subprocess.Popen | None) -> None:
+        lock = getattr(self, "_tunnel_lock", None)
+        if lock is not None:
+            with lock:
+                self.tunnel_process = proc
+        else:
+            self.tunnel_process = proc
+
+    def _start_tunnel_worker(self) -> None:
+        try:
+            configured = getattr(self, "configured_port", 0) or self.port
+            result = ensure_tunnel_running(
+                self.root,
+                self.env_file,
+                self.settings,
+                configured,
+                self.port,
+                stop_event=self._tunnel_stopping,
+                on_process=self._set_tunnel_process,
+            )
+            if self._tunnel_stopping.is_set():
+                self._stop_tunnel_child()
+                return
+            if not result.get("ok") and not result.get("skipped") and result.get("message"):
+                self._notify(str(result["message"]))
+            elif result.get("ok") and not result.get("skipped"):
+                self._tunnel_restart_attempts = 0
+        except Exception as exc:
+            self._log_watchdog("手机公网隧道托管异常：%s" % exc)
+        finally:
+            self._tunnel_starting = False
+
+    def start_tunnel_async(self) -> bool:
+        if self._tunnel_stopping.is_set() or self._tunnel_starting:
+            return False
+        configured = getattr(self, "configured_port", 0) or self.port
+        prereq = _inspect_tunnel_prerequisites(self.root, self.env_file, self.settings, configured, self.port)
+        if prereq["status"] != "ready":
+            return False
+        self._tunnel_starting = True
+        threading.Thread(target=self._start_tunnel_worker, name="agendum-tunnel", daemon=True).start()
+        return True
+
+    def _check_tunnel_watchdog(self) -> None:
+        stopping = getattr(self, "_tunnel_stopping", None)
+        if (stopping is not None and stopping.is_set()) or getattr(self, "_tunnel_starting", False) or getattr(self, "_tunnel_manual_required", False):
+            return
+        lock = getattr(self, "_tunnel_lock", None)
+        proc = None
+        if lock is not None:
+            with lock:
+                candidate = getattr(self, "tunnel_process", None)
+                if candidate is not None and candidate.poll() is not None:
+                    proc = candidate
+                    self.tunnel_process = None
+        if proc is None:
+            return
+        code = getattr(proc, "returncode", None)
+        pid = getattr(proc, "pid", "?")
+        self._log_watchdog("手机公网隧道意外退出：pid=%s code=%s" % (pid, code))
+        if self._tunnel_restart_attempts >= TUNNEL_MAX_RESTARTS:
+            self._tunnel_manual_required = True
+            self._notify(
+                "手机公网隧道反复退出（最近退出码 %s），需要人工处理。下一步：查看 logs\\mobile-tunnel.err.log 后右键托盘「重启服务」。"
+                % code
+            )
+            return
+        self._tunnel_restart_attempts += 1
+        self._notify("手机公网隧道已退出（退出码 %s），正在重连…" % code)
+        self.start_tunnel_async()
+
+    def _stop_tunnel_child(self) -> None:
+        """退出时只停止本安装目录启动/匹配的 cloudflared 隧道进程，绝不按进程名误杀。"""
+        stopping = getattr(self, "_tunnel_stopping", None)
+        if stopping is not None:
+            stopping.set()
+        lock = getattr(self, "_tunnel_lock", None)
+        if lock is not None:
+            lock.acquire()
+        try:
+            proc = getattr(self, "tunnel_process", None)
+            if proc is not None:
+                _terminate_process(proc)
+                self.tunnel_process = None
+            root = getattr(self, "root", None)
+            settings = getattr(self, "settings", None)
+            if root is not None:
+                token_file = _data_dir_for(root, settings) / TUNNEL_TOKEN_NAME
+                if token_file.is_file():
+                    pids = _find_tunnel_processes(token_file)
+                    if pids:
+                        _stop_tunnel_pids(pids, token_file, log_fn=self._log_watchdog)
+        except Exception:
+            self._log_watchdog("退出时结束隧道子进程出错（继续退出）")
+        finally:
+            if lock is not None:
+                lock.release()
 
     def _stop_service_child(self) -> None:
         """退出前一定把服务子进程带走，否则端口还占着、下次双击直接报「端口被占用」。"""
@@ -1478,16 +2142,23 @@ class TrayHost:
             pass
         # ① 先断服务子进程与托盘图标：这是「已经关了」的信号。
         self._stop_service_child()
+        self._stop_tunnel_child()
         try:
             if self.icon is not None:
                 self.icon.stop()
         except Exception:
             self._log_watchdog("退出时关托盘图标出错（继续退出）")
-        # ② 关浮窗（外部 UI 进程，同样是清理）。
+        # ② 关浮窗与主应用窗口（外部 UI 进程，同样是清理）。
         try:
             self.floatball.stop()
         except Exception:
             self._log_watchdog("退出时关闭浮窗出错（继续退出）")
+        app_window = getattr(self, "app_window", None)
+        if app_window is not None:
+            try:
+                app_window.stop()
+            except Exception:
+                self._log_watchdog("退出时关闭主窗口出错（继续退出）")
         # ③ 托管收尾放最后，并给总预算：超时就放弃、记一条 warning 继续退。
         hosting_stopped = True
         try:
@@ -1525,7 +2196,7 @@ class TrayHost:
             base, sep, query = str(self.url).partition("?")
             url = base.rstrip("/") + "/floatball" + (("?" + query) if sep else "")
             if "token=" not in query:
-                token = _read_env_value(self.env_file, "QQ_DIGEST_WEB_TOKEN") or _read_meta_token(self.env_file, self.root)
+                token = _read_env_prefixed(self.env_file, "WEB_TOKEN") or _read_meta_token(self.env_file, self.root)
                 if token:
                     url += ("&" if "?" in url else "?") + "token=" + urllib.parse.quote(str(token), safe="")
             self.floatball.start(url)
@@ -1535,6 +2206,7 @@ class TrayHost:
     def _force_quit(self) -> None:
         self._log_watchdog("退出超时（>%ds），强制结束" % int(QUIT_HARD_DEADLINE_SECONDS))
         self._stop_service_child()
+        self._stop_tunnel_child()
         os._exit(0)
 
     def build_menu(self, pystray: object) -> object:
@@ -1576,6 +2248,17 @@ class TrayHost:
             threading.Thread(target=self._start_floatball, daemon=True).start()
             if bool(getattr(self.settings, "hosting_auto_on_start", False)):
                 threading.Thread(target=self._start, daemon=True).start()
+            if getattr(self, "_startup_notices", None):
+                notices = list(self._startup_notices)
+                self._startup_notices.clear()
+
+                def deliver_startup_notices() -> None:
+                    if self._watchdog_stop.wait(0.8):
+                        return
+                    for text in notices:
+                        self._notify(text)
+
+                threading.Thread(target=deliver_startup_notices, name="agendum-startup-notify", daemon=True).start()
             self.icon.run()
             self._stop_watchdog()
         except Exception:
@@ -1627,13 +2310,8 @@ def main() -> int:
         # 同一个安装目录已经在跑：安静退出。
         # 注意这里打开的是**本安装目录自己的** .env 拼出来的 url，所以另一个安装目录
         # （生产 / beta）不会走到这个分支——它们的互斥体名不同。
-        # 只有「看不到控制台窗口」时才开一次浏览器：双击启动、开机自启、自动更新后的重启
-        # 都会走到这里，无条件打开会在浏览器里堆一串一模一样的标签。
-        if _console_window_open():
-            _log_launcher(root, "已有实例在运行；控制台已打开，不再新开标签")
-        else:
-            _open_browser(url)
-            _log_launcher(root, "已有实例在运行；未检测到控制台窗口，打开一次")
+        # 已有本安装目录活窗口时只激活不重开；看不到窗口时才打开（优先独立窗口，失败退回默认浏览器）。
+        _open_console(root, env_file, settings, url, duplicate_launch=True)
         return 0
     _drop_installed_pending(root, settings)
     selected_port = port
@@ -1692,8 +2370,20 @@ def main() -> int:
         _log_launcher(root, "健康检查失败：port=%d exit=%s" % (port, exit_code))
         _notify_user(root, reason)
         return 1
-    if not _console_window_open():
-        _open_browser(url)
+    startup_notices: list[str] = []
+    tunnel_prereq = _inspect_tunnel_prerequisites(root, env_file, settings, port, selected_port)
+    if tunnel_prereq["status"] == "error" and tunnel_prereq.get("message"):
+        _log_launcher(root, str(tunnel_prereq["message"]))
+        startup_notices.append(str(tunnel_prereq["message"]))
+    app_window = _create_app_window(root, env_file, settings)
+    _open_console(
+        root,
+        env_file,
+        settings,
+        url,
+        app_window=app_window,
+        tray_notify=startup_notices.append,
+    )
     if _update_check_enabled(env_file):
         # 后台查一次更新（守护线程、不阻塞启动）；QQ_DIGEST_UPDATE_CHANNEL=off 时整块跳过。
         threading.Thread(
@@ -1702,20 +2392,34 @@ def main() -> int:
             name="agendum-update-check",
             daemon=True,
         ).start()
-    host = TrayHost(root, env_file, settings, process, url, selected_port)
-    if host.run():
-        process.terminate()
-        try:
-            process.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            process.kill()
-        return 0
-    # 没有托盘（远程会话 / 缺依赖）时降级成老行为：等子进程结束。
+    host = TrayHost(
+        root,
+        env_file,
+        settings,
+        process,
+        url,
+        selected_port,
+        configured_port=port,
+        app_window=app_window,
+        startup_notices=startup_notices,
+    )
+    host.start_tunnel_async()
     try:
-        return process.wait()
-    except KeyboardInterrupt:
-        process.terminate()
-        return 0
+        if host.run():
+            process.terminate()
+            try:
+                process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            return 0
+        # 没有托盘（远程会话 / 缺依赖）时降级成老行为：等子进程结束。
+        try:
+            return process.wait()
+        except KeyboardInterrupt:
+            process.terminate()
+            return 0
+    finally:
+        host._stop_tunnel_child()
 
 
 if __name__ == "__main__":

@@ -161,13 +161,17 @@ function refreshPair() {
   api('/api/pair/pending', {cache: 'no-store'}).then(function (data) {
     var list = document.getElementById('pair-pending');
     if (!list) return;
-    list.textContent = '';
     var items = (data && data.pending) || [];
     // 有挂起请求才露出「清空待配对」：平时不占地方，被陌生人塞满时一眼能找到。
     var clear = document.getElementById('pair-pending-clear');
     if (clear) clear.hidden = !items.length;
-    if (!items.length) list.appendChild(el('div', 'preference', '现在没有手机在等待配对，手机上打开 App 就会出现。'));
-    items.forEach(function (item) { list.appendChild(pairRow(item)); });
+    var pairSig = JSON.stringify(items);
+    if (!list.dataset || list.dataset.nhPairSig !== pairSig || !list.children.length) {
+      if (list.dataset) list.dataset.nhPairSig = pairSig;
+      list.textContent = '';
+      if (!items.length) list.appendChild(el('div', 'preference', '现在没有手机在等待配对，手机上打开 App 就会出现。'));
+      items.forEach(function (item) { list.appendChild(pairRow(item)); });
+    }
     setPairState(items.length ? items.length + ' 台手机等待确认' : '没有等待中的手机', items.length ? 'warn' : 'ok');
   }).catch(function () {
     setPairState('读取失败', 'error');

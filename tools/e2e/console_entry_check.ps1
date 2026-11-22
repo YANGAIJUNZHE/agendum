@@ -19,10 +19,18 @@ try {
     function Start-Process { param([string]$FilePath) $global:agendumConsoleOpened = $FilePath }
     & (Join-Path $fixture 'tools/open_console.ps1')
     if ($global:agendumConsoleOpened -ne 'http://127.0.0.1:18766/?token=console-test') { throw 'The browser was not opened with the configured port and session token.' }
+    [IO.File]::WriteAllText((Join-Path $fixture '.env'), "NOTICEHUB_WEB_PORT=18768`r`nNOTICEHUB_WEB_TOKEN=noticehub-test`r`n", $utf8)
+    $global:agendumConsoleOpened = $null
+    & (Join-Path $fixture 'tools/open_console.ps1')
+    if ($global:agendumConsoleOpened -ne 'http://127.0.0.1:18768/?token=noticehub-test') { throw 'NOTICEHUB_ configuration was not honored.' }
     [IO.File]::WriteAllText((Join-Path $fixture '.env'), "QQ_DIGEST_WEB_PORT=18767`r`nQQ_DIGEST_WEB_TOKEN=legacy-test`r`n", $utf8)
     $global:agendumConsoleOpened = $null
     & (Join-Path $fixture 'tools/open_console.ps1')
     if ($global:agendumConsoleOpened -ne 'http://127.0.0.1:18767/?token=legacy-test') { throw 'Legacy configuration was not honored.' }
+    [IO.File]::WriteAllText((Join-Path $fixture '.env'), "QQ_DIGEST_WEB_PORT=18767`r`nNOTICEHUB_WEB_PORT=18768`r`nAGENDUM_WEB_PORT=18769`r`nQQ_DIGEST_WEB_TOKEN=old`r`nNOTICEHUB_WEB_TOKEN=mid`r`nAGENDUM_WEB_TOKEN=new`r`n", $utf8)
+    $global:agendumConsoleOpened = $null
+    & (Join-Path $fixture 'tools/open_console.ps1')
+    if ($global:agendumConsoleOpened -ne 'http://127.0.0.1:18769/?token=new') { throw 'Prefix precedence was not honored.' }
     [IO.File]::WriteAllText((Join-Path $fixture '.env'), "AGENDUM_WEB_PORT=invalid`r`n", $utf8)
     $global:agendumConsoleOpened = $null
     $rejected = $false

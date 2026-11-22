@@ -2,6 +2,17 @@
   "version": 1,
   "items": [
     {
+      "tag": "v1.1.0-beta.21",
+      "version": "1.1.0-beta.21",
+      "name": "Agendum 1.1.0-beta.21（测试版）",
+      "notes": "Windows 主界面改用独立 Edge 应用窗口与专属资料目录，支持已有活窗口激活与失败退回默认浏览器；桌面端工作区重做为 Windows 11 风格，补齐浅/深双主题、动效与轮询增量更新。启动器补齐手机公网 cloudflared 隧道托管与端口顺移告警，并统一 AGENDUM_/NOTICEHUB_/QQ_DIGEST_ 令牌与脚本前缀读取。Android 客户端重写为原生 Jetpack Compose + Material 3 界面。另包含损坏库先搬旁路防半隔离与微信分片签名重建修复。",
+      "published_at": "",
+      "asset_name": "Agendum.zip",
+      "size": 1,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "download_url": "https://github.com/YANGAIJUNZHE/agendum/releases/download/v1.1.0-beta.21/Agendum.zip"
+    },
+    {
       "tag": "v1.1.0-beta.20",
       "version": "1.1.0-beta.20",
       "name": "Agendum 1.1.0-beta.20（测试版）",

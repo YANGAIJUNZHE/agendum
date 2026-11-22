@@ -16,7 +16,7 @@ beta.18 的主导航分为「日程、月历、我的」。日程默认显示待
 
 电脑暂时不可达时显示「离线使用中」，说明本地修改仍保留；配对和安全连接问题会提示核对地址或凭据。原始错误信息放在同步页的「查看错误详情」中，不在日常入口直接展示英文异常。
 
-手机界面和原生配对页均跟随系统浅色、深色主题与字号。窄屏使用底部导航，较宽窗口改为左侧导航；所有主要操作保留至少 48dp 的触摸高度。配对、安全连接和离线队列的规则不因界面改版而改变。
+手机采用原生界面并跟随系统浅色、深色主题与字号，Android 12 及以上支持壁纸动态取色，低版本使用绿色主题。支持下拉刷新触发同步、列表项滑动快速完成或恢复，并响应系统动画缩放与预测性返回。窄屏使用底部导航，较宽窗口改为左侧导航；所有主要操作保留至少 48dp 的触摸高度。配对、安全连接和离线队列的规则保持不变。
 
 ## 配对与使用
 
@@ -84,19 +84,19 @@ Cloudflare 管理的隧道在控制台配置同等的 hostname/path/service 规�
 ./tools/stop_mobile.ps1
 ```
 
-启动脚本默认使用本工作区的 `.venv`、`data/cloudflared.exe` 和 `data/cloudflared.token`；也可传 `-PythonPath`、`-CloudflaredPath`，或者用 `-NoTunnel` 只启动电脑服务。令牌文件和 `.env` 都不提交仓库。脚本记录 PID 与进程启动时间，仅管理本次创建的进程，不接管其他服务。日志在 `logs/mobile-backend.*.log` 与 `logs/mobile-tunnel.*.log`。
+启动脚本默认使用本工作区的 `.venv`、`data/cloudflared.exe` 和 `data/cloudflared.token`（同时识别 `AGENDUM_`、`NOTICEHUB_`、`QQ_DIGEST_` 三代 `.env` 端口和域名配置，并在启动后复查进程存活与公网 `/api/v1/info`，默认协议受阻时改试 `--protocol http2`）；也可传 `-PythonPath`、`-CloudflaredPath`，或者用 `-NoTunnel` 只启动电脑服务。令牌文件和 `.env` 都不提交仓库。脚本记录 PID 与进程启动时间，仅管理本次创建的进程，不接管其他服务。日志在 `logs/mobile-backend.*.log` 与 `logs/mobile-tunnel.*.log`。
 
 脚本运行后进程在后台继续执行。它没有安装开机启动服务；重启电脑后需要再运行一次。数据库迁移前仍应自行备份 `data/`，自动迁移备份不能替代日常备份。
 
-`start_mobile.ps1` 启动的是 `main.py run` 后台服务和隧道，没有运行 `packaging/launcher.py` 托盘宿主，因此不会显示托盘图标。后台在线表示手机可以连接日程服务，不代表 QQ 已开始托管。只有明确开始 NapCat 托管，才会按设置退出普通电脑版 QQ 并启动托管实例；托管未启用时电脑版 QQ 正常登录是预期行为。还需选定接收群并完成登录，才能获取新的 QQ 群消息。
+Windows 安装包里的 `Agendum.exe` 在同目录 `data\` 同时存在 `cloudflared.exe`、`cloudflared.token` 且配好 `AGENDUM_MOBILE_BASE_URL` 时，也会自动按完整 `--token-file` 路径去重托管隧道、校验公网 `/api/v1/info`（必要时回退 `--protocol http2`）、在原端口被占顺移时给出托盘与日志提示，并在退出时按同路径清理进程。`start_mobile.ps1` 启动的是 `main.py run` 后台服务和隧道，没有运行 `packaging/launcher.py` 托盘宿主，因此不会显示托盘图标。后台在线表示手机可以连接日程服务，不代表 QQ 已开始托管。只有明确开始 NapCat 托管，才会按设置退出普通电脑版 QQ 并启动托管实例；托管未启用时电脑版 QQ 正常登录是预期行为。还需选定接收群并完成登录，才能获取新的 QQ 群消息。
 
 ### 真机验收副本
 
 已有正式版与本地调试包签名不同时，不要直接卸载旧版。可运行 `./gradlew.bat :app:assembleDebug -PagendumValidation` 构建独立的 `com.agendum.app.validation`，与旧版并存。它使用独立的本地数据库和凭据；默认构建仍保留原包名。正式覆盖升级必须使用原发行签名。
 
-安卓两个构建的显示名称现为「Agendum」（beta.17 至本次改名前曾名「群务台」），没有括号。**包名已改为 `com.agendum.app`（验收副本 `com.agendum.app.validation`）**：与旧包名 `com.noticehub.app` 是两个不同的应用，不能覆盖安装。升级时先把旧版里的待同步编辑同步回电脑，确认电脑端数据完整后卸载旧版，再安装新版并重新扫码配对。不要删除新版的数据库、WorkManager 数据或 WebView 正常运行文件。
+安卓两个构建的显示名称现为「Agendum」（beta.17 至本次改名前曾名「群务台」），没有括号。**包名已改为 `com.agendum.app`（验收副本 `com.agendum.app.validation`）**：与旧包名 `com.noticehub.app` 是两个不同的应用，不能覆盖安装。升级时先把旧版里的待同步编辑同步回电脑，确认电脑端数据完整后卸载旧版，再安装新版并重新扫码配对。不要删除新版的数据库或 WorkManager 后台任务数据。
 
-公网入口只提供日程同步。电脑设置、软件安装、NapCat 控制和设备批准继续在电脑网页操作。每台手机有独立设备令牌，电脑可以单独撤销；令牌由 Android Keystore 保护，不交给 WebView。
+公网入口只提供日程同步。电脑设置、软件安装、NapCat 控制和设备批准继续在电脑网页操作。每台手机有独立设备令牌，电脑可以单独撤销；令牌由 Android Keystore 加密保存，不写入明文配置。
 
 ### 网络安全边界
 

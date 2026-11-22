@@ -11,10 +11,47 @@ import time
 from pathlib import Path
 from typing import Any
 
-EDGE_CANDIDATES = (r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", r"C:\Program Files\Microsoft\Edge\Application\msedge.exe")
+from .edge_app import (
+    EDGE_CANDIDATES,
+    GWL_EXSTYLE,
+    GWL_STYLE,
+    GWLP_WNDPROC,
+    HTCAPTION,
+    HTCLIENT,
+    HWND_TOPMOST,
+    MONITOR_DEFAULTTONEAREST,
+    RECT,
+    SW_HIDE,
+    SW_SHOWNOACTIVATE,
+    SWP_NOACTIVATE,
+    SWP_NOMOVE,
+    SWP_NOSIZE,
+    SWP_SHOWWINDOW,
+    WINDOW_CLASS,
+    WM_CLOSE,
+    WM_NCHITTEST,
+    WS_CAPTION,
+    WS_EX_NOACTIVATE,
+    WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST,
+    WS_MAXIMIZEBOX,
+    WS_MINIMIZEBOX,
+    WS_POPUP,
+    WS_SYSMENU,
+    WS_THICKFRAME,
+    ensure_dpi_aware,
+    find_edge_path,
+    find_windows_for_pids,
+    kill_tree as _kill_tree,
+    pids_using_profile,
+    process_matches_commandline,
+    user32,
+    window_class,
+    work_area as _work_area,
+)
+
 STATE_NAME = "floatball-state.json"
 PID_NAME = "floatball.pid"
-WINDOW_CLASS = "Chrome_WidgetWin_1"
 CLOSED_SIZE = (72, 72)
 OPEN_SIZE = (380, 600)
 DRAG_STRIP = 14
@@ -22,32 +59,6 @@ TITLE_OPEN = "nh-floatball:open"
 TITLE_CLOSED = "nh-floatball:closed"
 TITLE_SIZES = {TITLE_OPEN: OPEN_SIZE, TITLE_CLOSED: CLOSED_SIZE}
 TITLE_PATTERN = re.compile(r"^nh-floatball:(open|closed)(?::(\d+)x(\d+))?$")
-
-GWL_STYLE = -16
-GWL_EXSTYLE = -20
-GWLP_WNDPROC = -4
-WS_CAPTION = 0x00C00000
-WS_THICKFRAME = 0x00040000
-WS_POPUP = 0x80000000
-WS_SYSMENU = 0x00080000
-WS_MINIMIZEBOX = 0x00020000
-WS_MAXIMIZEBOX = 0x00010000
-WS_EX_TOOLWINDOW = 0x00000080
-WS_EX_TOPMOST = 0x00000008
-WS_EX_NOACTIVATE = 0x08000000
-HWND_TOPMOST = -1
-SWP_NOSIZE = 0x0001
-SWP_NOMOVE = 0x0002
-SWP_NOZORDER = 0x0004
-SWP_NOACTIVATE = 0x0010
-SWP_SHOWWINDOW = 0x0040
-SW_SHOWNOACTIVATE = 4
-SW_HIDE = 0
-WM_CLOSE = 0x0010
-WM_NCHITTEST = 0x0084
-HTCLIENT = 1
-HTCAPTION = 2
-MONITOR_DEFAULTTONEAREST = 2
 
 
 def clamp_position(x: int, y: int, width: int, height: int, work: tuple[int, int, int, int]) -> tuple[int, int]:
@@ -67,10 +78,6 @@ def snap_position(x: int, y: int, width: int, height: int, work: tuple[int, int,
     return min(candidates, key=lambda item: item[0])[1]
 
 
-def process_matches_commandline(command_line: str, profile: Path) -> bool:
-    return str(profile.resolve()).lower() in str(command_line or "").lower() and "msedge" in str(command_line or "").lower()
-
-
 def parse_title(title: str) -> tuple[str, int, int] | None:
     """Return (state, viewport width, viewport height); viewport is 0 when the page cannot report it."""
     match = TITLE_PATTERN.match(str(title or ""))
@@ -80,67 +87,6 @@ def parse_title(title: str) -> tuple[str, int, int] | None:
     width = int(match.group(2) or 0)
     height = int(match.group(3) or 0)
     return state, width, height
-
-
-_DPI_READY = False
-
-
-def ensure_dpi_aware() -> None:
-    """Real pixels everywhere: otherwise GetWindowRect is virtualized while the DPI scale is not."""
-    global _DPI_READY
-    if _DPI_READY or os.name != "nt":
-        return
-    _DPI_READY = True
-    try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except (AttributeError, OSError):
-        try:
-            ctypes.windll.user32.SetProcessDPIAware()
-        except (AttributeError, OSError):
-            pass
-
-
-def window_class(hwnd: int) -> str:
-    buffer = ctypes.create_unicode_buffer(256)
-    ctypes.windll.user32.GetClassNameW(hwnd, buffer, 256)
-    return buffer.value
-
-
-def _kill_tree(pid: int) -> None:
-    try:
-        subprocess.run(
-            ["taskkill", "/PID", str(pid), "/T", "/F"],
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            capture_output=True,
-            timeout=15,
-        )
-    except (OSError, subprocess.SubprocessError):
-        pass
-
-
-def pids_using_profile(profile: Path) -> list[int]:
-    """Edge keeps using an old window when its profile dir is still open, so new launches must clear it."""
-    script = (
-        "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | "
-        "Where-Object { $_.CommandLine -like '*%s*' } | "
-        "ForEach-Object { $_.ProcessId }" % str(profile).replace("'", "''")
-    )
-    try:
-        done = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-            capture_output=True,
-            text=True,
-            timeout=20,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
-    except (OSError, subprocess.SubprocessError):
-        return []
-    found = []
-    for line in (done.stdout or "").splitlines():
-        line = line.strip()
-        if line.isdigit():
-            found.append(int(line))
-    return found
 
 
 def size_for_title(title: str) -> tuple[int, int] | None:
@@ -154,61 +100,6 @@ def size_for_title(title: str) -> tuple[int, int] | None:
 def region_radius(expanded: bool, height: int) -> int:
     """Collapsed card is a circle; the open panel gets a 16px corner radius."""
     return int(height) // 2 if not expanded else 16
-
-
-class RECT(ctypes.Structure):
-    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
-
-
-_U32_READY = False
-
-
-def user32():
-    """ctypes defaults treat pointers as 32-bit; declare signatures once so 64-bit hwnds work."""
-    global _U32_READY
-    lib = ctypes.windll.user32
-    if not _U32_READY:
-        lib.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
-        lib.SetWindowPos.restype = ctypes.c_bool
-        lib.GetWindowRect.argtypes = [ctypes.c_void_p, ctypes.POINTER(RECT)]
-        lib.GetWindowRect.restype = ctypes.c_bool
-        lib.GetWindowLongW.argtypes = [ctypes.c_void_p, ctypes.c_int]
-        lib.GetWindowLongW.restype = ctypes.c_long
-        lib.SetWindowLongW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_long]
-        lib.SetWindowLongW.restype = ctypes.c_long
-        lib.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
-        lib.PostMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_ssize_t]
-        lib.GetWindowTextW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_int]
-        lib.GetForegroundWindow.restype = ctypes.c_void_p
-        lib.MonitorFromWindow.restype = ctypes.c_void_p
-        lib.MonitorFromWindow.argtypes = [ctypes.c_void_p, ctypes.c_uint]
-        lib.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-        lib.GetMonitorInfoW.restype = ctypes.c_bool
-        lib.IsIconic.argtypes = [ctypes.c_void_p]
-        lib.IsWindowVisible.argtypes = [ctypes.c_void_p]
-        lib.GetWindowThreadProcessId.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
-        _U32_READY = True
-    return lib
-
-
-def _work_area(hwnd: int) -> tuple[int, int, int, int]:
-    """Return the work area (screen minus taskbar) of the monitor holding hwnd."""
-    user32 = ctypes.windll.user32
-
-    class RECT(ctypes.Structure):
-        _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
-
-    class MONITORINFO(ctypes.Structure):
-        _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT), ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
-
-    monitor = user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
-    info = MONITORINFO()
-    info.cbSize = ctypes.sizeof(MONITORINFO)
-    if not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
-        width = user32.GetSystemMetrics(0)
-        height = user32.GetSystemMetrics(1)
-        return 0, 0, width, height - 48
-    return info.rcWork.left, info.rcWork.top, info.rcWork.right, info.rcWork.bottom
 
 
 def write_state(path: Path, x: int, y: int, expanded: bool) -> None:
@@ -238,10 +129,7 @@ class FloatBallHost:
 
     # --- Edge process -------------------------------------------------
     def _edge_path(self) -> str:
-        for candidate in EDGE_CANDIDATES:
-            if Path(candidate).is_file():
-                return candidate
-        raise RuntimeError("找不到 Microsoft Edge：请确认 msedge.exe 已安装")
+        return find_edge_path(EDGE_CANDIDATES)
 
     def _load_state(self) -> dict[str, Any]:
         try:
@@ -428,13 +316,7 @@ class FloatBallHost:
 
     def _clear_stale(self, profile: Path) -> None:
         """A leftover Edge on the same profile swallows `--app` and no new window ever shows up."""
-        stale: set[int] = set()
-        try:
-            pid = int((self.data_dir / PID_NAME).read_text(encoding="utf-8").strip())
-            stale.add(pid)
-        except (OSError, ValueError):
-            pass
-        stale.update(pids_using_profile(profile))
+        stale = set(pids_using_profile(profile))
         for pid in stale:
             if pid <= 0 or (self.process and pid == self.process.pid):
                 continue
@@ -445,32 +327,13 @@ class FloatBallHost:
 
     def _find_window(self) -> int | None:
         """Pick the real app window: Edge also owns helper windows that are visible but not it."""
-        user32 = ctypes.windll.user32
         process = self.process
         if process is None:
             return None
         stable: int | None = None
         stable_hits = 0
         for _ in range(75):
-            found: list[int] = []
-
-            @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_ssize_t)
-            def enum_window(handle, _param):
-                pid = ctypes.c_uint()
-                user32.GetWindowThreadProcessId(handle, ctypes.byref(pid))
-                if pid.value != process.pid or not user32.IsWindowVisible(handle):
-                    return True
-                if window_class(handle) != WINDOW_CLASS:
-                    return True
-                rect = RECT()
-                if not user32.GetWindowRect(handle, ctypes.byref(rect)):
-                    return True
-                if rect.right - rect.left < 20 or rect.bottom - rect.top < 20:
-                    return True
-                found.append(int(handle))
-                return True
-
-            user32.EnumWindows(enum_window, 0)
+            found = find_windows_for_pids({process.pid}, min_width=20, min_height=20)
             candidate = found[0] if found else None
             if candidate and candidate == stable:
                 stable_hits += 1

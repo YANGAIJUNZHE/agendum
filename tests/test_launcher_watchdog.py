@@ -13,6 +13,7 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
 from agendum import hosting, updater
+from agendum.app_window import AppWindowResult
 
 
 def _mkdtemp(case: unittest.TestCase, prefix: str) -> Path:
@@ -235,10 +236,11 @@ class LauncherBrowserTests(unittest.TestCase):
 class LauncherSingleInstanceTests(unittest.TestCase):
     """已经开着一份时不该再开标签：双击、开机自启、自动更新后的重启都会走到这里。"""
 
-    def _run_with_existing_instance(self, console_open: bool):
+    def _run_with_existing_instance(self, console_open: bool, *, app_result: AppWindowResult | None = None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".env").write_text("QQ_DIGEST_WEB_PORT=18876\n", encoding="utf-8")
+            result = app_result or AppWindowResult(ok=True, action="launched", hwnd=1001)
             with patch.object(launcher.sys, "executable", str(root / launcher.LAUNCHER_EXE)), patch.object(
                 launcher, "_create_desktop_shortcut"
             ), patch.object(launcher, "_acquire_single_instance", return_value=False), patch.object(
@@ -246,14 +248,17 @@ class LauncherSingleInstanceTests(unittest.TestCase):
             ), patch.object(launcher, "BROWSER_SUPPRESSED", False), patch.object(
                 launcher, "_log_launcher"
             ) as log, patch.object(
-                launcher.webbrowser, "open"
+                launcher.AppWindowHost, "open_or_activate", return_value=result
+            ) as open_app, patch.object(
+                launcher.webbrowser, "open", return_value=True
             ) as open_browser:
                 code = launcher.main()
-        return code, open_browser, log
+        return code, open_app, open_browser, log
 
     def test_console_already_open_does_not_spawn_another_tab(self):
-        code, open_browser, log = self._run_with_existing_instance(console_open=True)
+        code, open_app, open_browser, log = self._run_with_existing_instance(console_open=True)
         self.assertEqual(code, 0)
+        open_app.assert_not_called()
         open_browser.assert_not_called()
         self.assertTrue(
             any(
@@ -263,13 +268,27 @@ class LauncherSingleInstanceTests(unittest.TestCase):
         )
 
     def test_missing_console_opens_the_console_once(self):
-        code, open_browser, log = self._run_with_existing_instance(console_open=False)
+        code, open_app, open_browser, log = self._run_with_existing_instance(console_open=False)
         self.assertEqual(code, 0)
-        self.assertEqual(open_browser.call_count, 1)
-        self.assertTrue(open_browser.call_args.args[0].startswith("http://127.0.0.1:18876/"))
+        self.assertEqual(open_app.call_count, 1)
+        self.assertTrue(open_app.call_args.args[0].startswith("http://127.0.0.1:18876/"))
+        open_browser.assert_not_called()
         self.assertTrue(
             any("未检测到控制台窗口" in call.args[1] for call in log.call_args_list)
         )
+
+    def test_missing_console_falls_back_to_browser_when_edge_unavailable(self):
+        failure = AppWindowResult(
+            ok=False,
+            reason="edge_missing",
+            message="未找到 Microsoft Edge（msedge.exe），已改用默认浏览器打开控制台。下一步：安装 Edge 后重试。",
+        )
+        code, open_app, open_browser, log = self._run_with_existing_instance(console_open=False, app_result=failure)
+        self.assertEqual(code, 0)
+        self.assertEqual(open_app.call_count, 1)
+        self.assertEqual(open_browser.call_count, 1)
+        self.assertTrue(open_browser.call_args.args[0].startswith("http://127.0.0.1:18876/"))
+        self.assertTrue(any("未找到 Microsoft Edge" in call.args[1] and "下一步：" in call.args[1] for call in log.call_args_list))
 
 
 class LauncherStalePendingTests(unittest.TestCase):
@@ -463,13 +482,20 @@ class LauncherPortSafetyTests(unittest.TestCase):
                                                 with patch.object(launcher, "_wait_health", return_value=True):
                                                     with patch.object(launcher.TrayHost, "run", return_value=True):
                                                         # 健康检查被 mock 成 True，main() 会走到健康检查通过后的
-                                                        # webbrowser.open(url)。不拦它，跑这条测试就会在
-                                                        # 跑测试的人屏幕上真弹一个浏览器窗口，指向一个服务
+                                                        # 控制台窗口打开入口。不拦它，跑这条测试就会在
+                                                        # 跑测试的人屏幕上真弹一个窗口，指向一个服务
                                                         # 已经 terminate 掉的残留端口，URL 里还带着 token。
                                                         with patch.object(launcher, "_console_window_open", return_value=False), \
-                                                                patch.object(launcher.webbrowser, "open") as opened:
+                                                                patch.object(
+                                                                    launcher.AppWindowHost,
+                                                                    "open_or_activate",
+                                                                    return_value=AppWindowResult(ok=True, action="launched", hwnd=1001),
+                                                                ) as opened_app, \
+                                                                patch.object(launcher.webbrowser, "open", return_value=True) as opened:
                                                             self.assertEqual(launcher.main(), 0)
-            self.assertEqual(opened.call_count, 1)
+            self.assertEqual(opened_app.call_count, 1)
+            self.assertTrue(opened_app.call_args.args[0].startswith("http://127.0.0.1:18877/"))
+            opened.assert_not_called()
             # 路径必须两边都 resolve 再比：CI runner 的 TEMP 是 8.3 短名（RUNNER~1），
             # 而 main() 是从 sys.executable 推出的长名（runneradmin），直接比 Path 文本必红。
             args = launch.call_args.args
@@ -479,6 +505,36 @@ class LauncherPortSafetyTests(unittest.TestCase):
             notify.assert_not_called()
             self.assertTrue(any("端口 18876 被占用，本次改用 18877" in call.args[1] for call in log.call_args_list))
             self.assertEqual(env_file.read_bytes(), before)
+
+    def test_main_falls_back_to_browser_when_edge_unavailable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env_file = root / ".env"
+            env_file.write_text("QQ_DIGEST_WEB_PORT=18876\n", encoding="utf-8")
+            fake_process = SimpleNamespace(poll=lambda: None, terminate=lambda: None, wait=lambda timeout=None: 0)
+            failure = AppWindowResult(
+                ok=False,
+                reason="edge_missing",
+                message="未找到 Microsoft Edge（msedge.exe），已改用默认浏览器打开控制台。下一步：安装 Edge 后重试。",
+            )
+            with patch.object(launcher.sys, "executable", str(root / launcher.LAUNCHER_EXE)), \
+                    patch.object(launcher.Settings, "from_env", return_value=SimpleNamespace(web_port=18876)), \
+                    patch.object(launcher, "_create_desktop_shortcut"), \
+                    patch.object(launcher, "_update_check_enabled", return_value=False), \
+                    patch.object(launcher, "_acquire_single_instance", return_value=True), \
+                    patch.object(launcher, "_port_probe", return_value="free"), \
+                    patch.object(launcher, "_log_launcher") as log, \
+                    patch.object(launcher, "_launch_service", return_value=fake_process), \
+                    patch.object(launcher, "_wait_health", return_value=True), \
+                    patch.object(launcher.TrayHost, "run", return_value=True) as tray_run, \
+                    patch.object(launcher, "_console_window_open", return_value=False), \
+                    patch.object(launcher.AppWindowHost, "open_or_activate", return_value=failure), \
+                    patch.object(launcher.webbrowser, "open", return_value=True) as opened:
+                self.assertEqual(launcher.main(), 0)
+            self.assertEqual(opened.call_count, 1)
+            self.assertTrue(opened.call_args.args[0].startswith("http://127.0.0.1:18876/"))
+            self.assertTrue(any("未找到 Microsoft Edge" in call.args[1] and "下一步：" in call.args[1] for call in log.call_args_list))
+            self.assertTrue(tray_run.called)
 
     def test_port_probe_rejects_unrelated_health_json(self):
         class UnrelatedHandler(BaseHTTPRequestHandler):

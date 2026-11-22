@@ -410,8 +410,11 @@ function renderJourney(status){
   ];
   var current=-1;
   steps.forEach(function(step,index){if(current<0&&!step.done)current=index;});
-  if(current<0){box.hidden=true; return;}
+  if(current<0){box.hidden=true; if(box.dataset)box.dataset.nhJourneySig=''; return;}
   box.hidden=false;
+  var journeySig=current+'|'+steps.map(function(s){return s.done?'1':'0';}).join('');
+  if(box.dataset&&box.dataset.nhJourneySig===journeySig)return;
+  if(box.dataset)box.dataset.nhJourneySig=journeySig;
   var list=document.getElementById('journey-steps');
   if(list){
     list.textContent='';
@@ -419,7 +422,12 @@ function renderJourney(status){
       var item=document.createElement('li');
       item.className='journey-step';
       item.dataset.state=step.done?'done':(index===current?'current':'todo');
-      var badge=document.createElement('b'); badge.textContent=step.done?'✓':String(index+1);
+      var badge=document.createElement('b');
+      if(step.done){
+        badge.innerHTML='<svg class="nh-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3.5 8.2 3 3 6-6.4"/></svg>';
+      }else{
+        badge.textContent=String(index+1);
+      }
       var body=document.createElement('span'); body.appendChild(document.createTextNode(step.label));
       var hint=document.createElement('small'); hint.textContent=step.hint; body.appendChild(hint);
       item.appendChild(badge); item.appendChild(body); list.appendChild(item);

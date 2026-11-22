@@ -99,13 +99,15 @@
       ? '已筛选 ' + selected.length + ' 项，按截止日期显示' + (undated ? '；' + undated + ' 项未设日期，可在清单中查看' : '')
       : '共 ' + selected.length + ' 项' + (dateFilter.value === 'overdue' ? '逾期事项' : '') + ' · ' + (sort.value === 'deadline' ? '按截止时间排列，未设日期的排在最后' : '按添加时间从新到旧排列');
   }
-  function setView(next) {
+  function setView(next, animate) {
+    var changed = view !== next;
     view = next;
     list.hidden = view !== 'list'; calendar.hidden = view !== 'calendar';
     calendar.classList.remove('calendar-collapsed');
     ['list', 'calendar'].forEach(function (key) { document.getElementById('task-view-' + key).setAttribute('aria-pressed', String(view === key)); });
     sort.disabled = view === 'calendar';
     updateCount();
+    if (changed && animate !== false && window.nhAnimateSurface) window.nhAnimateSurface(view === 'list' ? list : calendar, view === 'calendar' ? 12 : -12);
   }
   function refresh() {
     if (!data) return;
@@ -126,7 +128,8 @@
     revealTask: revealTask,
     error: function (message) { count.textContent = '日程读取失败：' + message; }
   };
-  setView('list');
+  if (window.nhCreateSkeletonCards && !list.children.length) list.appendChild(window.nhCreateSkeletonCards(3));
+  setView('list', false);
   document.addEventListener('click', function (event) {
     var link = event.target.closest('a[href^="#task-"]');
     if (!link) return;

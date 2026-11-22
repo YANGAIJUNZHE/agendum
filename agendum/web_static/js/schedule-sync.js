@@ -106,7 +106,12 @@ window.NhSchedule = (function () {
     var image=el('img');image.alt='手机日程同步配对二维码';image.width=240;image.height=240;image.hidden=true;card.appendChild(image);
     var note=el('p','setting-note'),pending=el('div'),devices=el('div');card.appendChild(note);card.appendChild(pending);card.appendChild(devices);
     function load(){return api('/api/v1/admin/devices').then(function(x){
-      if(x.base)address.value=x.base;pending.textContent='';devices.textContent='';
+      var focused = typeof document !== 'undefined' && document.activeElement === address;
+      if(x.base && !focused && address.value !== x.base)address.value=x.base;
+      var syncSig = JSON.stringify([x.pending||[], x.devices||[]]);
+      if(card.dataset && card.dataset.nhSyncSig === syncSig)return;
+      if(card.dataset)card.dataset.nhSyncSig = syncSig;
+      pending.textContent='';devices.textContent='';
       (x.pending||[]).forEach(function(p){var row=el('div','preference'),button=el('button','btn','核对并允许');row.appendChild(el('span','',p.name+' · 配对码 '+p.code));button.onclick=function(){api('/api/v1/admin/devices/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id})}).then(load);};row.appendChild(button);pending.appendChild(row);});
       (x.devices||[]).forEach(function(d){var row=el('div','preference');row.appendChild(el('span','',d.name+(d.revoked?' · 已撤销':'')));if(!d.revoked){var button=el('button','btn','撤销连接');button.onclick=function(){if(confirm('撤销这台手机的连接？手机本地编辑仍会保留。'))api('/api/v1/admin/devices/revoke',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:d.id})}).then(load);};row.appendChild(button);}devices.appendChild(row);});
     }).catch(function(e){note.textContent=e.message;});}

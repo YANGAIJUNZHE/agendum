@@ -38,14 +38,28 @@
     }
   } catch (error) { /* 损坏或旧版偏好回退到默认布局。 */ }
 
+  function motionPaused() {
+    return typeof motionIsPaused === 'function' ? motionIsPaused()
+      : (document.documentElement.dataset.motion === 'paused' || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
   function setClosed(panel, closed, persist) {
     var body = panel.querySelector('.rail-panel-body');
     var toggle = panel.querySelector('.rail-panel-toggle');
     if (!body || !toggle) return;
+    if (body.__nhCollapseTimer) { clearTimeout(body.__nhCollapseTimer); body.__nhCollapseTimer = null; }
+    body.classList.remove('is-expanding');
     body.hidden = closed;
     toggle.setAttribute('aria-expanded', String(!closed));
     panel.classList.toggle('rail-collapsed', closed);
     if (persist) { state.closed[panel.id] = closed; save(); }
+    if (!closed && persist && !motionPaused() && panel.isConnected) {
+      void body.offsetWidth;
+      body.classList.add('is-expanding');
+      body.__nhCollapseTimer = setTimeout(function () {
+        body.classList.remove('is-expanding');
+        body.__nhCollapseTimer = null;
+      }, 200);
+    }
   }
   function applyOrder() {
     state.order.forEach(function (id) {
@@ -157,6 +171,7 @@
   }
   function selectPage(id, focus) {
     if (!pages[id]) return;
+    var switched = activePage !== id;
     activePage = id;
     Object.keys(pages).forEach(function (key) { pages[key].panel.hidden = key !== id; pages[key].button.setAttribute('aria-current', key === id ? 'page' : 'false'); });
     groups.forEach(function (group) {
@@ -165,6 +180,13 @@
       group.list.hidden = !selected; group.button.setAttribute('aria-expanded', String(selected));
     });
     var current = pages[id];
+    if (switched && !motionPaused()) {
+      current.panel.classList.remove('is-entering');
+      void current.panel.offsetWidth;
+      current.panel.classList.add('is-entering');
+    } else {
+      current.panel.classList.remove('is-entering');
+    }
     document.getElementById('settings-location').textContent = current.group + ' / ' + current.label;
     if (focus) { current.panel.querySelector('.settings-page-title').focus({preventScroll: true}); settingsRoot.scrollIntoView({block: 'start'}); }
   }

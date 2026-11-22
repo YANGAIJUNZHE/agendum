@@ -136,6 +136,13 @@ function announcePanelFocusable(panel) {
   return Array.prototype.slice.call(panel.querySelectorAll('button, a[href], summary, [tabindex="0"]')).filter(function (node) { return node && !node.disabled && !node.hidden; });
 }
 var announcePanelReturnFocus = null;
+var announcePanelCloseTimer = null;
+function announceMotionPaused() {
+  if (typeof motionIsPaused === 'function') return motionIsPaused();
+  var doc = typeof document !== 'undefined' ? document.documentElement : null;
+  if (doc && doc.dataset && doc.dataset.motion === 'paused') return true;
+  return !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
 // B5：焦点在面板外面时，绑在 panel 上的 keydown 收不到 Esc。面板打开期间把监听挂到 document
 // 捕获阶段，关闭就解绑，别让页面别处的 Esc 也被我们吞掉。
 function setAnnounceKeydown(on) {
@@ -147,6 +154,8 @@ function openAnnouncePanel() {
   var panel = document.getElementById('announce-panel');
   var bell = document.getElementById('announce-bell');
   if (!panel) return;
+  if (announcePanelCloseTimer) { clearTimeout(announcePanelCloseTimer); announcePanelCloseTimer = null; }
+  if (panel.classList) panel.classList.remove('is-closing');
   announcePanelReturnFocus = document.activeElement || bell;
   renderAnnouncePanel();
   // 打开公告栏就是要看最新的：30 秒内只强制拉一次，别每开一次都打一次网络。
@@ -164,12 +173,19 @@ function closeAnnouncePanel(restoreFocus) {
   var panel = document.getElementById('announce-panel');
   var bell = document.getElementById('announce-bell');
   if (!panel || panel.hidden) return;
-  panel.hidden = true;
   setAnnounceKeydown(false);
   if (bell) bell.setAttribute('aria-expanded', 'false');
-  if (restoreFocus === false) return;
-  var target = announcePanelReturnFocus || bell;
-  if (target && target.focus) target.focus();
+  var finish = function () {
+    if (announcePanelCloseTimer) { clearTimeout(announcePanelCloseTimer); announcePanelCloseTimer = null; }
+    if (panel.classList) panel.classList.remove('is-closing');
+    panel.hidden = true;
+    if (restoreFocus === false) return;
+    var target = announcePanelReturnFocus || bell;
+    if (target && target.focus) target.focus();
+  };
+  if (announceMotionPaused() || !panel.classList) { finish(); return; }
+  panel.classList.add('is-closing');
+  announcePanelCloseTimer = setTimeout(finish, 140);
 }
 function announcePanelKeydown(event) {
   if (event && event.key === 'Escape') { event.preventDefault(); closeAnnouncePanel(true); return; }
@@ -309,14 +325,22 @@ function renderAnnouncementFailureHint(message) {
   actions.appendChild(close);
   banner.appendChild(copy); banner.appendChild(actions); banner.hidden = false;
 }
+var lastAnnouncementSig = '';
 // force=true 走 `?refresh=1`：服务端会真的去拉一次（自己带防抖，连点不会连打 GitHub）。
 function refreshAnnouncements(force) {
   api('/api/announcements' + (force ? '?refresh=1' : '')).then(function (data) {
-    announcementState = data && typeof data === 'object' ? data : {ok: false, items: []};
+    var nextState = data && typeof data === 'object' ? data : {ok: false, items: []};
+    var nextSig = JSON.stringify(nextState);
+    var changed = nextSig !== lastAnnouncementSig;
+    lastAnnouncementSig = nextSig;
+    announcementState = nextState;
     announceFailureHintDismissed = false;
-    renderAnnouncementBanner(); renderAnnouncementList(); renderAnnounceModal(); renderAnnounceBell(); renderAnnouncePanel();
+    if (changed) {
+      renderAnnouncementBanner(); renderAnnouncementList(); renderAnnounceModal(); renderAnnounceBell(); renderAnnouncePanel();
+    }
     if (announcementState.checking) window.setTimeout(refreshAnnouncements, 1500);
   }).catch(function () {
+    lastAnnouncementSig = '';
     announcementState = {ok: false, items: []};
     renderAnnouncementBanner(); renderAnnouncementList(); renderAnnounceModal(); renderAnnounceBell(); renderAnnouncePanel();
     // A4：拉取失败别静默——顶部横幅给一条非阻塞提示（带关闭；下次成功刷新会自动恢复正常公告）。

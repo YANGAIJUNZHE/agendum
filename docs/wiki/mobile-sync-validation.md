@@ -47,21 +47,22 @@
 
 ## 复核命令与产物
 
-Python 主验收的指定模块：
+安卓改为原生 Compose 后，原先依赖 `client.html` 与 WebView 调试端口的验证脚本（`tests/test_android_webview_ui.py`、`tools/e2e/devtools_eval.mjs`、`tools/e2e/mobile_ui_check.py`、`tools/e2e/mobile_native_check.py`、`tools/e2e/phone_sync_check.mjs`）已移除，改为由 `android/app/src/test/java/com/agendum/app/ScheduleViewModelTest.kt` 的 JVM 单元测试直接覆盖同步防重复与请求编号匹配、无关回执不关闭编辑草稿、保存失败保留输入、冲突字段选择映射以及前后台轮询语义；数据库与离线队列继续由 `OfflineSyncTest` 仪器测试验证。
+
+Python 同步后端与文档验收的指定模块：
 
 ```powershell
-./.venv/Scripts/python.exe -m unittest tests.test_sync_store tests.test_sync_api tests.test_application_tasks tests.test_store tests.test_store_recovery tests.test_application_calendar tests.test_ics tests.test_pairing tests.test_routes tests.test_webapp tests.test_wiki tools.e2e.mobile_ui_check -q
+./.venv/Scripts/python.exe -m unittest tests.test_sync_store tests.test_sync_api tests.test_application_tasks tests.test_store tests.test_store_recovery tests.test_application_calendar tests.test_ics tests.test_pairing tests.test_routes tests.test_webapp tests.test_wiki -q
 ```
 
-客户端专项组：
+安卓构建与单元测试：
 
 ```powershell
-./.venv/Scripts/python.exe -m unittest tools.e2e.desktop_sync_check tools.e2e.mobile_ui_check tools.e2e.mobile_native_check -v
+cd android
+./gradlew.bat :app:testDebugUnitTest :app:assembleDebug
 ```
 
-上述客户端组依赖本机 Edge、Node、ADB 和本任务模拟器，不参与常规 CI 自动发现。真实手机使用 `tools/e2e/phone_sync_check.mjs`，必须明确提供 `NOTICEHUB_PHONE_SERIAL`，只操作验收副本与脚本创建的临时日程，不执行卸载或清数据。它会短暂停止并重启本项目后端来验证电脑离线。
-
-`mobile_native_check.py` 同样要求通过 `NOTICEHUB_PHONE_SERIAL` 指定测试设备，不自动选择已连接设备。ADB 默认从 PATH 查找，可用 `NOTICEHUB_TEST_ADB` 指定路径。公网验收脚本必须显式传入自己的入口，例如 `./tools/e2e/public_sync_check.ps1 -Base https://sync.example.com`；示例域名需要替换为实际部署域名。
+电脑端同步链路仍可通过 `tools.e2e.desktop_sync_check` 验证。公网接口检查可执行 `./tools/e2e/public_sync_check.ps1 -Base https://sync.example.com`（将示例域名替换为实际部署域名）。
 
 本地证据统一位于 `.tmp-qa/mobile-sync/`：两个 APK、SHA-256、构建与测试日志、公网与真机 JSON 记录，以及离线和冲突截图。这个目录不提交仓库，不包含可公开发布的管理员令牌或隧道令牌。
 

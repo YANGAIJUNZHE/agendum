@@ -11,7 +11,11 @@
   var status = document.getElementById('task-editor-status');
   var discard = document.getElementById('task-editor-discard');
   var retry = document.getElementById('task-editor-retry');
-  var options = null, initial = '', busy = false, loading = false, opener = null, generation = 0;
+  var options = null, initial = '', busy = false, loading = false, opener = null, generation = 0, closeTimer = null;
+  function editorMotionPaused() {
+    return typeof motionIsPaused === 'function' ? motionIsPaused()
+      : (document.documentElement.dataset.motion === 'paused' || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
 
   function values() { return {summary: title.value.trim(), notes: notes.value, deadline: deadline.value}; }
   function snapshot() { return JSON.stringify([title.value, notes.value, deadline.value, dateOnly.checked]); }
@@ -30,9 +34,17 @@
     save.textContent = value ? (loading ? '正在读取…' : '正在保存…') : options.submitLabel;
     dialog.setAttribute('aria-busy', String(value));
   }
+  function finishClose() {
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+    dialog.classList.remove('is-closing');
+    if (dialog.open) dialog.close();
+  }
   function close() {
     generation++;
-    dialog.close();
+    if (!dialog.open) return;
+    if (editorMotionPaused()) { finishClose(); return; }
+    dialog.classList.add('is-closing');
+    closeTimer = setTimeout(finishClose, 150);
   }
   function requestClose() {
     if (busy && !loading) return;
@@ -91,6 +103,8 @@
   });
   window.NhTaskEditor = {
     open: function (config) {
+      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+      dialog.classList.remove('is-closing');
       if (dialog.open) return;
       options = config; opener = config.trigger || document.activeElement; generation++;
       form.reset(); fill(config.values || {}); status.textContent = ''; discard.hidden = true; retry.hidden = true;

@@ -1086,7 +1086,13 @@ document.getElementById('wx-save').onclick=function(){var boxes=document.querySe
   var runtimeBox = el('section', 'surface hosting-settings');
   runtimeBox.id = 'runtime-settings-card';
   runtimeBox.setAttribute('aria-live', 'polite');
-  runtimeBox.textContent = '正在读取运行信息…';
+  if (window.nhCreateSkeletonCards) {
+    var runtimeSr = el('span', 'sr-only', '正在读取运行信息…');
+    runtimeBox.appendChild(runtimeSr);
+    runtimeBox.appendChild(window.nhCreateSkeletonCards(2));
+  } else {
+    runtimeBox.textContent = '正在读取运行信息…';
+  }
   root.appendChild(runtimeBox);
   if (window.NhDesktop) window.NhDesktop.mountSettings(root);
   api('/api/meta').then(function (data) {

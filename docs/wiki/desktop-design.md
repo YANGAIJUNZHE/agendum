@@ -1,49 +1,60 @@
 ---
 name: Agendum 电脑端工作区
-description: 以日程和待办为主，辅助面板可整理，设置按任务分类。
+description: Win11 Fluent 桌面工作区，以日程和待办为主，辅助面板可整理，设置按任务分类。
 colors:
-  paper: "#fff"
-  paper-alt: "#f2f4f6"
-  ink: "#172722"
-  muted: "#3d4f47"
-  line: "#b0b8bd"
-  teal: "#12695b"
-  teal-soft: "#d6ede7"
-  red: "#a5312d"
-  red-soft: "#ffeeed"
-  amber: "#805411"
-  amber-soft: "#fff3db"
-  primary-button: "#145f52"
-  primary-button-hover: "#0f554a"
-  dark-page: "#1d221f"
-  dark-line-soft: "#424c46"
-  dark-primary-fill: "#29483b"
-  dark-paper: "#191e1b"
-  dark-paper-alt: "#202623"
-  dark-ink: "#e0e7e1"
-  dark-muted: "#a9b8ae"
-  dark-line: "#6c8073"
-  dark-teal: "#8ac5ab"
-  dark-teal-soft: "#263b31"
-  dark-red: "#e69a96"
-  dark-red-soft: "#3b2827"
-  dark-amber: "#dfc28c"
-  dark-amber-soft: "#373022"
+  page: "#f3f3f3"
+  paper: "#ffffff"
+  paper-alt: "#f9f9f9"
+  mica-bg: "rgba(249,249,249,.86)"
+  acrylic-bg: "rgba(255,255,255,.84)"
+  ink: "#1a1d1c"
+  muted: "#4c5350"
+  line: "#868e8b"
+  line-soft: "#e3e6e5"
+  card-stroke: "rgba(0,0,0,.085)"
+  teal: "#0f6e62"
+  teal-hover: "#0b5b51"
+  teal-soft: "#dff1ed"
+  red: "#c42b1c"
+  red-soft: "#fde7e9"
+  amber: "#8a5300"
+  amber-soft: "#fff4ce"
+  blue: "#005fb8"
+  blue-soft: "#e6f2fc"
+  primary-button: "#0f6e62"
+  primary-button-hover: "#0b5b51"
+  dark-page: "#202020"
+  dark-paper: "#2b2b2b"
+  dark-paper-alt: "#262626"
+  dark-mica-bg: "rgba(32,32,32,.88)"
+  dark-acrylic-bg: "rgba(44,44,44,.86)"
+  dark-ink: "#f5f5f5"
+  dark-muted: "#b6bebe"
+  dark-line: "#78827e"
+  dark-line-soft: "#383b3a"
+  dark-card-stroke: "rgba(255,255,255,.085)"
+  dark-primary-fill: "#12786a"
+  dark-teal: "#6cd4bf"
+  dark-teal-soft: "#213934"
+  dark-red: "#ff99a4"
+  dark-red-soft: "#422528"
+  dark-amber: "#f0c46c"
+  dark-amber-soft: "#3d321c"
 typography:
   body:
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif'
+    fontFamily: '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif'
     fontSize: "14px"
-    lineHeight: 1.5
+    lineHeight: 1.55
   summary-title:
     fontSize: "26px"
-    lineHeight: 1.35
+    lineHeight: 1.3
   settings-title:
     fontSize: "24px"
-    fontWeight: 650
-    lineHeight: 1.4
+    fontWeight: 680
+    lineHeight: 1.35
   workspace-title:
-    fontSize: "20px"
-    lineHeight: 1.4
+    fontSize: "24px"
+    lineHeight: 1.35
   navigation:
     fontSize: "14px"
   form:
@@ -51,10 +62,9 @@ typography:
   note:
     fontSize: "12px"
 rounded:
-  control: "6px"
-  task: "8px"
-  theme-choice: "10px"
-  surface: "12px"
+  sm: "4px"
+  md: "8px"
+  lg: "12px"
 spacing:
   compact: "6px"
   action: "8px"
@@ -65,21 +75,26 @@ components:
   button-primary:
     backgroundColor: "{colors.primary-button}"
     textColor: "{colors.paper}"
-    rounded: "{rounded.control}"
-    padding: "9px 14px"
+    rounded: "{rounded.md}"
+    padding: "7px 14px"
   button-primary-hover:
     backgroundColor: "{colors.primary-button-hover}"
     textColor: "{colors.paper}"
+  nav-active:
+    backgroundColor: "{colors.teal-soft}"
+    textColor: "{colors.teal}"
+    indicatorPill: "3px"
+    rounded: "{rounded.md}"
   settings-page-active:
     backgroundColor: "{colors.teal-soft}"
     textColor: "{colors.teal}"
-    rounded: "{rounded.control}"
-    padding: "8px 12px"
+    rounded: "{rounded.md}"
+    padding: "7px 12px 7px 14px"
   settings-search:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    padding: "8px 10px"
+    rounded: "{rounded.md}"
+    padding: "7px 10px"
 ---
 
 # 电脑端界面设计与维护约束
@@ -88,50 +103,42 @@ components:
 
 首页首先服务于查看日程、处理待办和新建待办。主导航负责切换待办、最近推送、收件箱、设置；辅助面板承载置顶、快捷操作、概览、接入、订阅群、健康检查与项目信息；设置目录负责查找和修改配置。三个区域不能混用导航职责。
 
-本页记录当前实现，维护依据是 `agendum/web_static/page.html` 的主题变量与末尾 `#workspace-layout` 样式，以及 `js/desktop-shell.js`、`js/settings.js` 的行为。前置 YAML 提取实际使用的颜色、字号和组件值；深色值以 `dark-` 区分，对应同名 CSS 变量在深色主题下的取值。修改时应核对完整 CSS 层叠，不能只看最后一个样式块。架构和业务数据流见 [架构](architecture.md)。
+本页记录当前实现，维护依据是 `agendum/web_static/page.html` 的主题变量与末尾 `#workspace-layout` 样式，以及 `js/desktop-shell.js`、`js/settings.js`、`js/task-workspace.js`、`js/task-editor.js` 的行为。前置 YAML 提取实际使用的颜色、字号和组件值；深色值以 `dark-` 区分，对应同名 CSS 变量在深色主题下的取值。`page.html` 末尾 `#workspace-layout` 作为 Fluent 设计 token 与样式覆盖层位于基础 `<style>` 之后，修改时应核对完整层叠顺序。架构和业务数据流见 [架构](architecture.md)。
 
 ## Colors
 
-浅色工作区使用浅灰背景、白色内容面和深绿文字。青绿色用于当前导航、链接、选择状态及焦点；红色表示逾期或错误，琥珀色表示待处理、候选和提醒。语义状态还需保留文字或图标，不能只依靠底色区分。
+浅色工作区以 Win11 中性灰 `#f3f3f3` 作为画布底色，卡片与面板采用纯白 `#ffffff`，次级内嵌区域用 `#f9f9f9`；顶部导航栏与弹层通过 `@supports (backdrop-filter: blur(1px))` 叠加类 Mica / Acrylic 半透明模糊层，不支持模糊的运行环境自动退回纯色表面。青绿色（`teal`）用于主按钮、NavigationView 当前指示竖条、链接、开关选中态与焦点轮廓；红色表示逾期或错误，琥珀色表示待确认、提醒与加载进行中，蓝色用于稍后提醒标记。所有语义状态同时配有明确文字或线性 SVG 图标，不单靠颜色区分，对比度按 WCAG AA 校验。
 
-深色工作区使用略带绿相的炭灰背景与墨绿灰内容面，文字为柔和的灰白和灰绿，青绿强调色降低饱和度。卡片边界使用 `dark-line-soft`，控件边界沿用对比更高的 `dark-line`；不把输入框和按钮边界一起压暗。主题预览和系统主题色与实际配色同步。
-
-页面可见背景使用 `paper-alt`，摘要、设置容器和辅助面板使用 `paper`；`line` 分隔面板和表单行，`muted` 承载说明文字。新增区域应沿用这些 CSS 变量，避免把浅色值直接写进深色页面。主题切换同时替换正文、背景、边界和状态色，不能仅反转页面底色。
-
-浅色主按钮使用独立的 `primary-button` 色；深色主按钮使用 `dark-primary-fill` 底、`dark-teal` 边框和 `dark-ink` 文字，悬停时改为强调色底。选中导航使用强调色的柔和底片，与提交按钮保持层级差异。
+深色工作区使用中性炭灰 `#202020` 底色与 `#2b2b2b` / `#262626` 分层卡片面，分隔线用低对比 `dark-line-soft`，输入框与按钮边框保持 `dark-line` 以保证控件边界清晰；深色主按钮保留白字高对比青绿填充，悬停时亮起强调色。
 
 ## Typography
 
-字体使用系统字体栈，中文回退到苹方、微软雅黑，不依赖外部字体下载。前置 `body` 是宽度至少 900px 时的正文字号；更窄窗口的基础正文为 15px，行高保持 1.5。设置说明和表单多使用 `form`，辅助说明使用 `note`，不要把所有内容统一缩成小字。
-
-首页摘要、工作区标题、设置页标题各有独立层级。设置页说明文字行高 1.75、最大宽度 75ch；具体偏好项的补充说明行高 1.65。标题、群名、任务内容和长地址应允许换行，表单列使用 `min-width:0` 避免长内容撑破网格。
+正文字体栈优先调用 `Segoe UI Variable Text` 与 `Segoe UI Variable`（标题优先 `Segoe UI Variable Display`），兼容回退到 `Segoe UI`、`Microsoft YaHei UI` 与 `PingFang SC`，不额外下载网络字体；计数器、百分比与日期栏启用等宽数字（`tabular-nums`）。设置页说明文字行高 1.75、最大宽度 75ch，标题、群名与长地址允许自然换行，网格列使用 `min-width:0` 防止溢出。
 
 ## Layout
 
-宽屏把主导航固定在左侧，首页正文再分为待办主列与辅助面板列。清单与月历互斥显示，共用日期、状态和关键词筛选；清单默认按最近到期排序，完整概览已移除。辅助栏吸附在距顶部 90px 处，最大高度为 `calc(100dvh - 112px)`，独立滚动，展开不改变主列内容的位置。接入进度折入可展开的指引。离开待办视图后隐藏待办工具栏、筛选、指引和辅助面板，给当前页面完整的内容宽度。
+宽屏把主导航固定在左侧作为 Fluent NavigationView，选中项左侧带 3px 圆角竖条；首页正文再分为待办主列与辅助面板列。清单与月历互斥显示，切换视图或设置子页时触发 180ms 淡入与轻位移（`animateSurface` / `.settings-page.is-entering`）。辅助栏吸附在距顶部 90px 处，最大高度为 `calc(100dvh - 112px)`，独立滚动，展开不改变主列内容的位置。
 
 | 视口宽度 | 主布局与设置布局 |
 | --- | --- |
-| 至少 1600px | 延续固定左导航；辅助面板宽 340px，设置目录宽 232px，设置正文内边距为上下 36px、左右 48px。 |
-| 1024–1599px | 主导航宽 168px，距左 16px、距顶 92px；正文左边距 208px、右边距 24px、宽度 `calc(100% - 232px)`。待办主列自适应，辅助面板宽 300px，列间距 24px。设置目录宽 208px，正文内边距 `28px 32px 40px`。 |
-| 701–1023px | 主导航横向排列并吸附于顶部 70px；工作区变为单列。设置目录宽 180px，正文内边距 `24px 20px`；目录吸附于顶部 136px。 |
+| 至少 1600px | 延续固定左导航（176px）；辅助面板宽 344px，设置目录宽 236px，设置正文内边距为上下 36px、左右 48px。 |
+| 1024–1599px | 主导航宽 176px，距左 16px、距顶 92px；正文左边距 216px、右边距 24px、宽度 `calc(100% - 240px)`。辅助面板宽 308px，列间距 24px。设置目录宽 216px，正文内边距 `28px 32px 40px`。 |
+| 701–1023px | 主导航横向排列并吸附于顶部 60px（含底部激活指示条）；工作区变为单列。设置目录宽 180px，正文内边距 `24px 20px`；目录吸附于顶部 136px。 |
 | 不超过 700px | 设置目录移至正文上方，取消吸附和内部高度限制，子页面入口可换行；正文内边距 `20px 16px`，文本输入和选择框独占一行。设置标题降至 21px，首页摘要标题降至 23px。 |
 
-宽屏设置目录吸附于顶部 90px，最大高度 `calc(100vh - 110px)`，超出部分独立滚动；设置正文最大内容宽度为 880px。首页筛选条在宽屏横向排列，窄屏分行，不通过扩大概览卡片来占据主区。
+宽屏设置目录吸附于顶部 90px，最大高度 `calc(100vh - 110px)`，超出部分独立滚动；设置正文最大内容宽度为 880px。`body` 至少覆盖整个动态视口高度，工作区末尾由 `main` 统一保留 24px 间距。
 
-`body` 至少覆盖整个动态视口高度，短内容也保持完整的页面背景。桌面端 `body` 不额外预留底部空间，工作区末尾由 `main` 统一保留 24px 间距。辅助面板收起后按可见内容计算高度，不保留展开占位；内容不足一屏时，下方为页面背景，不强行拉长待办卡片。
+## Elevation, Motion & Incremental Updates
 
-## Elevation & Depth
+卡片与面板采用 Win11 分层阴影（`--shadow-card` / `--shadow-card-hover`）与细描边，悬停仅微调边框与阴影深度，不做缩放或三维位移；浮层（`#announce-panel`、`#action-feedback` Toast）与原生模态框（`#task-editor-dialog`、向导与公告框）分别使用中等浮层影与对话框影，配合 140–200ms 的标准 Fluent 缓动入场/退场，开关与折叠面板使用 180ms 过渡，等待接口数据时在列表区展示 `.nh-skeleton-card` 骨架屏。
 
-工作区主要依靠背景、边框和留白分层。摘要、任务、通知、设置面板和内容面取消常驻阴影与三维位移；背景流动装饰不再显示，任务悬停和聚焦不再抬升。按钮仍保留既有悬停反馈：上移 1px，阴影为 `0 4px 10px rgba(20,49,39,.12)`；按压缩放为 0.98。不要把“内容面无阴影”扩展成“所有交互无反馈”。
+所有动画和过渡同时响应浏览器 `prefers-reduced-motion: reduce` 与界面开关 `html[data-motion=paused]`（`motionIsPaused()`）：开启减少动效后过渡时长归零，骨架屏扫光停止，对话框与面板直接同步关闭；功能完成一律不依赖动画结束事件。
 
-保留系统减少动效和应用动效偏好。减少动效时取消动画和过渡，不得影响切页、展开、定位或保存反馈；功能完成不能依赖动画结束事件。
+后台 60 秒列表轮询与各类状态轮询（待办 `render`、置顶 `renderPinned`、今日轮播 `renderUpcoming`、月历 `renderCalendar`、周汇总 `renderRailSummary`、推送信 `loadNotices`、引导 `renderJourney`、配对列表 `refreshPair`、同步设备 `mobileCard`、公告 `refreshAnnouncements`）先核对数据签名：数据未变时直接跳过 DOM 重建，保持滚动位置、展开状态和当前焦点不丢失；部分列表改动时，未变的待办卡片 `li.task` 直接复用原有 DOM 节点，保留内部展开详情与 FLIP 位置过渡。
 
-## Shapes
+## Shapes & Controls
 
-主要内容面、摘要和设置外框使用 `surface` 圆角；任务使用 `task` 圆角，按钮、搜索框和输入框使用 `control` 圆角。设置表单行不再逐项嵌套卡片，而是用底部分隔线形成连续阅读顺序。主题选择保留独立预览卡，选中时使用 2px 强调色边框。
-
-边界通常为 1px 实线。拖动落点使用 2px 强调色虚线，拖动中的面板透明度为 0.5；这类反馈仅用于当前操作，不作为常驻装饰。
+全站统一使用 4 / 8 / 12px 圆角刻度（标签/微控件/滚动条滑块 4px，任务卡/按钮/输入框/下拉/子页项 8px，外层卡片/设置壳/弹窗 12px），内联图标统一为 1.6px 线宽的 Fluent 线性 SVG。输入框与下拉框底部带 2px 强调折线，聚焦时亮起青绿焦点环（2px 实线 + 2px 偏移）。设置页 `.preference` 内的布尔复选框渲染为 Win11 拨动开关（ToggleSwitch），群组与课程多选框保留带勾选标识的圆角方框。
 
 ## Components
 

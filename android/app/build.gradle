@@ -1,7 +1,11 @@
 import java.security.KeyStore
 import java.util.Properties
 
-plugins { id 'com.android.application' }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
 
 def pairingProperties = new Properties()
 def pairingFile = rootProject.file('pairing.properties')
@@ -26,12 +30,15 @@ android { namespace 'com.agendum.app'; compileSdk 35; buildToolsVersion '35.0.0'
         applicationId 'com.agendum.app'
         minSdk 23
         targetSdk 35
-        versionCode project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 20
-        versionName project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : '1.1.0-beta.20'
+        versionCode project.hasProperty('appVersionCode') ? project.property('appVersionCode').toString().toInteger() : 21
+        versionName project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : '1.1.0-beta.21'
         buildConfigField 'String', 'PAIR_SERVER', '"' + defaultServer + '"'
         buildConfigField 'String', 'DEFAULT_SERVER', '"' + defaultServer + '"'
     }
-    buildFeatures { buildConfig true }
+    buildFeatures {
+        buildConfig true
+        compose true
+    }
     signingConfigs {
         release {
             if (signingFile.exists()) {
@@ -50,7 +57,8 @@ android { namespace 'com.agendum.app'; compileSdk 35; buildToolsVersion '35.0.0'
             minifyEnabled false
         }
     }
-    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = '17' }
     defaultConfig {
         // 真机验收副本与已发布签名并存；默认构建的正式包名保持不变。
         if (project.hasProperty('agendumValidation')) { applicationIdSuffix '.validation' }
@@ -125,17 +133,36 @@ afterEvaluate {
 }
 
 dependencies {
+    def composeBom = platform('androidx.compose:compose-bom:2025.02.00')
+    implementation composeBom
+    androidTestImplementation composeBom
+
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.animation:animation'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+
     implementation 'androidx.room:room-runtime:2.7.2'
     annotationProcessor 'androidx.room:room-compiler:2.7.2'
     implementation 'androidx.work:work-runtime:2.10.5'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0'
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.work:work-testing:2.10.5'
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     // zxing-android-embedded 4.3.0 的 POM 只声明 com.google.zxing:core，没有声明它自己
     // 在 CaptureManager 里用到的 androidx.core（ContextCompat/ActivityCompat）。
     // 缺了它，点扫码进 CaptureActivity.onResume 会 NoClassDefFoundError 直接闪退。
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
-    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.core:core-ktx:1.15.0'
 }
