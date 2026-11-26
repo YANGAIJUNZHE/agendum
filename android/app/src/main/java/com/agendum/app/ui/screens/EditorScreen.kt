@@ -1,13 +1,16 @@
 package com.agendum.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +25,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,15 +50,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -63,6 +63,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -74,8 +78,11 @@ import com.agendum.app.model.TaskStatus
 import com.agendum.app.model.UrgentOverride
 import com.agendum.app.ui.EditorState
 import com.agendum.app.ui.components.AgendumIcons
+import com.agendum.app.ui.components.MagneticSegmentedControl
+import com.agendum.app.ui.components.MistCard
 import com.agendum.app.ui.theme.LocalAgendumColors
 import com.agendum.app.ui.theme.LocalReducedMotion
+import com.agendum.app.ui.theme.tabularNums
 
 private enum class PickerTarget {
     DEADLINE_DATE,
@@ -83,7 +90,7 @@ private enum class PickerTarget {
     SNOOZE_DATETIME,
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     editor: EditorState,
@@ -95,8 +102,6 @@ fun EditorScreen(
     onRequestDelete: () -> Unit,
     onDismissDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -113,80 +118,133 @@ fun EditorScreen(
     var activeDatePicker by remember { mutableStateOf<PickerTarget?>(null) }
     var pendingTimeDate by remember { mutableStateOf<Pair<PickerTarget, String>?>(null) }
 
-    val sharedKey = if (editor.isNew) "editor-fab" else "task-${editor.uuid}"
-    val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && !reducedMotion) {
-        with(sharedTransitionScope) {
-            Modifier.sharedBounds(
-                sharedContentState = rememberSharedContentState(key = sharedKey),
-                animatedVisibilityScope = animatedVisibilityScope,
-            )
-        }
-    } else {
-        Modifier
-    }
+    val advChevronDeg by animateFloatAsState(
+        targetValue = if (advancedExpanded) 180f else 0f,
+        animationSpec = if (reducedMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 420f),
+        label = "advChevron",
+    )
+    val srcChevronDeg by animateFloatAsState(
+        targetValue = if (sourceExpanded) 180f else 0f,
+        animationSpec = if (reducedMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 420f),
+        label = "srcChevron",
+    )
 
     Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .then(sharedModifier),
-        containerColor = colorScheme.background,
+            .background(extColors.canvasBrush),
+        containerColor = Color.Transparent,
         topBar = {
-            Column {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = if (editor.isNew) "新建日程" else "编辑日程",
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                    },
-                    navigationIcon = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(extColors.glassHeaderBackground)
+                    .statusBarsPadding(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = extColors.cardSurface,
+                        modifier = Modifier
+                            .size(42.dp)
+                            .shadow(
+                                elevation = if (extColors.isDark) 2.dp else 4.dp,
+                                shape = RoundedCornerShape(12.dp),
+                                ambientColor = extColors.cardShadowAmbient,
+                                spotColor = extColors.cardShadowAmbient,
+                            ),
+                    ) {
                         IconButton(
                             onClick = onBack,
                             enabled = !editor.isSaving,
+                            modifier = Modifier.fillMaxSize(),
                         ) {
                             Icon(
                                 imageVector = AgendumIcons.Back,
                                 contentDescription = "取消编辑并返回",
+                                tint = colorScheme.onSurface,
                             )
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = colorScheme.background,
-                    ),
-                )
-                HorizontalDivider(color = colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (editor.isNew) "新建日程" else "编辑日程",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (!editor.isNew) {
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = colorScheme.errorContainer,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .clickable(enabled = !editor.isSaving, onClick = onRequestDelete),
+                        ) {
+                            Text(
+                                text = "删除",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(color = extColors.glassHeaderBorder)
             }
         },
         bottomBar = {
             Surface(
-                color = extColors.cardSurface,
-                tonalElevation = 2.dp,
+                color = extColors.glassHeaderBackground,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onSave()
-                        },
-                        enabled = !editor.isSaving,
-                        shape = RoundedCornerShape(12.dp),
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(color = extColors.glassHeaderBorder)
+                    Row(
                         modifier = Modifier
-                            .widthIn(max = 688.dp)
                             .fillMaxWidth()
-                            .heightIn(min = 52.dp),
+                            .navigationBarsPadding()
+                            .imePadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
                     ) {
-                        Text(
-                            text = if (editor.isSaving) "正在保存…" else "保存到手机",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        Row(
+                            modifier = Modifier
+                                .widthIn(max = 688.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            OutlinedButton(
+                                onClick = onBack,
+                                enabled = !editor.isSaving,
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.heightIn(min = 52.dp),
+                            ) {
+                                Text("取消")
+                            }
+                            Button(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSave()
+                                },
+                                enabled = !editor.isSaving,
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 52.dp),
+                            ) {
+                                Text(
+                                    text = if (editor.isSaving) "正在保存…" else "保存到手机",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -204,67 +262,65 @@ fun EditorScreen(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = "待办内容 · 必填",
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurfaceVariant,
                     )
-                    OutlinedTextField(
-                        value = editor.summary,
-                        onValueChange = { value ->
-                            if (value.length <= 200) {
-                                onUpdate { it.copy(summary = value) }
-                            }
-                        },
-                        enabled = !editor.isSaving,
-                        placeholder = { Text("需要做什么？") },
-                        minLines = 2,
-                        maxLines = 4,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = extColors.cardSurface,
-                            unfocusedContainerColor = extColors.cardSurface,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    MistCard(cornerRadius = 16.dp, elevation = 4.dp) {
+                        OutlinedTextField(
+                            value = editor.summary,
+                            onValueChange = { value ->
+                                if (value.length <= 200) {
+                                    onUpdate { it.copy(summary = value) }
+                                }
+                            },
+                            enabled = !editor.isSaving,
+                            placeholder = { Text("需要做什么？") },
+                            minLines = 2,
+                            maxLines = 4,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedBorderColor = colorScheme.primary,
+                                unfocusedBorderColor = Color.Transparent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = "截止时间类型",
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurfaceVariant,
                     )
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        DeadlineKind.entries.forEachIndexed { index, kind ->
-                            SegmentedButton(
-                                selected = editor.deadlineKind == kind,
-                                onClick = {
-                                    if (!editor.isSaving) {
-                                        onUpdate { it.copy(deadlineKind = kind) }
-                                    }
-                                },
-                                enabled = !editor.isSaving,
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = DeadlineKind.entries.size,
-                                ),
-                            ) {
-                                Text(kind.label)
-                            }
-                        }
-                    }
+                    MagneticSegmentedControl(
+                        options = DeadlineKind.entries.map { it.label },
+                        selectedIndex = DeadlineKind.entries.indexOf(editor.deadlineKind).coerceAtLeast(0),
+                        enabled = !editor.isSaving,
+                        onSelect = { idx ->
+                            val chosen = DeadlineKind.entries.getOrNull(idx) ?: return@MagneticSegmentedControl
+                            onUpdate { it.copy(deadlineKind = chosen) }
+                        },
+                    )
                 }
 
-                if (editor.deadlineKind == DeadlineKind.DATE) {
+                AnimatedVisibility(
+                    visible = editor.deadlineKind == DeadlineKind.DATE,
+                    enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                    exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+                ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = "截止日期",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
+                            color = colorScheme.onSurfaceVariant,
                         )
                         PickerButtonField(
                             value = editor.deadlineDate.ifEmpty { "点击选择日期" },
@@ -275,12 +331,16 @@ fun EditorScreen(
                     }
                 }
 
-                if (editor.deadlineKind == DeadlineKind.DATETIME) {
+                AnimatedVisibility(
+                    visible = editor.deadlineKind == DeadlineKind.DATETIME,
+                    enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                    exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
+                ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = "截止时刻",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
+                            color = colorScheme.onSurfaceVariant,
                         )
                         PickerButtonField(
                             value = if (editor.deadlineDatetime.isEmpty()) {
@@ -299,35 +359,38 @@ fun EditorScreen(
                     Text(
                         text = "备注 · 选填",
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurfaceVariant,
                     )
-                    OutlinedTextField(
-                        value = editor.notes,
-                        onValueChange = { value ->
-                            if (value.length <= 10000) {
-                                onUpdate { it.copy(notes = value) }
-                            }
-                        },
-                        enabled = !editor.isSaving,
-                        placeholder = { Text("补充要求、安排或相关链接") },
-                        minLines = 3,
-                        maxLines = 8,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = extColors.cardSurface,
-                            unfocusedContainerColor = extColors.cardSurface,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    MistCard(cornerRadius = 16.dp, elevation = 4.dp) {
+                        OutlinedTextField(
+                            value = editor.notes,
+                            onValueChange = { value ->
+                                if (value.length <= 10000) {
+                                    onUpdate { it.copy(notes = value) }
+                                }
+                            },
+                            enabled = !editor.isSaving,
+                            placeholder = { Text("补充要求、安排或相关链接") },
+                            minLines = 3,
+                            maxLines = 8,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedBorderColor = colorScheme.primary,
+                                unfocusedBorderColor = Color.Transparent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = extColors.cardSurface,
-                    tonalElevation = 1.dp,
+                MistCard(
+                    cornerRadius = 18.dp,
+                    elevation = 4.dp,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -341,14 +404,16 @@ fun EditorScreen(
                                 modifier = Modifier.weight(1f),
                             )
                             Icon(
-                                imageVector = if (advancedExpanded) AgendumIcons.ExpandLess else AgendumIcons.ExpandMore,
+                                imageVector = AgendumIcons.ExpandMore,
                                 contentDescription = null,
+                                tint = colorScheme.onSurfaceVariant,
+                                modifier = Modifier.graphicsLayer { rotationZ = advChevronDeg },
                             )
                         }
                         AnimatedVisibility(
                             visible = advancedExpanded,
-                            enter = if (reducedMotion) EnterTransition.None else expandVertically(),
-                            exit = if (reducedMotion) ExitTransition.None else shrinkVertically(),
+                            enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                            exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
                         ) {
                             Column(
                                 modifier = Modifier.padding(top = 6.dp, bottom = 14.dp),
@@ -394,6 +459,7 @@ fun EditorScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .heightIn(min = 52.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .clickable(enabled = !editor.isSaving) {
                                             onUpdate { it.copy(pinned = !it.pinned) }
                                         },
@@ -436,7 +502,7 @@ fun EditorScreen(
                                     Text(
                                         text = "稍后提醒时刻",
                                         style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold,
+                                        color = colorScheme.onSurfaceVariant,
                                     )
                                     Row(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -487,13 +553,12 @@ fun EditorScreen(
                             editor.groups.joinToString("、").takeIf { it.isNotEmpty() },
                         ).joinToString("\n\n")
                     }
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = extColors.cardSurface,
-                        tonalElevation = 1.dp,
+                    MistCard(
+                        cornerRadius = 18.dp,
+                        elevation = 4.dp,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -507,14 +572,16 @@ fun EditorScreen(
                                     modifier = Modifier.weight(1f),
                                 )
                                 Icon(
-                                    imageVector = if (sourceExpanded) AgendumIcons.ExpandLess else AgendumIcons.ExpandMore,
+                                    imageVector = AgendumIcons.ExpandMore,
                                     contentDescription = null,
+                                    tint = colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.graphicsLayer { rotationZ = srcChevronDeg },
                                 )
                             }
                             AnimatedVisibility(
                                 visible = sourceExpanded,
-                                enter = if (reducedMotion) EnterTransition.None else expandVertically(),
-                                exit = if (reducedMotion) ExitTransition.None else shrinkVertically(),
+                                enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                                exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
                             ) {
                                 SelectionContainer {
                                     Text(
@@ -530,11 +597,18 @@ fun EditorScreen(
                 }
 
                 if (editor.errorMessage.isNotEmpty()) {
-                    Text(
-                        text = editor.errorMessage,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.error,
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = editor.errorMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        )
+                    }
                 }
 
                 if (!editor.isNew) {
@@ -543,7 +617,7 @@ fun EditorScreen(
                         enabled = !editor.isSaving,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 52.dp),
+                            .heightIn(min = 48.dp),
                     ) {
                         Text("删除这条日程", color = colorScheme.error)
                     }
@@ -676,24 +750,26 @@ private fun PickerButtonField(
     onClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val extColors = LocalAgendumColors.current
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
+    MistCard(
+        cornerRadius = 15.dp,
+        elevation = 4.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 52.dp),
+            .clip(RoundedCornerShape(15.dp))
+            .clickable(enabled = enabled, onClick = onClick),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = value,
                 color = if (isPlaceholder) colorScheme.onSurfaceVariant else colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.tabularNums(),
             )
             Icon(
                 imageVector = AgendumIcons.Calendar,
@@ -716,11 +792,12 @@ private fun EditorDropdownField(
     menuItems: @Composable () -> Unit,
 ) {
     val extColors = LocalAgendumColors.current
+    val colorScheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
+            color = colorScheme.onSurfaceVariant,
         )
         ExposedDropdownMenuBox(
             expanded = expanded && enabled,
@@ -733,10 +810,12 @@ private fun EditorDropdownField(
                 enabled = enabled,
                 singleLine = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = extColors.cardSurface,
-                    unfocusedContainerColor = extColors.cardSurface,
+                    focusedContainerColor = extColors.subtleSurface,
+                    unfocusedContainerColor = extColors.subtleSurface,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = colorScheme.primary,
                 ),
                 modifier = Modifier
                     .menuAnchor(MenuAnchorType.PrimaryNotEditable)

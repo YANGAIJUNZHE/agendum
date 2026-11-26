@@ -54,6 +54,15 @@ object AgendumIcons {
         }
     }
 
+    val Sort: ImageVector by lazy {
+        strokeIcon("Sort") {
+            moveTo(8f, 5f); lineTo(8f, 19f)
+            moveTo(5f, 8f); lineTo(8f, 5f); lineTo(11f, 8f)
+            moveTo(16f, 19f); lineTo(16f, 5f)
+            moveTo(13f, 16f); lineTo(16f, 19f); lineTo(19f, 16f)
+        }
+    }
+
     val Back: ImageVector by lazy {
         strokeIcon("Back") {
             moveTo(15f, 5f); lineTo(8f, 12f); lineTo(15f, 19f)

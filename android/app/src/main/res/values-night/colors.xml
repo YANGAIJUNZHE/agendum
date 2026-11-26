@@ -1,9 +1,9 @@
 <resources>
-    <color name="primary">#9BD3AE</color>
-    <color name="surface">#1D221F</color>
-    <color name="card">#242C26</color>
-    <color name="ink">#E0E7E1</color>
-    <color name="muted">#A9B8AE</color>
-    <color name="warning">#DFC28C</color>
-    <color name="on_primary">#173523</color>
+    <color name="primary">#4AD8A2</color>
+    <color name="surface">#0D1614</color>
+    <color name="card">#15221E</color>
+    <color name="ink">#E6F4EE</color>
+    <color name="muted">#96B2A7</color>
+    <color name="warning">#F4C16C</color>
+    <color name="on_primary">#06261B</color>
 </resources>

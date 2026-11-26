@@ -3,10 +3,19 @@ package com.agendum.app.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,8 +63,10 @@ import com.agendum.app.ui.AgendumUiState
 import com.agendum.app.ui.ClientPage
 import com.agendum.app.ui.UnpairDialogState
 import com.agendum.app.ui.components.AgendumIcons
+import com.agendum.app.ui.components.MistCard
 import com.agendum.app.ui.theme.LocalAgendumColors
 import com.agendum.app.ui.theme.LocalReducedMotion
+import com.agendum.app.ui.theme.tabularNums
 
 @Composable
 fun AccountScreen(
@@ -89,30 +102,61 @@ fun AccountScreen(
         else -> "立即同步"
     }
 
+    val heroIconBg = when {
+        snap.conflicts.isNotEmpty() -> colorScheme.errorContainer
+        !snap.connected || snap.error.isNotEmpty() || snap.pending > 0 -> extColors.warningContainer
+        else -> colorScheme.primaryContainer
+    }
+    val heroIconTint = when {
+        snap.conflicts.isNotEmpty() -> colorScheme.error
+        !snap.connected || snap.error.isNotEmpty() || snap.pending > 0 -> extColors.warning
+        else -> colorScheme.primary
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp),
+            .padding(top = 4.dp, bottom = 124.dp),
     ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = colorScheme.primaryContainer.copy(alpha = 0.7f),
+        MistCard(
+            cornerRadius = 20.dp,
+            elevation = 6.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = stateTitle,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = colorScheme.onSurface,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(heroIconBg),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = AgendumIcons.Sync,
+                            contentDescription = null,
+                            tint = heroIconTint,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Text(
+                        text = stateTitle,
+                        style = MaterialTheme.typography.titleLarge.tabularNums(),
+                        color = colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = stateNote,
                     style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurfaceVariant,
                 )
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = {
                         when {
@@ -122,7 +166,7 @@ fun AccountScreen(
                         }
                     },
                     enabled = snap.serverId.isEmpty() || snap.conflicts.isNotEmpty() || !uiState.isSyncing,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp),
@@ -132,12 +176,11 @@ fun AccountScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = extColors.cardSurface,
-            tonalElevation = 1.dp,
+        MistCard(
+            cornerRadius = 18.dp,
+            elevation = 6.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -148,7 +191,7 @@ fun AccountScreen(
                     badgeCount = snap.conflicts.size,
                     onClick = { onNavigate(ClientPage.SYNC) },
                 )
-                HorizontalDivider(color = colorScheme.outlineVariant.copy(alpha = 0.6f))
+                HorizontalDivider(color = colorScheme.outlineVariant.copy(alpha = 0.7f))
                 AccountMenuRow(
                     title = "电脑连接",
                     subtitle = snap.base.ifEmpty { "查看地址或扫码连接电脑" },
@@ -158,12 +201,11 @@ fun AccountScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = extColors.cardSurface,
-            tonalElevation = 1.dp,
+        MistCard(
+            cornerRadius = 18.dp,
+            elevation = 6.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -181,6 +223,7 @@ fun AccountScreen(
             text = "编辑先保存到手机，电脑可连接时再同步。提醒由电脑发送，电脑关机时不会产生新提醒。",
             style = MaterialTheme.typography.bodySmall,
             color = colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
     }
 }
@@ -196,7 +239,7 @@ private fun AccountMenuRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 76.dp)
+            .heightIn(min = 74.dp)
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -246,18 +289,23 @@ fun SyncConflictsScreen(
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val extColors = LocalAgendumColors.current
     val reducedMotion = LocalReducedMotion.current
     val snap = uiState.snapshot
     var showRawError by remember { mutableStateOf(false) }
     var deleteConfirmConflict by remember { mutableStateOf<ConflictItem?>(null) }
     var discardConfirmConflict by remember { mutableStateOf<ConflictItem?>(null) }
 
+    val errChevronDeg by animateFloatAsState(
+        targetValue = if (showRawError) 180f else 0f,
+        animationSpec = if (reducedMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 420f),
+        label = "errChevron",
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp),
+            .padding(bottom = 124.dp),
     ) {
         TextButton(
             onClick = onBack,
@@ -272,11 +320,10 @@ fun SyncConflictsScreen(
             color = colorScheme.onSurface,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = extColors.cardSurface,
-            tonalElevation = 1.dp,
+        Spacer(modifier = Modifier.height(14.dp))
+        MistCard(
+            cornerRadius = 18.dp,
+            elevation = 6.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -300,12 +347,12 @@ fun SyncConflictsScreen(
                 color = colorScheme.error,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = extColors.cardSurface,
+            MistCard(
+                cornerRadius = 16.dp,
+                elevation = 4.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -320,14 +367,15 @@ fun SyncConflictsScreen(
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
-                            imageVector = if (showRawError) AgendumIcons.ExpandLess else AgendumIcons.ExpandMore,
+                            imageVector = AgendumIcons.ExpandMore,
                             contentDescription = null,
+                            modifier = Modifier.graphicsLayer { rotationZ = errChevronDeg },
                         )
                     }
                     AnimatedVisibility(
                         visible = showRawError,
-                        enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.expandVertically(),
-                        exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.shrinkVertically(),
+                        enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                        exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
                     ) {
                         SelectionContainer {
                             Text(
@@ -352,21 +400,21 @@ fun SyncConflictsScreen(
             Button(
                 onClick = onRequestSync,
                 enabled = !uiState.isSyncing,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.heightIn(min = 48.dp),
             ) {
                 Text("立即同步")
             }
             OutlinedButton(
                 onClick = onExportPending,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.heightIn(min = 48.dp),
             ) {
                 Text("导出未同步编辑")
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(22.dp))
         Text(
             text = "需要处理的冲突",
             style = MaterialTheme.typography.titleMedium,
@@ -399,7 +447,7 @@ fun SyncConflictsScreen(
                     onSaveCopy = { onResolveConflict(conflict, true) },
                     onDiscard = { discardConfirmConflict = conflict },
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
             }
         }
     }
@@ -457,7 +505,6 @@ private fun ConflictCard(
     onDiscard: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val extColors = LocalAgendumColors.current
     val current = conflict.current
     val serverAvailable = current != null && !current.deleted
 
@@ -469,10 +516,9 @@ private fun ConflictCard(
         }
     }
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = extColors.cardSurface,
-        tonalElevation = 1.dp,
+    MistCard(
+        cornerRadius = 18.dp,
+        elevation = 6.dp,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -521,7 +567,7 @@ private fun ConflictCard(
                     Button(
                         onClick = onPrimaryResolve,
                         enabled = !isInFlight,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) {
                         Text(if (conflict.type == "delete") "确认删除当前版本" else "按选择合并提交")
@@ -531,7 +577,7 @@ private fun ConflictCard(
                     OutlinedButton(
                         onClick = onSaveCopy,
                         enabled = !isInFlight,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) {
                         Text("另存为新日程")
@@ -540,7 +586,7 @@ private fun ConflictCard(
                 OutlinedButton(
                     onClick = onDiscard,
                     enabled = !isInFlight,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.error),
                     modifier = Modifier.heightIn(min = 48.dp),
                 ) {
@@ -558,16 +604,14 @@ private fun ConflictOptionRow(
     onSelect: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val extColors = LocalAgendumColors.current
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) colorScheme.primary else colorScheme.outlineVariant,
-        ),
-        color = if (selected) colorScheme.primaryContainer.copy(alpha = 0.25f) else colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        border = if (selected) BorderStroke(1.5.dp, colorScheme.primary) else null,
+        color = if (selected) colorScheme.primaryContainer else extColors.subtleSurface,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onSelect),
     ) {
         Row(
@@ -585,7 +629,7 @@ private fun ConflictOptionRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.onSurface,
+                color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurface,
             )
         }
     }
@@ -599,16 +643,21 @@ fun ConnectionScreen(
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val extColors = LocalAgendumColors.current
     val reducedMotion = LocalReducedMotion.current
     val snap = uiState.snapshot
     var showDetails by remember { mutableStateOf(false) }
+
+    val detChevronDeg by animateFloatAsState(
+        targetValue = if (showDetails) 180f else 0f,
+        animationSpec = if (reducedMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 420f),
+        label = "connChevron",
+    )
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp),
+            .padding(bottom = 124.dp),
     ) {
         TextButton(
             onClick = onBack,
@@ -623,11 +672,10 @@ fun ConnectionScreen(
             color = colorScheme.onSurface,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = extColors.cardSurface,
-            tonalElevation = 1.dp,
+        Spacer(modifier = Modifier.height(14.dp))
+        MistCard(
+            cornerRadius = 18.dp,
+            elevation = 6.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -642,19 +690,19 @@ fun ConnectionScreen(
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onReconnect,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             modifier = Modifier.heightIn(min = 48.dp),
         ) {
             Text("重新配对或更换电脑")
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = extColors.cardSurface,
+        Spacer(modifier = Modifier.height(18.dp))
+        MistCard(
+            cornerRadius = 16.dp,
+            elevation = 4.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -669,14 +717,15 @@ fun ConnectionScreen(
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
-                        imageVector = if (showDetails) AgendumIcons.ExpandLess else AgendumIcons.ExpandMore,
+                        imageVector = AgendumIcons.ExpandMore,
                         contentDescription = null,
+                        modifier = Modifier.graphicsLayer { rotationZ = detChevronDeg },
                     )
                 }
                 AnimatedVisibility(
                     visible = showDetails,
-                    enter = if (reducedMotion) EnterTransition.None else androidx.compose.animation.expandVertically(),
-                    exit = if (reducedMotion) ExitTransition.None else androidx.compose.animation.shrinkVertically(),
+                    enter = if (reducedMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                    exit = if (reducedMotion) ExitTransition.None else fadeOut() + shrinkVertically(),
                 ) {
                     Column(modifier = Modifier.padding(bottom = 12.dp)) {
                         KeyValueRow(
@@ -709,7 +758,7 @@ private fun KeyValueRow(label: String, value: String) {
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.tabularNums(),
             color = colorScheme.onSurface,
         )
     }
